@@ -18,8 +18,8 @@ float FollowerScore::getPitchSimilar(float currentFreq, float stateFreq) {
 // ==============================================
 float FollowerScore::getEnvSimilar(float currentEnv, float stateEnv) {
     // Calculate similarity based on environmental conditions
-    // You may need to define your specific method for comparing environmental conditions
-    // This is just a placeholder
+    // You may need to define your specific method for comparing environmental
+    // conditions This is just a placeholder
     if (currentEnv > stateEnv) {
         return 1.0; // High similarity
     } else if (currentEnv == stateEnv) {
@@ -30,26 +30,20 @@ float FollowerScore::getEnvSimilar(float currentEnv, float stateEnv) {
 }
 
 // ==============================================
-float FollowerScore::calculateSimilarity(float currentFreq, float stateFreq, float currentEnv,
-                                         float stateDur) {
+float FollowerScore::calculateSimilarity(float currentFreq, float stateFreq) {
 
     // WARNING:
     float freqWeight = 0.5; // Weight for pitch similarity
-    float envWeight = 0.2;  // Weight for environmental similarity
-
-    // Calculate similarities for each factor
     float freqSimilarity = getPitchSimilar(currentFreq, stateFreq);
-    // float envSimilarity = getPitchSimilar(currentEnv, stateDur);
 
     float similarity = freqWeight * freqSimilarity;
-    // NOTE: A qualidade sempre é a mesma para todos os eventos analisados
-
     return similarity;
 }
 
 // ==============================================
 int FollowerScore::GetEvent(EnvironmentState envState) {
     int eventId;
+    float similarity;
 
     // received pitch
     float MIRPitch = envState.pitch;
@@ -65,8 +59,8 @@ int FollowerScore::GetEvent(EnvironmentState envState) {
             return -1;
         }
 
-        // Calculate the probability based on pitch similarity with the first few states in the
-        // MDP
+        // Calculate the probability based on pitch similarity with the first few
+        // states in the MDP
         float maxProb = 0.0;
         float firstEventPitch = midi2freq(MDP.states[0].pitch);
         for (int i = 0; i < MDPSize && i < 5; i++) {
@@ -75,8 +69,9 @@ int FollowerScore::GetEvent(EnvironmentState envState) {
             float stateDur = state.duration;
 
             // Calculate similarity between current state and state in MDP
-            // You may define a function to calculate similarity based on pitch, duration, etc.
-            float similarity = calculateSimilarity(MIRFreq, stateFreq, MIREnv, stateDur);
+            // You may define a function to calculate similarity based on pitch,
+            // duration, etc.
+            float similarity = calculateSimilarity(MIRFreq, stateFreq);
 
             // Update max probability
             if (similarity > maxProb) {
@@ -103,7 +98,7 @@ int FollowerScore::GetEvent(EnvironmentState envState) {
             State state = MDP.states[i];
             float stateFreq = midi2freq(state.pitch);
             float stateDur = state.duration;
-            float similarity = calculateSimilarity(MIRFreq, stateFreq, MIREnv, stateDur);
+            similarity = calculateSimilarity(MIRFreq, stateFreq);
             if (similarity > maxProb) {
                 maxProb = similarity;
                 eventId = i;
@@ -112,8 +107,6 @@ int FollowerScore::GetEvent(EnvironmentState envState) {
                     float duration = state.duration;
                     float bpm = MDP.bpm[curEventId];
                     float durMs = 60000.0f / bpm * duration;
-
-                    post("last event durou %f deveria ter durado %f", elapsedTime, durMs);
                 }
                 curEventId = eventId;
             }

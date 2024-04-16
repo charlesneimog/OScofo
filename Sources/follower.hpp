@@ -32,8 +32,13 @@ class FollowerScore {
     float midi2freq(float note);
     float freq2midi(float freq);
 
+    // audio variables
+
+    // descriptors
+    std::vector<float> getPitch(t_sample *in);
+
   public:
-    void Parse(const char *score);
+    void Parse(const char *score); // score
     int AddNote(std::vector<std::string> tokens, float bpm, int lineCount);
     void DefineTransitions();
     int GetEvent(EnvironmentState envState);
@@ -41,7 +46,7 @@ class FollowerScore {
 
     float getPitchSimilar(float currentFreq, float stateFreq);
     float getEnvSimilar(float currentEnv, float stateEnv);
-    float calculateSimilarity(float currentFreq, float stateFreq, float currentEnv, float stateDur);
+    float calculateSimilarity(float currentFreq, float stateFreq);
 
     MarkovDecisionProcess MDP;
     State *currentState;
@@ -52,11 +57,14 @@ class FollowerScore {
     bool amILost = false;
     int lastGoodEventId = 0;
     float elapsedTime = 0.0f;
+    float Sr;
+    float BlockSize;
 };
 
 class Follower {
   public:
     t_object xObj;
+    t_sample Sample;
 
     FollowerScore *Score;
     t_clock *Clock;
@@ -66,7 +74,6 @@ class Follower {
     float envValue;
 
     int Event;
-    float Sr;
     t_symbol *patchDir;
 
     bool scoreLoaded = false;

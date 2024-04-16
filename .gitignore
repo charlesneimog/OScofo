@@ -32,3 +32,6 @@
 *.app
 build
 follower.l_amd64
+.cache/clangd/index
+compile_commands.json
+follower~.l_amd64
