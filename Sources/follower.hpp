@@ -26,9 +26,9 @@ class FollowerMIR {
         float Midi;
         float Quality;
         float dB;
+        float TimeElapsed;
     };
-    void GetDescription(std::vector<float> *in, Description *Desc,
-                        float Tunning);
+    void GetDescription(std::vector<float> *in, Description *Desc, float Tunning);
     void GetMidi(float tunning);
 
     // Time
@@ -36,7 +36,7 @@ class FollowerMIR {
     void UpdateTempoInEvent();
     float GetEventTimeElapsed();
     float GetTempoInEvent();
-    float EventTimeElapsed = 0.0;
+    float EventTimeElapsed = 0.0; // ms
 
   private:
     // Pitch
@@ -61,7 +61,8 @@ class FollowerMDP {
   public:
     FollowerMDP();
     void SetMinQualityForNote(float minQuality);
-    float MinQualityForNote = 0.9;
+    float GetLiveBpm();
+    void SetLiveBpm(float Bpm);
 
     // Score States
     struct State {
@@ -73,18 +74,6 @@ class FollowerMDP {
         float Duration;
         float Bpm;
     };
-    struct MDP {
-        float LiveBpm;
-        float ElapsedTime;
-
-        float CurMidi;
-        float CurDur;
-        int CurId;
-
-        float NextMidi;
-        float NextDur;
-        int NextId;
-    };
 
     int GetEvent(std::vector<float> *in, FollowerMIR *MIR);
     float Tunning = 440;
@@ -92,17 +81,15 @@ class FollowerMDP {
     std::vector<State> States;
 
   private:
-    float CalculateSimilarity(MDP MDP);
-    float GetPitchSimilar(MDP MDP);
-    float GetTimeSimilar(MDP MDP);
-    float GetBestEvent(std::vector<State> States,
-                       FollowerMIR::Description *Desc);
-    float CalculateSimilarity(State NextPossibleState,
-                              FollowerMIR::Description *Desc);
+    float GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc);
+    float GetSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
+    float GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
+    float GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
 
     FollowerMIR::Description *Desc;
     std::vector<float> BpmHistory;
     float LiveBpm;
+    float MinQualityForNote = 0.9;
 };
 
 // ╭─────────────────────────────────────╮
@@ -121,8 +108,7 @@ class FollowerScore {
     void Parse(FollowerMDP *MDP, const char *score);
 
   private:
-    FollowerMDP::State AddNote(FollowerMDP::State State,
-                               std::vector<std::string> tokens, float bpm,
+    FollowerMDP::State AddNote(FollowerMDP::State State, std::vector<std::string> tokens, float bpm,
                                int lineCount);
 
     float FollowBpm(std::vector<std::string> tokens, int lineCount);

@@ -26,8 +26,7 @@ bool FollowerMIR::CreateYin(float tolerance, float silence) {
 }
 
 // ─────────────────────────────────────
-void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc,
-                         float Tunning) {
+void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc, float Tunning) {
     if (YinInstance == nullptr) {
         Desc->Freq = 0;
         Desc->Quality = 0;
@@ -67,10 +66,24 @@ void FollowerMIR::GetRMS(std::vector<float> *in, Description *Desc) {
 }
 
 // ╭─────────────────────────────────────╮
+// │                Time                 │
+// ╰─────────────────────────────────────╯
+void FollowerMIR::ResetElapsedTime() {
+    EventTimeElapsed = 0;
+}
+
+void FollowerMIR::UpdateTempoInEvent() {
+    EventTimeElapsed += 1000 / Sr * HopSize;
+}
+
+float FollowerMIR::GetEventTimeElapsed() {
+    return EventTimeElapsed;
+};
+
+// ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc,
-                                 float Tunning) {
+void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, float Tunning) {
     GetRMS(in, Desc);
     GetYin(in, Desc, Tunning);
 }

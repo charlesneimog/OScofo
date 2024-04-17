@@ -13,7 +13,6 @@ static void SetEvent(Follower *x, t_floatarg f) {
 
 // ─────────────────────────────────────
 static void Start(Follower *x) {
-    post("[follower~] Following!");
     x->CurrentEvent = -1;
     x->MDP->CurrentEvent = -1;
     outlet_float(x->EventIndex, 0);
@@ -46,6 +45,7 @@ static void Score(Follower *x, t_symbol *s) {
         return;
     }
     x->Score->Parse(x->MDP, completePath.c_str());
+    x->MDP->GetLiveBpm();
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
 }
@@ -53,6 +53,7 @@ static void Score(Follower *x, t_symbol *s) {
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
     outlet_float(x->EventIndex, x->Event);
+    outlet_float(x->Tempo, x->MDP->GetLiveBpm());
 }
 
 // ─────────────────────────────────────
@@ -61,8 +62,7 @@ static t_int *DspPerform(t_int *w) {
     float *in = (t_sample *)(w[2]);
     float n = (float)(w[3]);
 
-    std::rotate(x->inBuffer->begin(), x->inBuffer->begin() + n,
-                x->inBuffer->end());
+    std::rotate(x->inBuffer->begin(), x->inBuffer->begin() + n, x->inBuffer->end());
     for (int i = 0; i < n; i++) {
         x->inBuffer->at(x->WindowSize - n + i) = in[i];
     }
@@ -129,24 +129,19 @@ static void *FreeFollower(Follower *x) {
 
 // ─────────────────────────────────────
 extern "C" void follower_tilde_setup(void) {
-    FollowerObj = class_new(gensym("follower~"), (t_newmethod)NewFollower,
-                            (t_method)FreeFollower, sizeof(Follower),
-                            CLASS_DEFAULT, A_GIMME, 0);
+    FollowerObj = class_new(gensym("follower~"), (t_newmethod)NewFollower, (t_method)FreeFollower,
+                            sizeof(Follower), CLASS_DEFAULT, A_GIMME, 0);
 
     CLASS_MAINSIGNALIN(FollowerObj, Follower, Sample);
     class_addmethod(FollowerObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
 
-    class_addmethod(FollowerObj, (t_method)SetEvent, gensym("event"), A_FLOAT,
-                    0);
+    class_addmethod(FollowerObj, (t_method)SetEvent, gensym("event"), A_FLOAT, 0);
 
     class_addmethod(FollowerObj, (t_method)Score, gensym("score"), A_SYMBOL, 0);
-    class_addmethod(FollowerObj, (t_method)Follow, gensym("follow"), A_FLOAT,
-                    0);
+    class_addmethod(FollowerObj, (t_method)Follow, gensym("follow"), A_FLOAT, 0);
     class_addmethod(FollowerObj, (t_method)Start, gensym("start"), A_NULL, 0);
 
     // config
-    class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT,
-                    0);
-    class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"),
-                    A_FLOAT, 0);
+    class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT, 0);
+    class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"), A_FLOAT, 0);
 }

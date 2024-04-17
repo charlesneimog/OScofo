@@ -5,8 +5,7 @@
 #include <sstream>
 
 // ==============================================
-FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State,
-                                          std::vector<std::string> tokens,
+FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<std::string> tokens,
                                           float bpm, int lineCount) {
     if (bpm == -1) {
         pd_error(NULL, "BPM not defined");
@@ -44,9 +43,10 @@ FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State,
         float denominator = std::stof(ratioTokens[1]);
         State.Duration = numerator / denominator;
     } else {
-        State.Duration = std::stoi(tokens[2]);
+        State.Duration = std::stof(tokens[2]);
     }
 
+    State.Bpm = bpm;
     State.Valid = true;
     return State;
 }
@@ -80,6 +80,10 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         if (tokens[0] == "NOTE") {
             FollowerMDP::State State;
             State.Type = NOTE;
+            State.Id = MDP->States.size();
+            if (State.Id == 0) {
+                MDP->SetLiveBpm(bpm);
+            }
             State = AddNote(State, tokens, bpm, lineCount);
             if (!State.Valid) {
                 pd_error(NULL, "Error adding note on line %d", lineCount);
