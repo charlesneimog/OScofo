@@ -2,107 +2,87 @@
 #include <algorithm>
 #include <math.h>
 
-#define MAX_FREQUENCY_DIFFERENCE 40.0 //
+#define MAX_FREQUENCY_DIFFERENCE 40.0
 #define MAX_QUALITY_DIFFERENCE 0.5
 
+// ─────────────────────────────────────
+FollowerMDP::FollowerMDP() {
+    Desc = new FollowerMIR::Description();
+    BpmHistory.assign(20, 1);
+}
+
+// ─────────────────────────────────────
 void FollowerMDP::SetMinQualityForNote(float minQuality) {
     MinQualityForNote = minQuality;
 }
 
-// ==============================================
-float FollowerMDP::GetPitchSimilar(float currentFreq, float stateFreq) {
-    float distance = abs(currentFreq - stateFreq);
-    float similarity = distance / MAX_FREQUENCY_DIFFERENCE;
-    if (similarity > 1.0) {
+// ╭─────────────────────────────────────╮
+// │     Markov Description Process      │
+// ╰─────────────────────────────────────╯
+float FollowerMDP::CalculateSimilarity(State NextPossibleState,
+                                       FollowerMIR::Description *Desc) {
+
+    // Pitch
+    float NextMidi = NextPossibleState.Midi;
+    float DescMidi = Desc->Midi;
+    float NextFreq = Follower_midi2f(NextMidi, Tunning);
+    float DescFreq = Desc->Freq;
+    float Distance = abs(DescFreq - NextFreq);
+    float Similarity = Distance / MAX_FREQUENCY_DIFFERENCE;
+    if (Similarity > 1.0) {
         return 0;
     }
-    similarity = 1.0 - (distance / MAX_FREQUENCY_DIFFERENCE);
-    return similarity;
+    Similarity = 1.0 - (Distance / MAX_FREQUENCY_DIFFERENCE);
+    return Similarity;
 }
 
-// ==============================================
-float FollowerMDP::CalculateSimilarity(float currentFreq, float stateFreq) {
-    // WARNING:
-    float freqWeight = 0.5; // Weight for pitch similarity
-    float freqSimilarity = GetPitchSimilar(currentFreq, stateFreq);
-    float similarity = freqSimilarity;
-    return similarity;
+// ─────────────────────────────────────
+float FollowerMDP::GetBestEvent(std::vector<State> States,
+                                FollowerMIR::Description *Desc) {
+
+    State CurState = States[CurrentEvent];
+
+    float MaxSimilarity = -1;
+    for (int i = CurrentEvent; i < (CurrentEvent + 3); i++) {
+        if (i >= States.size() || i < 0) {
+            continue;
+        }
+        State NextPossibleState = States[i];
+        float Similarity = CalculateSimilarity(NextPossibleState, Desc);
+        if (Similarity > MaxSimilarity) {
+            post("Similarity: %f | event: %d", Similarity, i);
+            MaxSimilarity = Similarity;
+            CurrentEvent = i;
+        }
+    }
+
+    return CurrentEvent;
 }
 
-// ==============================================
-int FollowerMDP::GetEvent(FollowerMIR::Description *Desc) {
-    int eventId;
-    float similarity;
+// ─────────────────────────────────────
+int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
+    // CurrentEvent represents the current event index.
+    // In line with human understanding, the first note in the score
+    // is indexed as 1 instead of 0. This adjustment is made in DspPerform.
 
-    // // received pitch
-    float MIRFreq = Desc->Freq;
+    int EventId = CurrentEvent;
+    float maxProb = -1;
+    float Similarity;
 
-    pd_float(gensym("freq")->s_thing, MIRFreq);
-    pd_float(gensym("quality")->s_thing, Desc->Quality);
+    // MDP States
+    State CurState = States[CurrentEvent];
 
-    float MIRPitch = Follower_f2midi(MIRFreq, Tunning);
-    int MDPSize = States.size();
-    if (MDPSize == 0) {
-        pd_error(NULL, "No states, check your score");
-        return -1;
+    // Sound Description
+    MIR->GetDescription(in, Desc, Tunning);
+
+    if (Desc->dB < -40) {
+        return CurrentEvent;
     }
 
-    if (Desc->dB < -70) {
-        return CurrentEvent + 1;
-    }
-
-    if (CurrentEvent == -1) { // First event
-        if (States[0].type == FollowerScore::NOTE) {
-            if (Desc->Quality < MinQualityForNote) {
-                return CurrentEvent + 1;
-            }
-        }
-        float maxProb = 0.0;
-        for (int i = 0; i < MDPSize && i < 5; i++) {
-            State State = States[i];
-            float StateFreq = Follower_midi2f(State.pitch, Tunning);
-            float Similarity = CalculateSimilarity(MIRFreq, StateFreq);
-            if (Similarity > maxProb) {
-                maxProb = similarity;
-                eventId = i;
-                CurrentEvent = eventId;
-            }
-        }
-
-    } else {
-        if (States[0].type == FollowerScore::NOTE) {
-            if (Desc->Quality < MinQualityForNote) {
-                // TODO: must be defined by the user
-                return CurrentEvent + 1;
-            }
-        }
-        float maxProb = 0.0;
-        std::vector<float> pitchesChecked;
-        for (int i = CurrentEvent; i < CurrentEvent + 5; i++) {
-            if (pitchesChecked.size() != 0) {
-                if (std::find(pitchesChecked.begin(), pitchesChecked.end(),
-                              States[i].pitch) != pitchesChecked.end()) {
-                    break;
-                }
-            }
-
-            pitchesChecked.push_back(States[i].pitch);
-            State state = States[i];
-            float stateFreq = Follower_midi2f(state.pitch, Tunning);
-            float stateDur = state.duration;
-            similarity = CalculateSimilarity(MIRFreq, stateFreq);
-            if (similarity > maxProb) {
-                maxProb = similarity;
-                eventId = i;
-                if (CurrentEvent != eventId) {
-                    state = States[CurrentEvent];
-                    float duration = state.duration;
-                    // float bpm = bpm[curEventId];
-                    // float durMs = 60000.0f / bpm * duration;
-                }
-                CurrentEvent = eventId;
-            }
+    if (States[0].Type == FollowerScore::NOTE) {
+        if (Desc->Quality < MinQualityForNote) {
+            return CurrentEvent;
         }
     }
-    return CurrentEvent + 1;
+    return GetBestEvent(States, Desc);
 }

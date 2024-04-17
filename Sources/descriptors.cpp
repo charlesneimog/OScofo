@@ -26,7 +26,8 @@ bool FollowerMIR::CreateYin(float tolerance, float silence) {
 }
 
 // ─────────────────────────────────────
-void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc) {
+void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc,
+                         float Tunning) {
     if (YinInstance == nullptr) {
         Desc->Freq = 0;
         Desc->Quality = 0;
@@ -42,14 +43,16 @@ void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc) {
     freq = fvec_get_sample(pitch, 0);
     quality = aubio_pitch_get_confidence(YinInstance);
     Desc->Freq = freq;
+    Desc->Midi = Follower_f2midi(freq, Tunning);
     Desc->Quality = quality;
+
     return;
 }
 
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetEnv(std::vector<float> *in, Description *Desc) {
+void FollowerMIR::GetRMS(std::vector<float> *in, Description *Desc) {
     double sumOfSquares = 0.0;
     for (float sample : *in) {
         sumOfSquares += sample * sample;
@@ -66,7 +69,8 @@ void FollowerMIR::GetEnv(std::vector<float> *in, Description *Desc) {
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc) {
-    GetYin(in, Desc);
-    GetEnv(in, Desc);
+void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc,
+                                 float Tunning) {
+    GetRMS(in, Desc);
+    GetYin(in, Desc, Tunning);
 }

@@ -76,8 +76,7 @@ static t_int *DspPerform(t_int *w) {
     }
 
     x->BlockIndex = 0;
-    x->MIR->GetDescription(x->inBuffer, x->Desc);
-    int Event = x->MDP->GetEvent(x->Desc);
+    int Event = x->MDP->GetEvent(x->inBuffer, x->MIR) + 1;
     if (Event == -1) {
         return (w + 4);
     }
@@ -116,7 +115,6 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Score = new FollowerScore();
     x->MDP = new FollowerMDP();
     x->MIR = new FollowerMIR(x->HopSize, x->WindowSize, x->Sr);
-    x->Desc = new FollowerMIR::Description();
 
     return x;
 }
@@ -126,7 +124,6 @@ static void *FreeFollower(Follower *x) {
     delete x->Score;
     delete x->MIR;
     delete x->MDP;
-    delete x->Desc;
     return nullptr;
 }
 

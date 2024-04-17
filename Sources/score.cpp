@@ -5,9 +5,9 @@
 #include <sstream>
 
 // ==============================================
-FollowerMDP::State *FollowerScore::AddNote(FollowerMDP::State *State,
-                                           std::vector<std::string> tokens,
-                                           float bpm, int lineCount) {
+FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State,
+                                          std::vector<std::string> tokens,
+                                          float bpm, int lineCount) {
     if (bpm == -1) {
         pd_error(NULL, "BPM not defined");
         return State;
@@ -21,11 +21,11 @@ FollowerMDP::State *FollowerScore::AddNote(FollowerMDP::State *State,
     if (!std::isdigit(tokens[1][0])) {
         std::string noteName = tokens[1];
         int midi = Follower_NoteName2Midi(noteName);
-        State->pitch = midi;
+        State.Midi = midi;
     } else {
-        State->pitch = std::stof(tokens[1]);
-        if (State->pitch > 127) {
-            State->pitch = State->pitch * 0.01;
+        State.Midi = std::stof(tokens[1]);
+        if (State.Midi > 127) {
+            State.Midi = State.Midi * 0.01;
         }
     }
 
@@ -42,12 +42,12 @@ FollowerMDP::State *FollowerScore::AddNote(FollowerMDP::State *State,
         }
         float numerator = std::stof(ratioTokens[0]);
         float denominator = std::stof(ratioTokens[1]);
-        State->duration = numerator / denominator;
+        State.Duration = numerator / denominator;
     } else {
-        State->duration = std::stoi(tokens[2]);
+        State.Duration = std::stoi(tokens[2]);
     }
 
-    State->valid = true;
+    State.Valid = true;
     return State;
 }
 
@@ -78,10 +78,10 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         }
 
         if (tokens[0] == "NOTE") {
-            FollowerMDP::State *State = new FollowerMDP::State();
-            State->type = NOTE;
+            FollowerMDP::State State;
+            State.Type = NOTE;
             State = AddNote(State, tokens, bpm, lineCount);
-            if (!State->valid) {
+            if (!State.Valid) {
                 pd_error(NULL, "Error adding note on line %d", lineCount);
                 return;
             }
@@ -89,12 +89,11 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
-            MDP->States.push_back(*State);
+            MDP->States.push_back(State);
 
         } else if (tokens[0] == "BPM") {
             bpm = std::stof(tokens[1]);
         }
     }
-
     return;
 }

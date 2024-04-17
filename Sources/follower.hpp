@@ -23,21 +23,31 @@ class FollowerMIR {
     FollowerMIR(int HopSize, int WindowSize, int Sr);
     struct Description {
         float Freq;
+        float Midi;
         float Quality;
         float dB;
     };
-    void GetDescription(std::vector<float> *in, Description *Desc);
+    void GetDescription(std::vector<float> *in, Description *Desc,
+                        float Tunning);
+    void GetMidi(float tunning);
+
+    // Time
+    void ResetElapsedTime();
+    void UpdateTempoInEvent();
+    float GetEventTimeElapsed();
+    float GetTempoInEvent();
+    float EventTimeElapsed = 0.0;
 
   private:
     // Pitch
     aubio_pitch_t *YinInstance;
     bool CreateYin(float tolerance, float silence);
-    void GetYin(std::vector<float> *in, Description *desc);
+    void GetYin(std::vector<float> *in, Description *desc, float Tunning);
 
     // Env
-    void GetEnv(std::vector<float> *in, Description *Desc);
+    void GetRMS(std::vector<float> *in, Description *Desc);
 
-    // tempo
+    // Audio
     float WindowSize;
     float BlockSize;
     float HopSize;
@@ -49,28 +59,50 @@ class FollowerMIR {
 // ╰─────────────────────────────────────╯
 class FollowerMDP {
   public:
+    FollowerMDP();
     void SetMinQualityForNote(float minQuality);
     float MinQualityForNote = 0.9;
 
     // Score States
     struct State {
-        bool valid;
-        int type;
+        bool Valid;
+        int Type;
 
-        int id;
-        float pitch;
-        float duration;
-        float bpm;
+        int Id;
+        float Midi;
+        float Duration;
+        float Bpm;
     };
-    int GetEvent(FollowerMIR::Description *Desc);
-    float Tunning;
+    struct MDP {
+        float LiveBpm;
+        float ElapsedTime;
+
+        float CurMidi;
+        float CurDur;
+        int CurId;
+
+        float NextMidi;
+        float NextDur;
+        int NextId;
+    };
+
+    int GetEvent(std::vector<float> *in, FollowerMIR *MIR);
+    float Tunning = 440;
     int CurrentEvent = -1;
     std::vector<State> States;
 
   private:
-    float CalculateSimilarity(float currentFreq, float stateFreq);
-    float GetPitchSimilar(float currentFreq, float stateFreq);
-    float GetEnvSimilar(float currentEnv, float stateEnv);
+    float CalculateSimilarity(MDP MDP);
+    float GetPitchSimilar(MDP MDP);
+    float GetTimeSimilar(MDP MDP);
+    float GetBestEvent(std::vector<State> States,
+                       FollowerMIR::Description *Desc);
+    float CalculateSimilarity(State NextPossibleState,
+                              FollowerMIR::Description *Desc);
+
+    FollowerMIR::Description *Desc;
+    std::vector<float> BpmHistory;
+    float LiveBpm;
 };
 
 // ╭─────────────────────────────────────╮
@@ -79,11 +111,6 @@ class FollowerMDP {
 
 // ─────────────────────────────────────
 class FollowerScore {
-  private:
-    FollowerMDP::State *AddNote(FollowerMDP::State *State,
-                                std::vector<std::string> tokens, float bpm,
-                                int lineCount);
-
   public:
     enum EventType {
         SILENCE = 0,
@@ -92,6 +119,13 @@ class FollowerScore {
     };
 
     void Parse(FollowerMDP *MDP, const char *score);
+
+  private:
+    FollowerMDP::State AddNote(FollowerMDP::State State,
+                               std::vector<std::string> tokens, float bpm,
+                               int lineCount);
+
+    float FollowBpm(std::vector<std::string> tokens, int lineCount);
 };
 
 // ╭─────────────────────────────────────╮
@@ -108,7 +142,6 @@ class Follower {
     FollowerScore *Score;
     FollowerMDP *MDP;
     FollowerMIR *MIR;
-    FollowerMIR::Description *Desc;
 
     int Event;
     t_symbol *patchDir;
