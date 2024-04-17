@@ -1,116 +1,108 @@
 #include "follower.hpp"
-
 #include <algorithm>
 #include <math.h>
 
 #define MAX_FREQUENCY_DIFFERENCE 40.0 //
 #define MAX_QUALITY_DIFFERENCE 0.5
 
+void FollowerMDP::SetMinQualityForNote(float minQuality) {
+    MinQualityForNote = minQuality;
+}
+
 // ==============================================
-float FollowerScore::getPitchSimilar(float currentFreq, float stateFreq) {
-    // Calculate Euclidean distance between frequencies
+float FollowerMDP::GetPitchSimilar(float currentFreq, float stateFreq) {
     float distance = abs(currentFreq - stateFreq);
-    // Normalize distance to range [0, 1]
-    float similarity = 1.0 - (distance / MAX_FREQUENCY_DIFFERENCE);
+    float similarity = distance / MAX_FREQUENCY_DIFFERENCE;
+    if (similarity > 1.0) {
+        return 0;
+    }
+    similarity = 1.0 - (distance / MAX_FREQUENCY_DIFFERENCE);
     return similarity;
 }
 
 // ==============================================
-float FollowerScore::getEnvSimilar(float currentEnv, float stateEnv) {
-    // Calculate similarity based on environmental conditions
-    // You may need to define your specific method for comparing environmental
-    // conditions This is just a placeholder
-    if (currentEnv > stateEnv) {
-        return 1.0; // High similarity
-    } else if (currentEnv == stateEnv) {
-        return 0.5; // Medium similarity
-    } else {
-        return 0.0; // Low similarity
-    }
-}
-
-// ==============================================
-float FollowerScore::calculateSimilarity(float currentFreq, float stateFreq) {
-
+float FollowerMDP::CalculateSimilarity(float currentFreq, float stateFreq) {
     // WARNING:
     float freqWeight = 0.5; // Weight for pitch similarity
-    float freqSimilarity = getPitchSimilar(currentFreq, stateFreq);
-
-    float similarity = freqWeight * freqSimilarity;
+    float freqSimilarity = GetPitchSimilar(currentFreq, stateFreq);
+    float similarity = freqSimilarity;
     return similarity;
 }
 
 // ==============================================
-int FollowerScore::GetEvent(EnvironmentState envState) {
+int FollowerMDP::GetEvent(FollowerMIR::Description *Desc) {
     int eventId;
     float similarity;
 
-    // received pitch
-    float MIRPitch = envState.pitch;
-    float MIRFreq = midi2freq(MIRPitch);
-    float MIREnv = envState.env;
-    float MIRQuality = envState.min_quality; // pitch quality from sigmund~
+    // // received pitch
+    float MIRFreq = Desc->Freq;
 
-    int MDPSize = MDP.states.size();
-    State CurState = MDP.states[curEventId];
+    pd_float(gensym("freq")->s_thing, MIRFreq);
+    pd_float(gensym("quality")->s_thing, Desc->Quality);
 
-    if (curEventId == -1) { // First event
-        if (MIREnv < 40) {
-            return -1;
-        }
+    float MIRPitch = Follower_f2midi(MIRFreq, Tunning);
+    int MDPSize = States.size();
+    if (MDPSize == 0) {
+        pd_error(NULL, "No states, check your score");
+        return -1;
+    }
 
-        // Calculate the probability based on pitch similarity with the first few
-        // states in the MDP
-        float maxProb = 0.0;
-        float firstEventPitch = midi2freq(MDP.states[0].pitch);
-        for (int i = 0; i < MDPSize && i < 5; i++) {
-            State state = MDP.states[i];
-            float stateFreq = midi2freq(state.pitch);
-            float stateDur = state.duration;
+    if (Desc->dB < -70) {
+        return CurrentEvent + 1;
+    }
 
-            // Calculate similarity between current state and state in MDP
-            // You may define a function to calculate similarity based on pitch,
-            // duration, etc.
-            float similarity = calculateSimilarity(MIRFreq, stateFreq);
-
-            // Update max probability
-            if (similarity > maxProb) {
-                maxProb = similarity;
-                eventId = i;
-                curEventId = eventId;
+    if (CurrentEvent == -1) { // First event
+        if (States[0].type == FollowerScore::NOTE) {
+            if (Desc->Quality < MinQualityForNote) {
+                return CurrentEvent + 1;
             }
         }
+        float maxProb = 0.0;
+        for (int i = 0; i < MDPSize && i < 5; i++) {
+            State State = States[i];
+            float StateFreq = Follower_midi2f(State.pitch, Tunning);
+            float Similarity = CalculateSimilarity(MIRFreq, StateFreq);
+            if (Similarity > maxProb) {
+                maxProb = similarity;
+                eventId = i;
+                CurrentEvent = eventId;
+            }
+        }
+
     } else {
+        if (States[0].type == FollowerScore::NOTE) {
+            if (Desc->Quality < MinQualityForNote) {
+                // TODO: must be defined by the user
+                return CurrentEvent + 1;
+            }
+        }
         float maxProb = 0.0;
         std::vector<float> pitchesChecked;
-        if (MIREnv < 40) {
-            return curEventId + 1;
-        }
-        for (int i = curEventId; i < curEventId + 5; i++) {
+        for (int i = CurrentEvent; i < CurrentEvent + 5; i++) {
             if (pitchesChecked.size() != 0) {
-                if (std::find(pitchesChecked.begin(), pitchesChecked.end(), MDP.states[i].pitch) !=
-                    pitchesChecked.end()) {
+                if (std::find(pitchesChecked.begin(), pitchesChecked.end(),
+                              States[i].pitch) != pitchesChecked.end()) {
                     break;
                 }
             }
 
-            pitchesChecked.push_back(MDP.states[i].pitch);
-            State state = MDP.states[i];
-            float stateFreq = midi2freq(state.pitch);
+            pitchesChecked.push_back(States[i].pitch);
+            State state = States[i];
+            float stateFreq = Follower_midi2f(state.pitch, Tunning);
             float stateDur = state.duration;
-            similarity = calculateSimilarity(MIRFreq, stateFreq);
+            similarity = CalculateSimilarity(MIRFreq, stateFreq);
             if (similarity > maxProb) {
                 maxProb = similarity;
                 eventId = i;
-                if (curEventId != eventId) {
-                    state = MDP.states[curEventId];
+                if (CurrentEvent != eventId) {
+                    state = States[CurrentEvent];
                     float duration = state.duration;
-                    float bpm = MDP.bpm[curEventId];
-                    float durMs = 60000.0f / bpm * duration;
+                    // float bpm = bpm[curEventId];
+                    // float durMs = 60000.0f / bpm * duration;
                 }
-                curEventId = eventId;
+                CurrentEvent = eventId;
             }
         }
     }
-    return curEventId + 1;
+    return CurrentEvent + 1;
 }

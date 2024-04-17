@@ -20,15 +20,20 @@ set(HAVE_WAVWRITE OFF)
 set(HAVE_MEMCPY_HACKS ON)
 set(HAVE_ERRNO_H ON)
 add_definitions(-DHAVE_CONFIG_H)
+add_definitions(-DAUBIO_UNSTABLE)
 configure_file(Resources/AubioConfig.h.in config.h)
 
 # Collect source files from different directories
 file(GLOB AUBIO_SOURCES "Libraries/aubio/src/*.c")
+file(GLOB AUBIO_UTILS "Libraries/aubio/src/utils/*.c")
+file(GLOB AUBIO_FFT "Libraries/aubio/src/spectral/*.c")
+file(GLOB AUBIO_TEMPORAL "Libraries/aubio/src/temporal/*.c")
 file(GLOB AUBIO_PITCH "Libraries/aubio/src/pitch/*.c")
 
-add_library(aubio STATIC ${AUBIO_SOURCES} ${AUBIO_PITCH})
+add_library(aubio STATIC ${AUBIO_SOURCES} ${AUBIO_PITCH} ${AUBIO_UTILS} ${AUBIO_FFT} ${AUBIO_TEMPORAL})
 target_include_directories(aubio PUBLIC "${PROJECT_BINARY_DIR}"
                                         "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/aubio/src")
+set_target_properties(aubio PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 #╭──────────────────────────────────────╮
 #│               Library                │

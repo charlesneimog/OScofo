@@ -1,95 +1,130 @@
+#pragma once
+
 #include <m_pd.h>
 
+#include <aubio.h>
 #include <string>
 #include <vector>
 
-struct State {
-    int id;
+// ╭─────────────────────────────────────╮
+// │         Utilities Functions         │
+// ╰─────────────────────────────────────╯
+float Follower_midi2f(float note, float tunning);
+float Follower_f2midi(float freq, float tunning);
+int Follower_NoteName2Midi(std::string note);
 
-    // descriptors
-    float pitch;
-    float quality;
+// ─────────────────────────────────────
 
-    // time
-    float duration;
+// ╭─────────────────────────────────────╮
+// │     Music Information Retrieval     │
+// ╰─────────────────────────────────────╯
+class FollowerMIR {
+  public:
+    FollowerMIR(int HopSize, int WindowSize, int Sr);
+    struct Description {
+        float Freq;
+        float Quality;
+        float dB;
+    };
+    void GetDescription(std::vector<float> *in, Description *Desc);
+
+  private:
+    // Pitch
+    aubio_pitch_t *YinInstance;
+    bool CreateYin(float tolerance, float silence);
+    void GetYin(std::vector<float> *in, Description *desc);
+
+    // Env
+    void GetEnv(std::vector<float> *in, Description *Desc);
+
+    // tempo
+    float WindowSize;
+    float BlockSize;
+    float HopSize;
+    float Sr;
 };
 
-struct EnvironmentState {
-    float pitch;
-    float env; // envelope
-    float min_quality;
-    float time_elapsed;
+// ╭─────────────────────────────────────╮
+// │     Markov Description Process      │
+// ╰─────────────────────────────────────╯
+class FollowerMDP {
+  public:
+    void SetMinQualityForNote(float minQuality);
+    float MinQualityForNote = 0.9;
+
+    // Score States
+    struct State {
+        bool valid;
+        int type;
+
+        int id;
+        float pitch;
+        float duration;
+        float bpm;
+    };
+    int GetEvent(FollowerMIR::Description *Desc);
+    float Tunning;
+    int CurrentEvent = -1;
+    std::vector<State> States;
+
+  private:
+    float CalculateSimilarity(float currentFreq, float stateFreq);
+    float GetPitchSimilar(float currentFreq, float stateFreq);
+    float GetEnvSimilar(float currentEnv, float stateEnv);
 };
 
-struct MarkovDecisionProcess {
-    std::vector<float> bpm;
-    std::vector<State> states;
-    EnvironmentState environment;
-};
+// ╭─────────────────────────────────────╮
+// │                Score                │
+// ╰─────────────────────────────────────╯
 
+// ─────────────────────────────────────
 class FollowerScore {
   private:
-    float midi2freq(float note);
-    float freq2midi(float freq);
-
-    // audio variables
-
-    // descriptors
-    std::vector<float> getPitch(t_sample *in);
+    FollowerMDP::State *AddNote(FollowerMDP::State *State,
+                                std::vector<std::string> tokens, float bpm,
+                                int lineCount);
 
   public:
-    void Parse(const char *score); // score
-    int AddNote(std::vector<std::string> tokens, float bpm, int lineCount);
-    void DefineTransitions();
-    int GetEvent(EnvironmentState envState);
-    int NoteName2Midi(std::string note);
+    enum EventType {
+        SILENCE = 0,
+        NOTE,
+        // TODO: Add more events
+    };
 
-    float getPitchSimilar(float currentFreq, float stateFreq);
-    float getEnvSimilar(float currentEnv, float stateEnv);
-    float calculateSimilarity(float currentFreq, float stateFreq);
-
-    MarkovDecisionProcess MDP;
-    State *currentState;
-    int curEventId = -1;
-    float tunning;
-    std::vector<float> bpms;
-
-    bool amILost = false;
-    int lastGoodEventId = 0;
-    float elapsedTime = 0.0f;
-    float Sr;
-    float BlockSize;
+    void Parse(FollowerMDP *MDP, const char *score);
 };
 
+// ╭─────────────────────────────────────╮
+// │           PureData Object           │
+// ╰─────────────────────────────────────╯
 class Follower {
   public:
     t_object xObj;
     t_sample Sample;
-
-    FollowerScore *Score;
+    std::vector<float> *inBuffer;
     t_clock *Clock;
 
-    float pitchValue;
-    float qualityValue;
-    float envValue;
+    //
+    FollowerScore *Score;
+    FollowerMDP *MDP;
+    FollowerMIR *MIR;
+    FollowerMIR::Description *Desc;
 
     int Event;
     t_symbol *patchDir;
 
-    bool scoreLoaded = false;
+    // Score
+    bool ScoreLoaded = false;
     bool Following = false;
+    int CurrentEvent = 0;
+
+    // Audio
+    int BlockIndex;
+    int BlockSize;
+    int HopSize;
+    int WindowSize;
+    int Sr;
 
     t_outlet *EventIndex;
     t_outlet *Tempo;
-
-    t_inlet *pitch;
-    t_inlet *quality;
-    t_inlet *env;
-
-    // functions
-    void SetScore(Follower *x, t_symbol *score);
-    static t_int *Perform(t_int *w);
-    int FindPeaks();
-
-    //
 };
