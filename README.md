@@ -1,2 +1,3 @@
 # pd-follower
-OpenSource ScoreFollower for PureData.
+
+PureData's open-source score follower for contemporary music.
