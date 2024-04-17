@@ -50,7 +50,6 @@ float FollowerMDP::GetBestEvent(std::vector<State> States,
         State NextPossibleState = States[i];
         float Similarity = CalculateSimilarity(NextPossibleState, Desc);
         if (Similarity > MaxSimilarity) {
-            post("Similarity: %f | event: %d", Similarity, i);
             MaxSimilarity = Similarity;
             CurrentEvent = i;
         }
