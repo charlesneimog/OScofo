@@ -19,12 +19,17 @@ void FollowerMDP::SetMinQualityForNote(float minQuality) {
 
 // ─────────────────────────────────────
 float FollowerMDP::GetLiveBpm() {
-    post("Live BPM: %f", LiveBpm);
     return LiveBpm;
 }
 
+// ─────────────────────────────────────
 void FollowerMDP::SetLiveBpm(float Bpm) {
     LiveBpm = Bpm;
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::ResetLiveBpm() {
+    BpmHistory.assign(20, 1);
 }
 
 // ╭─────────────────────────────────────╮
@@ -139,12 +144,6 @@ int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
         return CurrentEvent;
     }
 
-    if (States[0].Type == FollowerScore::NOTE) {
-        if (Desc->Quality < MinQualityForNote) {
-            return CurrentEvent;
-        }
-    }
-
     float BestGuess = GetBestEvent(States, Desc);
     if (BestGuess != CurrentEvent) {
         CurrentEvent = BestGuess;
@@ -154,7 +153,6 @@ int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
         BpmHistory.at(19) = EventTime / TimeSpan;
         float sum = std::accumulate(BpmHistory.begin(), BpmHistory.end(), 0.0);
         LiveBpm = sum / BpmHistory.size() * States[CurrentEvent].Bpm;
-        post("Live BPM: %f", LiveBpm);
         MIR->ResetElapsedTime();
     }
     return CurrentEvent;

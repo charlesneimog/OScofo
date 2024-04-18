@@ -15,6 +15,8 @@ static void SetEvent(Follower *x, t_floatarg f) {
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
     x->MDP->CurrentEvent = -1;
+    // x->MDP->ResetLiveBpm();
+
     outlet_float(x->EventIndex, 0);
 }
 
@@ -45,7 +47,6 @@ static void Score(Follower *x, t_symbol *s) {
         return;
     }
     x->Score->Parse(x->MDP, completePath.c_str());
-    x->MDP->GetLiveBpm();
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
 }

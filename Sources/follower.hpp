@@ -1,10 +1,12 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <m_pd.h>
 
 #include <aubio.h>
-#include <string>
-#include <vector>
+#include <fftw3.h> // Include FFTW header
 
 // ╭─────────────────────────────────────╮
 // │         Utilities Functions         │
@@ -27,11 +29,13 @@ class FollowerMIR {
         float Quality;
         float dB;
         float TimeElapsed;
+        fftw_complex *Spectrogram;
     };
     void GetDescription(std::vector<float> *in, Description *Desc, float Tunning);
     void GetMidi(float tunning);
 
     // Time
+    float TimePrediction();
     void ResetElapsedTime();
     void UpdateTempoInEvent();
     float GetEventTimeElapsed();
@@ -43,6 +47,18 @@ class FollowerMIR {
     aubio_pitch_t *YinInstance;
     bool CreateYin(float tolerance, float silence);
     void GetYin(std::vector<float> *in, Description *desc, float Tunning);
+
+    // Notes
+    aubio_notes_t *notes;
+    void GetNotes(std::vector<float> *in, Description *Desc);
+
+    // MFCC
+    void GetMFCC(std::vector<float> *in, Description *Desc);
+
+    // Espectrogram
+    fftw_complex *fftIn;
+    fftw_complex *fftOut;
+    void GetSpectrogram(std::vector<float> *in, Description *Desc);
 
     // Env
     void GetRMS(std::vector<float> *in, Description *Desc);
@@ -63,6 +79,7 @@ class FollowerMDP {
     void SetMinQualityForNote(float minQuality);
     float GetLiveBpm();
     void SetLiveBpm(float Bpm);
+    void ResetLiveBpm();
 
     // Score States
     struct State {

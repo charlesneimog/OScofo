@@ -35,3 +35,6 @@ follower.l_amd64
 .cache/clangd/index
 compile_commands.json
 follower~.l_amd64
+Libraries/fftw-3.3.10
+libfftw3.so.3
+libfftw3.so.3.6.9

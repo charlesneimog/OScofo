@@ -7,7 +7,17 @@
 
 FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
     : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
+
+    // Pitch
     CreateYin(0.6, -60);
+
+    // Notes
+    smpl_t silence, minioi_ms, release_drop;
+    notes = new_aubio_notes("default", windowSize, hopSize, Sr);
+
+    // SPectrogram
+    fftIn = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * windowSize);
+    fftOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * windowSize);
 }
 
 // ╭─────────────────────────────────────╮
@@ -49,6 +59,47 @@ void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc, float Tunnin
 }
 
 // ╭─────────────────────────────────────╮
+// │                Notes                │
+// ╰─────────────────────────────────────╯
+void FollowerMIR::GetNotes(std::vector<float> *in, Description *Desc) {
+    fvec_t *pitch = new_fvec(5);
+    fvec_t AubioIn;
+    AubioIn.length = in->size();
+    AubioIn.data = new smpl_t[AubioIn.length];
+    std::copy(in->begin(), in->end(), AubioIn.data);
+    smpl_t freq, quality, envelope;
+    aubio_notes_do(notes, (const fvec_t *)&AubioIn, pitch);
+    freq = fvec_get_sample(pitch, 0);
+    post("freq is %f", freq);
+}
+// ╭─────────────────────────────────────╮
+// │          MFCC Observation           │
+// ╰─────────────────────────────────────╯
+void FollowerMIR::GetMFCC(std::vector<float> *in, Description *Desc) {
+    if (YinInstance == nullptr) {
+        Desc->Freq = 0;
+        Desc->Quality = 0;
+        return;
+    }
+}
+
+// ╭─────────────────────────────────────╮
+// │          Pitch Observation          │
+// ╰─────────────────────────────────────╯
+
+void FollowerMIR::GetSpectrogram(std::vector<float> *in, Description *Desc) {
+    int n = in->size();
+    fftw_plan fftPlan = fftw_plan_dft_1d(n, fftIn, fftOut, FFTW_FORWARD, FFTW_ESTIMATE);
+    for (int i = 0; i < n; ++i) {
+        fftIn[i][0] = (*in)[i];
+        fftOut[i][1] = 0.0;
+    }
+    fftw_execute(fftPlan);
+    std::vector<float> out(n);
+    Desc->Spectrogram = fftOut;
+}
+
+// ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetRMS(std::vector<float> *in, Description *Desc) {
@@ -68,6 +119,16 @@ void FollowerMIR::GetRMS(std::vector<float> *in, Description *Desc) {
 // ╭─────────────────────────────────────╮
 // │                Time                 │
 // ╰─────────────────────────────────────╯
+
+/*
+ * LARGE and JONES. The Dynamics of Attending: How People Track Time-Varying Events. 1999.
+
+*/
+float FollowerMIR::TimePrediction() {
+
+    return 0;
+}
+
 void FollowerMIR::ResetElapsedTime() {
     EventTimeElapsed = 0;
 }
@@ -84,6 +145,8 @@ float FollowerMIR::GetEventTimeElapsed() {
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, float Tunning) {
+    GetNotes(in, Desc);
     GetRMS(in, Desc);
     GetYin(in, Desc, Tunning);
+    // GetSpectrogram(in, Desc);
 }
