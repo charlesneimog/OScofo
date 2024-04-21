@@ -1,10 +1,17 @@
 #include "follower.hpp"
 #include <algorithm>
+#include <cmath>
 #include <math.h>
 #include <numeric> // for std::accumulate
 
-#define MAX_FREQUENCY_DIFFERENCE 40.0
+#define MAX_FREQUENCY_DIFFERENCE 10.0
 #define MAX_QUALITY_DIFFERENCE 0.5
+
+// TEST:
+double UpdateR(double r, double eta_r, double t_n_1, double t_n, double psi_k, double phi_n) {
+    r = r - eta_r * (r - cos(2 * M_PI * (t_n - t_n_1) / psi_k - phi_n));
+    return r;
+}
 
 // ─────────────────────────────────────
 FollowerMDP::FollowerMDP() {
@@ -36,19 +43,23 @@ void FollowerMDP::ResetLiveBpm() {
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
 float FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
-
     float NextMidi = NextPossibleState.Midi;
     float DescMidi = Desc->Midi;
-    float NextFreq = Follower_midi2f(NextMidi, Tunning);
+    float NextFreq = Tunning * pow(2.0, (NextMidi - 69) / 12.0);
     float DescFreq = Desc->Freq;
     float Distance = abs(DescFreq - NextFreq);
     float Similarity = Distance / MAX_FREQUENCY_DIFFERENCE;
     if (Similarity > 1.0) {
-        return 0;
+        float OctaveDiff = abs(fmod(DescMidi, 12) - fmod(NextMidi, 12));
+        if (OctaveDiff < 0.3) {
+            return OctaveDiff;
+        } else {
+            return 0;
+        }
     }
+
     Similarity = 1.0 - (Distance / MAX_FREQUENCY_DIFFERENCE);
     return Similarity;
-    return 0;
 }
 
 // ─────────────────────────────────────
@@ -57,31 +68,24 @@ float FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::Descr
     float Similarity = 0.0;
     float CorrectedDur = NextPossibleState.Duration * (60000.0f / LiveBpm);
 
-    if (CurrentEvent == NextPossibleState.Id) {
+    if (CurrentEvent == NextPossibleState.Id || (CurrentEvent == -1 == NextPossibleState.Id == 0)) {
         float margin = 0.2f * Desc->TimeElapsed;
         float minTime = Desc->TimeElapsed - margin;
         float maxTime = Desc->TimeElapsed + margin;
         if (CorrectedDur >= minTime && CorrectedDur <= maxTime) {
             Similarity = 1.0f; // Adjust weight as needed
+        } else {
+            Similarity = 0.5f;
         }
 
     } else if (NextPossibleState.Id == CurrentEvent + 1) {
-        // Higher probability if correctedDur is within 20% higher or lower
-        // than elapsedTime
         float margin = 0.2f * Desc->TimeElapsed;
         float minTime = Desc->TimeElapsed - margin;
         float maxTime = Desc->TimeElapsed + margin;
         if (CorrectedDur >= minTime && CorrectedDur <= maxTime) {
             Similarity = 1.0f;
-        }
-    } else if (NextPossibleState.Id > CurrentEvent + 1) {
-        // Higher probability if correctedDur is within 20% higher or lower
-        // than elapsedTime
-        float margin = 0.2f * Desc->TimeElapsed;
-        float minTime = Desc->TimeElapsed - margin;
-        float maxTime = Desc->TimeElapsed + margin;
-        if (CorrectedDur >= minTime && CorrectedDur <= maxTime) {
-            Similarity = -100.f;
+        } else {
+            Similarity = 0.0f;
         }
     }
     return Similarity;
@@ -93,11 +97,11 @@ float FollowerMDP::GetSimilarity(State NextPossibleState, FollowerMIR::Descripti
     float TimeWeight = 0.3;
 
     float PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
-    float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc);
+    // float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc);
 
-    float Similarity = PitchWeight * PitchSimilarity + TimeWeight * TimeSimilarity;
+    float Similarity = PitchWeight * PitchSimilarity;
 
-    return PitchSimilarity;
+    return Similarity;
 }
 
 // ─────────────────────────────────────
@@ -106,6 +110,7 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
     State CurState = States[CurrentEvent];
 
     float MaxSimilarity = -1;
+
     // 3 means that it just look for the next 3 events
     for (int i = CurrentEvent; i < (CurrentEvent + 3); i++) {
         if (i >= States.size() || i < 0) {
@@ -113,7 +118,7 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
         }
         State NextPossibleState = States[i];
         float Similarity = GetSimilarity(NextPossibleState, Desc);
-        if (Similarity > MaxSimilarity) {
+        if (Similarity > MaxSimilarity && Similarity > 0.1) {
             MaxSimilarity = Similarity;
             BestGuess = i;
         }
@@ -146,14 +151,16 @@ int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
 
     float BestGuess = GetBestEvent(States, Desc);
     if (BestGuess != CurrentEvent) {
-        CurrentEvent = BestGuess;
+        float Tn_1 = States[CurrentEvent].LiveOnset / 1000; // tn-1
+        float Tn = States[BestGuess].LiveOnset / 1000;      // tn0
+        float PsiK = 60 / States[CurrentEvent].Bpm;
+        float PhiN = States[CurrentEvent].TimePhase;
+
+        RValue = UpdateR(RValue, 0.01, Tn_1, Tn, PsiK, PhiN);
+
         float EventTime = MIR->GetEventTimeElapsed();
-        float TimeSpan = States[CurrentEvent].Duration * (60000.0f / States[CurrentEvent].Bpm);
-        std::rotate(BpmHistory.begin(), BpmHistory.begin() + 1, BpmHistory.end());
-        BpmHistory.at(19) = EventTime / TimeSpan;
-        float sum = std::accumulate(BpmHistory.begin(), BpmHistory.end(), 0.0);
-        LiveBpm = sum / BpmHistory.size() * States[CurrentEvent].Bpm;
         MIR->ResetElapsedTime();
+        CurrentEvent = BestGuess;
     }
     return CurrentEvent;
 }

@@ -3,11 +3,15 @@
 #include <math.h>
 
 // ==============================================
-float Follower_midi2f(float note, float tunning) { return tunning * pow(2.0, (note - 69) / 12.0); }
-float Follower_f2midi(float freq, float tunning) { return 69 + 12 * log2(freq / tunning); }
+float FollowerMIR::Mtof(float note, float tunning) {
+    return tunning * pow(2.0, (note - 69) / 12.0);
+}
+float FollowerMIR::Ftom(float freq, float tunning) {
+    return 69 + 12 * log2(freq / tunning);
+}
 
 // ==============================================
-int Follower_NoteName2Midi(std::string note) {
+int FollowerScore::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
     switch (noteName) {

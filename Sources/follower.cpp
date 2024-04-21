@@ -15,7 +15,7 @@ static void SetEvent(Follower *x, t_floatarg f) {
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
     x->MDP->CurrentEvent = -1;
-    // x->MDP->ResetLiveBpm();
+    x->MDP->ResetLiveBpm();
 
     outlet_float(x->EventIndex, 0);
 }
@@ -102,6 +102,30 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     Follower *x = (Follower *)pd_new(FollowerObj);
     x->EventIndex = outlet_new(&x->xObj, &s_float);
     x->Tempo = outlet_new(&x->xObj, &s_float);
+    x->WindowSize = 2048;
+    x->HopSize = 512;
+    float overlap = 4;
+
+    for (int i = 0; i < argc; i++) {
+        if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
+            std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
+            if (argument == "-w") {
+                if (argv[i + 1].a_type == A_FLOAT) {
+                    x->WindowSize = atom_getfloat(&argv[i + 1]);
+                    i++;
+                }
+            }
+            if (argument == "-o") {
+                if (argv[i + 1].a_type == A_FLOAT) {
+                    overlap = atom_getfloat(&argv[i + 1]);
+                    i++;
+                }
+            }
+        }
+    }
+    if (overlap != 4) {
+        x->HopSize = x->WindowSize / overlap;
+    }
 
     t_canvas *canvas = canvas_getcurrent();
     x->patchDir = canvas_getdir(canvas);
@@ -109,8 +133,6 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->WindowSize = 2048;
-    x->HopSize = 256;
     x->Sr = sys_getsr();
 
     x->Score = new FollowerScore();

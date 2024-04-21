@@ -5,15 +5,7 @@
 
 #include <m_pd.h>
 
-#include <aubio.h>
-#include <fftw3.h> // Include FFTW header
-
-// ╭─────────────────────────────────────╮
-// │         Utilities Functions         │
-// ╰─────────────────────────────────────╯
-float Follower_midi2f(float note, float tunning);
-float Follower_f2midi(float freq, float tunning);
-int Follower_NoteName2Midi(std::string note);
+// #include <aubio.h>
 
 // ─────────────────────────────────────
 
@@ -23,14 +15,24 @@ int Follower_NoteName2Midi(std::string note);
 class FollowerMIR {
   public:
     FollowerMIR(int HopSize, int WindowSize, int Sr);
+    float Mtof(float note, float tunning);
+    float Ftom(float freq, float tunning);
+
     struct Description {
+        float WindowSize;
+        float Sr;
+        float Tunning;
+
         float Freq;
         float Midi;
         float Quality;
         float dB;
         float TimeElapsed;
-        fftw_complex *Spectrogram;
+        std::vector<float> SpectralImag;
+        std::vector<float> SpectralReal;
+        std::vector<float> SpectralPower;
     };
+
     void GetDescription(std::vector<float> *in, Description *Desc, float Tunning);
     void GetMidi(float tunning);
 
@@ -44,21 +46,17 @@ class FollowerMIR {
 
   private:
     // Pitch
-    aubio_pitch_t *YinInstance;
+    // aubio_pitch_t *YinInstance;
     bool CreateYin(float tolerance, float silence);
-    void GetYin(std::vector<float> *in, Description *desc, float Tunning);
-
-    // Notes
-    aubio_notes_t *notes;
-    void GetNotes(std::vector<float> *in, Description *Desc);
+    void GetYin(std::vector<float> *in, Description *Desc);
+    void AubioYin(std::vector<float> *in, Description *Desc);
 
     // MFCC
     void GetMFCC(std::vector<float> *in, Description *Desc);
+    void GetChroma(std::vector<float> *in, Description *Desc);
 
-    // Espectrogram
-    fftw_complex *fftIn;
-    fftw_complex *fftOut;
-    void GetSpectrogram(std::vector<float> *in, Description *Desc);
+    // FFT
+    void GetFFT(std::vector<float> *in, Description *Desc);
 
     // Env
     void GetRMS(std::vector<float> *in, Description *Desc);
@@ -76,6 +74,7 @@ class FollowerMIR {
 class FollowerMDP {
   public:
     FollowerMDP();
+
     void SetMinQualityForNote(float minQuality);
     float GetLiveBpm();
     void SetLiveBpm(float Bpm);
@@ -89,13 +88,21 @@ class FollowerMDP {
         int Id;
         float Midi;
         float Duration;
+        float TimePhase;
         float Bpm;
+
+        // Time
+        float LiveOnset; // ms
+        float TimePhasePrediction;
     };
+    std::vector<State> States;
+    float RValue;
 
     int GetEvent(std::vector<float> *in, FollowerMIR *MIR);
     float Tunning = 440;
     int CurrentEvent = -1;
-    std::vector<State> States;
+    float LastOnset = 0;
+    float PhasePrediction = 0;
 
   private:
     float GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc);
@@ -104,9 +111,11 @@ class FollowerMDP {
     float GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
 
     FollowerMIR::Description *Desc;
+    float MinQualityForNote = 0.9;
+
     std::vector<float> BpmHistory;
     float LiveBpm;
-    float MinQualityForNote = 0.9;
+    float LiveTimePhase;
 };
 
 // ╭─────────────────────────────────────╮
@@ -122,12 +131,16 @@ class FollowerScore {
         // TODO: Add more events
     };
 
+    int Name2Midi(std::string note);
     void Parse(FollowerMDP *MDP, const char *score);
+    float GetTimePhase(float t_n0, float t_n1, float phase0, float pulse);
 
   private:
     FollowerMDP::State AddNote(FollowerMDP::State State, std::vector<std::string> tokens, float bpm,
                                int lineCount);
 
+    float lastOnset = 0;
+    float lastPhase = 0;
     float FollowBpm(std::vector<std::string> tokens, int lineCount);
 };
 
