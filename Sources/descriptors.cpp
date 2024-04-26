@@ -1,8 +1,7 @@
 #include "follower.hpp"
 
-#include <algorithm>
 #include <cmath>
-#include <limits.h>
+#include <vector>
 
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
@@ -11,230 +10,7 @@
 FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
     : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
     // CreateYin(0.6, -60);
-}
-
-// ╭─────────────────────────────────────╮
-// │            Yin Algorithm            │
-// ╰─────────────────────────────────────╯
-/*
-This code is from aubio Library. We copy it here just because we don't need to do FFT twice.
-*/
-bool FollowerMIR::CreateYin(float tolerance, float silence) {
-    // fvec_t *out = new_fvec(1);
-    // YinInstance = new_aubio_pitch("yinfast", WindowSize, WindowSize, Sr);
-    // if (YinInstance == nullptr) {
-    //     return false;
-    // }
-    // aubio_pitch_set_tolerance(YinInstance, tolerance);
-    // aubio_pitch_set_silence(YinInstance, silence);
-    // aubio_pitch_set_unit(YinInstance, "Hz");
-    return true;
-}
-
-// ─────────────────────────────────────
-void FollowerMIR::GetYin(std::vector<float> *in, Description *Desc) {
-    //
-
-    // if (YinInstance == nullptr) {
-    //     Desc->Freq = 0;
-    //     Desc->Quality = 0;
-    //     return;
-    // }
-    // fvec_t *pitch = new_fvec(1);
-    // fvec_t AubioIn;
-    // AubioIn.length = in->size();
-    // AubioIn.data = new smpl_t[AubioIn.length];
-    // std::copy(in->begin(), in->end(), AubioIn.data);
-    // smpl_t freq, quality, envelope;
-    // aubio_pitch_do(YinInstance, (const fvec_t *)&AubioIn, pitch);
-    // freq = fvec_get_sample(pitch, 0);
-    // quality = aubio_pitch_get_confidence(YinInstance);
-    // Desc->Freq = freq;
-    // Desc->Midi = Mtof(freq, Desc->Tunning);
-    // Desc->Quality = quality;
-
-    return;
-}
-
-// ─────────────────────────────────────
-
-// void aubio_pitchyinfast_do(aubio_pitchyinfast_t *o, const fvec_t *input, fvec_t *out) {
-//     const smpl_t tol = o->tol;
-//     fvec_t *yin = o->yin;
-//     const uint_t length = yin->length;
-//     uint_t B = o->tmpdata->length;
-//     uint_t W = o->yin->length; // B / 2
-//     fvec_t tmp_slice, kernel_ptr;
-//     uint_t tau;
-//     sint_t period;
-//     smpl_t tmp2 = 0.;
-//
-//     // compute r_t(0) + r_t+tau(0)
-//     {
-//         fvec_t *squares = o->tmpdata;
-//         fvec_weighted_copy(input, input, squares);
-// #if 0
-//     for (tau = 0; tau < W; tau++) {
-//       tmp_slice.data = squares->data + tau;
-//       tmp_slice.length = W;
-//       o->sqdiff->data[tau] = fvec_sum(&tmp_slice);
-//     }
-// #else
-//         tmp_slice.data = squares->data;
-//         tmp_slice.length = W;
-//         o->sqdiff->data[0] = fvec_sum(&tmp_slice);
-//         for (tau = 1; tau < W; tau++) {
-//             o->sqdiff->data[tau] = o->sqdiff->data[tau - 1];
-//             o->sqdiff->data[tau] -= squares->data[tau - 1];
-//             o->sqdiff->data[tau] += squares->data[W + tau - 1];
-//         }
-// #endif
-//         fvec_add(o->sqdiff, o->sqdiff->data[0]);
-//     }
-//     // compute r_t(tau) = -2.*ifft(fft(samples)*fft(samples[W-1::-1]))
-//     {
-//         fvec_t *compmul = o->tmpdata;
-//         fvec_t *rt_of_tau = o->samples_fft;
-//         aubio_fft_do_complex(o->fft, input, o->samples_fft);
-//         // build kernel, take a copy of first half of samples
-//         tmp_slice.data = input->data;
-//         tmp_slice.length = W;
-//         kernel_ptr.data = o->kernel->data + 1;
-//         kernel_ptr.length = W;
-//         fvec_copy(&tmp_slice, &kernel_ptr);
-//         // reverse them
-//         fvec_rev(&kernel_ptr);
-//         // compute fft(kernel)
-//         aubio_fft_do_complex(o->fft, o->kernel, o->kernel_fft);
-//         // compute complex product
-//         compmul->data[0] = o->kernel_fft->data[0] * o->samples_fft->data[0];
-//         for (tau = 1; tau < W; tau++) {
-//             compmul->data[tau] = o->kernel_fft->data[tau] * o->samples_fft->data[tau];
-//             compmul->data[tau] -= o->kernel_fft->data[B - tau] * o->samples_fft->data[B - tau];
-//         }
-//         compmul->data[W] = o->kernel_fft->data[W] * o->samples_fft->data[W];
-//         for (tau = 1; tau < W; tau++) {
-//             compmul->data[B - tau] = o->kernel_fft->data[B - tau] * o->samples_fft->data[tau];
-//             compmul->data[B - tau] += o->kernel_fft->data[tau] * o->samples_fft->data[B - tau];
-//         }
-//         // compute inverse fft
-//         aubio_fft_rdo_complex(o->fft, compmul, rt_of_tau);
-//         // compute square difference r_t(tau) = sqdiff - 2 * r_t_tau[W-1:-1]
-//         for (tau = 0; tau < W; tau++) {
-//             yin->data[tau] = o->sqdiff->data[tau] - 2. * rt_of_tau->data[tau + W];
-//         }
-//     }
-//
-//     // now build yin and look for first minimum
-//     fvec_zeros(out);
-//     yin->data[0] = 1.;
-//     for (tau = 1; tau < length; tau++) {
-//         tmp2 += yin->data[tau];
-//         if (tmp2 != 0) {
-//             yin->data[tau] *= tau / tmp2;
-//         } else {
-//             yin->data[tau] = 1.;
-//         }
-//         period = tau - 3;
-//         if (tau > 4 && (yin->data[period] < tol) && (yin->data[period] < yin->data[period + 1]))
-//         {
-//             o->peak_pos = (uint_t)period;
-//             out->data[0] = fvec_quadratic_peak_pos(yin, o->peak_pos);
-//             return;
-//         }
-//     }
-//     // use global minimum
-//     o->peak_pos = (uint_t)fvec_min_elem(yin);
-//     out->data[0] = fvec_quadratic_peak_pos(yin, o->peak_pos);
-// }
-// ─────────────────────────────────────
-void FollowerMIR::AubioYin(std::vector<float> *in, Description *Desc) {
-    const float tol = 0.6;
-    const int length = Desc->WindowSize;
-    int B = Desc->WindowSize;
-    int W = Desc->WindowSize / 2;
-    std::vector<float> yin(Desc->WindowSize, 0);
-
-    std::vector<float> RealFFTPart = Desc->SpectralReal;
-    std::vector<float> ImagFFTPart = Desc->SpectralImag;
-    std::vector<float> PowerFFT = Desc->SpectralPower;
-
-    // Rewrite aubio_pitchyinfast_do without redoing FFT
-
-    // compute r_t(0) + r_t+tau(0)
-    {
-        std::vector<float> squares(Desc->WindowSize, 0);
-        for (int i = 0; i < Desc->WindowSize; i++) {
-            squares[i] = in->at(i) * in->at(i);
-        }
-        std::vector<float> sqdiff(Desc->WindowSize, 0);
-        sqdiff[0] = squares[0];
-        for (int i = 1; i < Desc->WindowSize; i++) {
-            sqdiff[i] = sqdiff[i - 1] + squares[i];
-        }
-    }
-    // compute r_t(tau) = -2.*ifft(fft(samples)*fft(samples[W-1::-1]))
-    {
-        std::vector<float> compmul(Desc->WindowSize, 0);
-        std::vector<float> rt_of_tau(Desc->WindowSize, 0);
-        // build kernel, take a copy of first half of samples
-        std::vector<float> kernel(Desc->WindowSize, 0);
-        std::copy(in->begin(), in->begin() + W, kernel.begin());
-        // reverse them
-        std::reverse(kernel.begin(), kernel.end());
-        // compute fft(kernel)
-        // compute complex product
-        compmul[0] = RealFFTPart[0] * RealFFTPart[0] + ImagFFTPart[0] * ImagFFTPart[0];
-        for (int i = 1; i < W; i++) {
-            compmul[i] = RealFFTPart[i] * RealFFTPart[i] + ImagFFTPart[i] * ImagFFTPart[i];
-            compmul[i] -=
-                RealFFTPart[B - i] * RealFFTPart[B - i] + ImagFFTPart[B - i] * ImagFFTPart[B - i];
-        }
-        compmul[W] = RealFFTPart[W] * RealFFTPart[W] + ImagFFTPart[W] * ImagFFTPart[W];
-        for (int i = 1; i < W; i++) {
-            compmul[B - i] =
-                RealFFTPart[B - i] * RealFFTPart[i] + ImagFFTPart[B - i] * ImagFFTPart[i];
-            compmul[B - i] +=
-                RealFFTPart[i] * RealFFTPart[B - i] + ImagFFTPart[i] * ImagFFTPart[B - i];
-        }
-        // compute inverse fft
-        // compute square difference r_t(tau) = sqdiff - 2 * r_t_tau[W-1:-1]
-        for (int i = 0; i < W; i++) {
-            rt_of_tau[i] = PowerFFT[i] - 2 * compmul[i + W];
-        }
-    }
-
-    // now build yin and look for first minimum
-    std::vector<float> out(1, 0);
-    float tmp2 = 0;
-    for (int i = 1; i < length; i++) {
-        tmp2 += yin[i];
-        if (tmp2 != 0) {
-            yin[i] *= i / tmp2;
-        } else {
-            yin[i] = 1;
-        }
-        int period = i - 3;
-        if (i > 4 && (yin[period] < tol) && (yin[period] < yin[period + 1])) {
-            Desc->Freq = i;
-            Desc->Quality = yin[i];
-            return;
-        }
-    }
-    // use global minimum
-    Desc->Freq = std::min_element(yin.begin(), yin.end()) - yin.begin();
-    post("freq is %f", Desc->Freq);
-}
-
-// ╭─────────────────────────────────────╮
-// │          MFCC Observation           │
-// ╰─────────────────────────────────────╯
-void FollowerMIR::GetMFCC(std::vector<float> *in, Description *Desc) {
-    // if (YinInstance == nullptr) {
-    //     Desc->Freq = 0;
-    //     Desc->Quality = 0;
-    //     return;
-    // }
+    const kfr::dft_plan<kfr::fbase> dft(WindowSize);
 }
 
 // ╭─────────────────────────────────────╮
@@ -244,22 +20,35 @@ void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
     int n = in->size();
     Desc->SpectralReal.clear();
     Desc->SpectralImag.clear();
+    Desc->SpectralPower.clear();
 
+    // ─────────────────────────────────────
     t_sample *real_in = new t_sample[n];
     for (int i = 0; i < n; i++) {
         real_in[i] = (*in)[i]; // TODO: add windowing function here
     }
+
+    // ─────────────────────────────────────
+    // FFT
     t_sample *imag_in = new t_sample[n];
-    mayer_fft(WindowSize, real_in, imag_in);
-    for (int i = 0; i < n / 2; i++) {
+    mayer_fft(WindowSize, real_in, imag_in); // not fast
+    for (int i = 0; i < n; i++) {
         Desc->SpectralImag.push_back(imag_in[i]);
         Desc->SpectralReal.push_back(real_in[i]);
     }
 
+    // ─────────────────────────────────────
     // Power
-    for (int i = 0; i < n / 2; i++) {
-        Desc->SpectralPower.push_back(real_in[i] * real_in[i] + imag_in[i] * imag_in[i]);
+    int num_bins = n / 2;
+    for (int i = 0; i < n; i++) {
+        Desc->SpectralPower.push_back((real_in[i] * real_in[i] + imag_in[i] * imag_in[i]) / n);
+        // normalized power
     }
+
+    // ─────────────────────────────────────
+    // Free Memory
+    delete[] real_in;
+    delete[] imag_in;
 }
 
 // ─────────────────────────────────────
@@ -277,68 +66,47 @@ float getMaxElement(const std::vector<float> &vec) {
 
     return maxVal;
 }
+
 // ─────────────────────────────────────
 void FollowerMIR::GetChroma(std::vector<float> *in, Description *Desc) {
-    float lowFreq = 80;         // TODO: Define LowFrequncy
-    float higherFreq = 8000;    // TODO: Define HigherFrequncy
-    float pitchTolerance = 0.1; // TODO: Define PitchFrequncy
-    int ChromaClasses = 12;     // TODO: Define in Object also
+    int ChromaClasses = 12;
 
-    std::vector<float> chromaSums(ChromaClasses, 0.0);
-    std::vector<float> binRanges;
+    Desc->SpectralChroma.clear();
+    Desc->SpectralChroma.resize(ChromaClasses, 0);
+    Desc->HigherChroma = 0;
 
+    float MaximaMidiDiff = 0.25;
+    float Tolerance = float(12) / float(ChromaClasses) * MaximaMidiDiff;
+    std::vector<float> Chroma(ChromaClasses, 0);
+    float HigherChroma = 0;
     for (int i = 0; i < ChromaClasses; i++) {
-        unsigned cardinality = 0;
-        float thisPitch = 23;
-
-        // Initialize binRanges
-        binRanges.clear();
-        binRanges.resize(64, ULONG_MAX);
-
-        while (Mtof(thisPitch, Desc->Tunning) < lowFreq)
-            thisPitch += 12.0;
-
-        int j = 0;
-        while (mtof(thisPitch) < higherFreq) {
-            float thisFreq = Mtof(thisPitch - pitchTolerance, Desc->Tunning);
-            binRanges[j] = thisFreq * Desc->WindowSize / Desc->Sr;
-            binRanges[j + 1] = thisFreq * Desc->WindowSize / Desc->Sr;
-            cardinality++;
-            thisPitch += 12.0;
-            j += 2;
-        }
-
-        j = 0;
-        while (binRanges[j] != ULONG_MAX) {
-            int k, numBins;
-
-            // just in case j+1 is somehow ULONG_MAX, abort
-            if (binRanges[j + 1] == ULONG_MAX)
+        float Interval = 12.0 / ChromaClasses;
+        float Fund = 21 + i; // 21 == A0
+        float Energy = 0.0f;
+        float IndexChroma = fmod(Fund, 12);
+        for (int j = 1; j < 12; j++) { // A2-A10
+            float HzFund = Mtof(Fund + (j * 12), Desc->Tunning);
+            float BinFund = Freq2Bin(HzFund, Desc->WindowSize, Desc->Sr);
+            if (BinFund > (Desc->WindowSize / 2) - 2 || BinFund < 1) {
                 break;
-
-            numBins = binRanges[j + 1] - binRanges[j] + 1;
-
-            // sum all the energy in the binRange for thisPitch
-            for (k = 0; k < numBins; k++) {
-                float thisEnergy = (*in)[binRanges[j] + k];
-
-                if (thisEnergy >= 0.1)
-                    chromaSums[i] += thisEnergy;
             }
+            float BinAmpA = Desc->SpectralPower[BinFund - 1];
+            float BinAmpB = Desc->SpectralPower[BinFund];
+            float BinAmpC = Desc->SpectralPower[BinFund + 1];
+            float p = 0.5 * (BinAmpA - BinAmpC) / (BinAmpA - 2 * BinAmpB + BinAmpC);
+            float DescFreq = Desc->Sr / Desc->WindowSize * (BinFund + p);
+            float DescMidi = Ftom(DescFreq, Desc->Tunning);
+            float Diff = fabs(DescMidi - (Fund + (j * 12)));
+            Energy += Desc->SpectralPower[BinFund];
+        }
 
-            j += 2;
-            chromaSums[i] /= cardinality;
+        Desc->SpectralChroma[IndexChroma] = Energy;
+        if (Energy > HigherChroma) {
+            Desc->HigherChroma = IndexChroma;
+            HigherChroma = Energy;
         }
     }
-    // Normalize chromaSums
-    float maxEnergySum = getMaxElement(chromaSums);
-
-    if (maxEnergySum > 0.0) {
-        for (int i = 0; i < ChromaClasses; i++) {
-            chromaSums[i] /= maxEnergySum;
-            printf("Chroma %d: %f\n", i, chromaSums[i]);
-        }
-    }
+    // post("higherChroma %f", Desc->HigherChroma);
 }
 
 // ╭─────────────────────────────────────╮
@@ -413,16 +181,14 @@ void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, floa
     Desc->Sr = Sr;
     Desc->Tunning = Tunning;
     GetRMS(in, Desc);
-    // Implementação inline da cópia ponderada
-    for (int i = 0; i < in->size(); i++) {
-        in->at(i) = in->at(i) * 0.54 - 0.46 * std::cos(2 * M_PI * i / in->size());
-    }
-
     if (Desc->dB < -40) {
         return;
     }
-    // GetYin(in, Desc);
+    // apply hanning to in
+    for (int i = 0; i < Desc->WindowSize; i++) {
+        (*in)[i] *= 0.5 * (1 - cos(2 * M_PI * i / (Desc->WindowSize - 1)));
+    }
+
     GetFFT(in, Desc);
-    AubioYin(in, Desc);
-    // GetChroma(in, Desc);
+    GetChroma(in, Desc);
 }

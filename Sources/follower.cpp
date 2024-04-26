@@ -2,8 +2,51 @@
 
 #include <algorithm>
 #include <fstream>
+#include <random>
 
 static t_class *FollowerObj;
+
+// ─────────────────────────────────────
+// Function to generate samples from a Gaussian distribution centered around bin
+std::vector<double> GenerateGaussianSamples(double Mu, double Sigma, int NumPoints) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> dist(Mu, Sigma);
+
+    std::vector<double> samples(NumPoints);
+    for (auto &sample : samples) {
+        sample = dist(gen);
+    }
+    return samples;
+}
+
+// ─────────────────────────────────────
+void GerenatePitchTemplate(Follower *x, t_floatarg f) {
+    std::vector<double> Template;
+    const double mu1 = 30 * 1;
+    const double mu2 = 60 * 1;
+    std::vector<double> samples1 = GenerateGaussianSamples(mu1, 1, 1024);
+    std::vector<double> samples2 = GenerateGaussianSamples(mu2, 1, 1024);
+    std::vector<double> samples;
+
+    samples.reserve(2048);
+    samples.insert(samples.end(), samples1.begin(), samples1.end());
+    samples.insert(samples.end(), samples2.begin(), samples2.end());
+
+    double sum = 0.0;
+    for (int i = 0; i < 2048; i++) {
+        sum += samples[i];
+    }
+    for (int i = 0; i < 2048; i++) {
+        samples[i] = samples[i] / sum;
+    }
+
+    t_atom *out = new t_atom[2048];
+    for (int i = 0; i < 2048; i++) {
+        SETFLOAT(out + i, samples[i]);
+    }
+    outlet_list(x->Tempo, &s_list, 2048, out);
+}
 
 // ─────────────────────────────────────
 static void SetEvent(Follower *x, t_floatarg f) {
@@ -137,7 +180,10 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
 
     x->Score = new FollowerScore();
     x->MDP = new FollowerMDP();
+    x->MDP->Tunning = 440;
     x->MIR = new FollowerMIR(x->HopSize, x->WindowSize, x->Sr);
+
+    printf("Library version %s\n", kfr::library_version());
 
     return x;
 }
@@ -167,4 +213,7 @@ extern "C" void follower_tilde_setup(void) {
     // config
     class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT, 0);
     class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"), A_FLOAT, 0);
+
+    // template
+    class_addmethod(FollowerObj, (t_method)GerenatePitchTemplate, gensym("template"), A_FLOAT, 0);
 }

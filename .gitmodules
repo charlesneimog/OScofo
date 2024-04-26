@@ -1,6 +1,6 @@
 [submodule "Resources/pd.build"]
 	path = Resources/pd.build
 	url = https://github.com/charlesneimog/pd.build
-[submodule "Libraries/aubio"]
-	path = Libraries/aubio
-	url = https://github.com/aubio/aubio.git
+[submodule "Libraries/Kfr"]
+	path = Libraries/Kfr
+	url = https://github.com/kfrlib/kfr.git

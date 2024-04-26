@@ -5,9 +5,8 @@
 
 #include <m_pd.h>
 
-// #include <aubio.h>
-
-// ─────────────────────────────────────
+// FFT
+#include <kfr/dft.hpp>
 
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
@@ -15,13 +14,17 @@
 class FollowerMIR {
   public:
     FollowerMIR(int HopSize, int WindowSize, int Sr);
-    float Mtof(float note, float tunning);
-    float Ftom(float freq, float tunning);
+    static float Mtof(float note, float tunning);
+    static float Ftom(float freq, float tunning);
+    static float Freq2Bin(t_float freq, t_float n, t_float Sr);
+    static unsigned GetPitchBinRanges(std::vector<float> binRanges, t_float thisPitch,
+                                      t_float loFreq, t_float hiFreq, t_float pitchTolerance, int n,
+                                      t_float sr);
 
     struct Description {
         float WindowSize;
         float Sr;
-        float Tunning;
+        float Tunning = 440;
 
         float Freq;
         float Midi;
@@ -31,6 +34,10 @@ class FollowerMIR {
         std::vector<float> SpectralImag;
         std::vector<float> SpectralReal;
         std::vector<float> SpectralPower;
+
+        // Pitch
+        std::vector<float> SpectralChroma;
+        float HigherChroma;
     };
 
     void GetDescription(std::vector<float> *in, Description *Desc, float Tunning);
@@ -46,7 +53,6 @@ class FollowerMIR {
 
   private:
     // Pitch
-    // aubio_pitch_t *YinInstance;
     bool CreateYin(float tolerance, float silence);
     void GetYin(std::vector<float> *in, Description *Desc);
     void AubioYin(std::vector<float> *in, Description *Desc);
@@ -82,6 +88,8 @@ class FollowerMDP {
 
     // Score States
     struct State {
+        float Sr;
+        float WindowSize;
         bool Valid;
         int Type;
 
@@ -99,6 +107,7 @@ class FollowerMDP {
     float RValue;
 
     int GetEvent(std::vector<float> *in, FollowerMIR *MIR);
+
     float Tunning = 440;
     int CurrentEvent = -1;
     float LastOnset = 0;
@@ -109,10 +118,15 @@ class FollowerMDP {
     float GetSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
     float GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
     float GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
+    float CompareSpectralTemplate(State NextPossibleState, FollowerMIR::Description *Desc);
+
+    // Thing place this
+    void GetPitchTemplate(State NextPossibleState);
 
     FollowerMIR::Description *Desc;
     float MinQualityForNote = 0.9;
 
+    std::vector<float> PitchTemplate;
     std::vector<float> BpmHistory;
     float LiveBpm;
     float LiveTimePhase;

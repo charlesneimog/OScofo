@@ -1,16 +1,52 @@
 #include "follower.hpp"
 
+#include <limits.h>
 #include <math.h>
 
-// ==============================================
+// ╭─────────────────────────────────────╮
+// │              MIR Utils              │
+// ╰─────────────────────────────────────╯
+//  ─────────────────────────────────────
 float FollowerMIR::Mtof(float note, float tunning) {
     return tunning * pow(2.0, (note - 69) / 12.0);
 }
+
+// ─────────────────────────────────────
 float FollowerMIR::Ftom(float freq, float tunning) {
     return 69 + 12 * log2(freq / tunning);
 }
 
-// ==============================================
+// ─────────────────────────────────────
+float FollowerMIR::Freq2Bin(t_float freq, t_float n, t_float sr) {
+    t_float bin;
+    bin = freq * n / sr;
+    return round(bin);
+}
+
+// ─────────────────────────────────────
+unsigned FollowerMIR::GetPitchBinRanges(std::vector<float> binRanges, t_float thisPitch,
+                                        t_float loFreq, t_float hiFreq, t_float pitchTolerance,
+                                        int n, t_float sr) {
+    int i;
+    unsigned cardinality = 0;
+    for (i = 0; i < 64; i++)
+        binRanges[i] = ULONG_MAX;
+    while (mtof(thisPitch) < loFreq)
+        thisPitch += 12.0;
+    i = 0;
+    while (mtof(thisPitch) < hiFreq) {
+        binRanges[i] = Freq2Bin(mtof(thisPitch - pitchTolerance), n, sr);
+        binRanges[i + 1] = Freq2Bin(mtof(thisPitch + pitchTolerance), n, sr);
+        cardinality++;
+        thisPitch += 12.0;
+        i += 2;
+    }
+    return (cardinality);
+}
+
+// ╭─────────────────────────────────────╮
+// │         FollowerScore Utils         │
+// ╰─────────────────────────────────────╯
 int FollowerScore::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
