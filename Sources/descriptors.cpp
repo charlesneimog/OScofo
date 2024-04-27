@@ -9,7 +9,8 @@
 
 FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
     : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
-    // CreateYin(0.6, -60);
+
+    // work with double?
     FFTIn = (float *)fftwf_malloc(sizeof(float) * WindowSize);
     FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (WindowSize / 2 + 1));
 }
@@ -23,17 +24,13 @@ void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
     Desc->SpectralImag.clear();
     Desc->SpectralPower.clear();
 
-    // ─────────────────────────────────────
-    for (int i = 0; i < n; i++) {
-        FFTIn[i] = (*in)[i]; // TODO: add windowing function here
-    }
-    fftwf_plan plan = fftwf_plan_dft_r2c_1d(n, FFTIn, FFTOut, FFTW_ESTIMATE);
+    fftwf_plan plan = fftwf_plan_dft_r2c_1d(n, in->data(), FFTOut, FFTW_ESTIMATE);
     fftwf_execute(plan);
 
     // ─────────────────────────────────────
     for (int i = 0; i < n / 2 + 1; i++) {
-        Desc->SpectralReal.push_back(FFTOut[i][0]);
-        Desc->SpectralImag.push_back(FFTOut[i][1]);
+        // Desc->SpectralReal.push_back(FFTOut[i][0]);
+        // Desc->SpectralImag.push_back(FFTOut[i][1]);
         Desc->SpectralPower.push_back((FFTOut[i][0] * FFTOut[i][0] + FFTOut[i][1] * FFTOut[i][1]) /
                                       n);
     }
