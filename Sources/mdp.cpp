@@ -46,60 +46,22 @@ void FollowerMDP::ResetLiveBpm() {
 float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
                                            FollowerMIR::Description *Desc) {
 
-    std::vector<double> PitchSpectralTemplate(Desc->WindowSize, 0.0);
-
-    double Sigma = 0.5;
-    int Harmonics = 2;
-    double AmpDecayConst = 0.00001;
     float KLDiv = 0.0;
-
-    // Cria o Espectro Baseado na Altura Esperada em Curvas de Gaussiana
-    double freqMultiplier = FollowerMIR::Mtof(NextPossibleState.Midi, Tunning) / Desc->Sr;
-    double decayMultiplier = exp(-AmpDecayConst);
-
-    for (int i = 0; i < Harmonics; ++i) {
-        double Freq = freqMultiplier * (i + 1);
-        int mu = round(Freq * Desc->WindowSize);
-        double amp =
-            decayMultiplier * exp(-0.5 * pow(Sigma, 2)); // Precompute common part of the amplitude
-        for (int j = 0; j < Desc->WindowSize; ++j) {
-            double x = static_cast<double>(j);
-            double gaussValue =
-                exp(-0.5 * pow((x - mu) / Sigma, 2)); // Avoid redundant pow calculations
-            PitchSpectralTemplate[j] += amp * gaussValue;
+    int Harmonics = 10;
+    float Freq = FollowerMIR::Mtof(NextPossibleState.Midi, Tunning);
+    float PitchSpectroForce = 0;
+    for (int i = 1; i < Harmonics; i++) {
+        float Harmonic = Freq * i;
+        float BinHarmonic = FollowerMIR::Freq2Bin(Harmonic, Desc->WindowSize, Desc->Sr);
+        for (int j = -2 * i; j < 2 * i; j++) {
+            float Bin = BinHarmonic + j;
+            PitchSpectroForce += Desc->SpectralPower[Bin];
         }
     }
+    PitchSpectroForce = PitchSpectroForce / Harmonics;
+    post("PitchSpectroForce: %f | NextPossibleState.Midi: %f");
 
-    // Normaliza o espectro
-    float Sum1 = 0;
-    float Sum2 = 0;
-#pragma omp parallel for reduction(+ : Sum1, Sum2)
-    for (int i = 0; i < Desc->WindowSize; ++i) {
-        Sum1 += Desc->SpectralPower[i];
-        Sum2 += PitchSpectralTemplate[i];
-    }
-
-#pragma omp parallel for
-    for (int i = 0; i < Desc->WindowSize; ++i) {
-        Desc->SpectralPower[i] /= Sum1;
-        PitchSpectralTemplate[i] /= Sum2;
-    }
-
-    // Compara os dois Espectros Baseados na equacao 7.18 e 7.19
-    float maxVec1 = 0;
-    float maxVec2 = 0;
-    for (int i = 0; i < Desc->WindowSize; i++) {
-        float IVec1 = Desc->SpectralPower[i];
-        float IVec2 = PitchSpectralTemplate[i];
-        if (IVec1 > 0 && IVec2 > 0) {
-            KLDiv += IVec1 * log(IVec1 / IVec2); //- IVec1 + IVec2;
-        }
-    }
-
-    KLDiv = exp(0.3 * KLDiv); // Equation 7.19 in Cont's thesis
-    post("KL Divergence: %f for midi %f", KLDiv, NextPossibleState.Midi);
-
-    return 0;
+    return KLDiv;
 }
 
 // ─────────────────────────────────────
@@ -182,6 +144,8 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
         float Similarity = GetSimilarity(NextPossibleState, Desc);
         if (Similarity > MaxSimilarity && Similarity > 0.1) {
             MaxSimilarity = Similarity;
+            // post("Similarity: %f | Event %d | Midi: %f | Time: %f", Similarity, i,
+            //      NextPossibleState.Midi, NextPossibleState.LiveOnset);
             // BestGuess = i;
         }
     }

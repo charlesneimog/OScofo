@@ -152,7 +152,7 @@
 #X array arr3 200 float 2;
 #X coords 0 1000 200 -50 340 99 1;
 #X restore 764 386 graph;
-#X obj 175 520 a.rotate arr3 1;
+#X obj 162 512 a.rotate arr3 1;
 #X obj 332 18 declare -path ../../;
 #X connect 3 0 1 0;
 #X connect 4 0 14 0;

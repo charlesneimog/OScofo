@@ -6,7 +6,7 @@
 #include <m_pd.h>
 
 // FFT
-#include <kfr/dft.hpp>
+#include <fftw3.h>
 
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
@@ -20,6 +20,9 @@ class FollowerMIR {
     static unsigned GetPitchBinRanges(std::vector<float> binRanges, t_float thisPitch,
                                       t_float loFreq, t_float hiFreq, t_float pitchTolerance, int n,
                                       t_float sr);
+
+    float *FFTIn;
+    fftwf_complex *FFTOut;
 
     struct Description {
         float WindowSize;

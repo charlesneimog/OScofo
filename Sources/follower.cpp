@@ -183,8 +183,6 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->MDP->Tunning = 440;
     x->MIR = new FollowerMIR(x->HopSize, x->WindowSize, x->Sr);
 
-    printf("Library version %s\n", kfr::library_version());
-
     return x;
 }
 

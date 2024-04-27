@@ -10,7 +10,8 @@
 FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
     : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
     // CreateYin(0.6, -60);
-    const kfr::dft_plan<kfr::fbase> dft(WindowSize);
+    FFTIn = (float *)fftwf_malloc(sizeof(float) * WindowSize);
+    FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (WindowSize / 2 + 1));
 }
 
 // ╭─────────────────────────────────────╮
@@ -23,32 +24,19 @@ void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
     Desc->SpectralPower.clear();
 
     // ─────────────────────────────────────
-    t_sample *real_in = new t_sample[n];
     for (int i = 0; i < n; i++) {
-        real_in[i] = (*in)[i]; // TODO: add windowing function here
+        FFTIn[i] = (*in)[i]; // TODO: add windowing function here
     }
+    fftwf_plan plan = fftwf_plan_dft_r2c_1d(n, FFTIn, FFTOut, FFTW_ESTIMATE);
+    fftwf_execute(plan);
 
     // ─────────────────────────────────────
-    // FFT
-    t_sample *imag_in = new t_sample[n];
-    mayer_fft(WindowSize, real_in, imag_in); // not fast
-    for (int i = 0; i < n; i++) {
-        Desc->SpectralImag.push_back(imag_in[i]);
-        Desc->SpectralReal.push_back(real_in[i]);
+    for (int i = 0; i < n / 2 + 1; i++) {
+        Desc->SpectralReal.push_back(FFTOut[i][0]);
+        Desc->SpectralImag.push_back(FFTOut[i][1]);
+        Desc->SpectralPower.push_back((FFTOut[i][0] * FFTOut[i][0] + FFTOut[i][1] * FFTOut[i][1]) /
+                                      n);
     }
-
-    // ─────────────────────────────────────
-    // Power
-    int num_bins = n / 2;
-    for (int i = 0; i < n; i++) {
-        Desc->SpectralPower.push_back((real_in[i] * real_in[i] + imag_in[i] * imag_in[i]) / n);
-        // normalized power
-    }
-
-    // ─────────────────────────────────────
-    // Free Memory
-    delete[] real_in;
-    delete[] imag_in;
 }
 
 // ─────────────────────────────────────
