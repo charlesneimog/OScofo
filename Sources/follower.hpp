@@ -8,12 +8,14 @@
 // FFT
 #include <fftw3.h>
 
+class Follower;
+
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
 // ╰─────────────────────────────────────╯
 class FollowerMIR {
   public:
-    FollowerMIR(int HopSize, int WindowSize, int Sr);
+    FollowerMIR(Follower *x, int HopSize, int WindowSize, int Sr);
     static float Mtof(float note, float tunning);
     static float Ftom(float freq, float tunning);
     static float Freq2Bin(t_float freq, t_float n, t_float Sr);
@@ -23,6 +25,7 @@ class FollowerMIR {
 
     float *FFTIn;
     fftwf_complex *FFTOut;
+    fftwf_plan FFTPlan;
 
     struct Description {
         float WindowSize;
@@ -55,6 +58,9 @@ class FollowerMIR {
     float EventTimeElapsed = 0.0; // ms
 
   private:
+    // Obj
+    Follower *x;
+
     // Pitch
     bool CreateYin(float tolerance, float silence);
     void GetYin(std::vector<float> *in, Description *Desc);
@@ -82,34 +88,45 @@ class FollowerMIR {
 // ╰─────────────────────────────────────╯
 class FollowerMDP {
   public:
-    FollowerMDP();
+    FollowerMDP(Follower *Obj);
 
     void SetMinQualityForNote(float minQuality);
     float GetLiveBpm();
     void SetLiveBpm(float Bpm);
     void ResetLiveBpm();
 
-    // Score States
+    // MDP
     struct State {
+        int Id;
+        bool Valid;
+
+        // Test
+        bool Testing;
+
+        // Audio
         float Sr;
         float WindowSize;
-        bool Valid;
-        int Type;
 
-        int Id;
+        // Score
+        int Type; // NOTE, CHORD, PIZZ, SILENCE
+
+        // Pitch
         float Midi;
-        float Duration;
-        float TimePhase;
-        float Bpm;
 
         // Time
         float LiveOnset; // ms
         float TimePhasePrediction;
+        float Duration;
+        float TimePhase;
+        float Bpm;
+
+        // MDP
+        float Similarity;
     };
     std::vector<State> States;
     float RValue;
 
-    int GetEvent(std::vector<float> *in, FollowerMIR *MIR);
+    int GetEvent(Follower *x, FollowerMIR *MIR);
 
     float Tunning = 440;
     int CurrentEvent = -1;
@@ -117,6 +134,8 @@ class FollowerMDP {
     float PhasePrediction = 0;
 
   private:
+    Follower *x;
+
     float GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc);
     float GetSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
     float GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
@@ -142,6 +161,10 @@ class FollowerMDP {
 // ─────────────────────────────────────
 class FollowerScore {
   public:
+    FollowerScore(Follower *x) {
+        this->x = x;
+    }
+
     enum EventType {
         SILENCE = 0,
         NOTE,
@@ -156,6 +179,7 @@ class FollowerScore {
     FollowerMDP::State AddNote(FollowerMDP::State State, std::vector<std::string> tokens, float bpm,
                                int lineCount);
 
+    Follower *x;
     float lastOnset = 0;
     float lastPhase = 0;
     float FollowBpm(std::vector<std::string> tokens, int lineCount);
@@ -179,6 +203,9 @@ class Follower {
     int Event;
     t_symbol *patchDir;
 
+    // Testing
+    bool Testing = false;
+
     // Score
     bool ScoreLoaded = false;
     bool Following = false;
@@ -193,4 +220,5 @@ class Follower {
 
     t_outlet *EventIndex;
     t_outlet *Tempo;
+    t_outlet *Debug;
 };

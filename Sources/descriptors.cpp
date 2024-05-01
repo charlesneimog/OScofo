@@ -3,16 +3,21 @@
 #include <cmath>
 #include <vector>
 
+// #include <chrono>
+// #include <iostream>
+
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
 
-FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
+FollowerMIR::FollowerMIR(Follower *Obj, int hopSize, int windowSize, int sr)
     : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
 
+    x = Obj;
     // work with double?
     FFTIn = (float *)fftwf_malloc(sizeof(float) * WindowSize);
     FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (WindowSize / 2 + 1));
+    FFTPlan = fftwf_plan_dft_r2c_1d(WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
 }
 
 // ╭─────────────────────────────────────╮
@@ -20,19 +25,14 @@ FollowerMIR::FollowerMIR(int hopSize, int windowSize, int sr)
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
     int n = in->size();
-    Desc->SpectralReal.clear();
-    Desc->SpectralImag.clear();
-    Desc->SpectralPower.clear();
-
-    fftwf_plan plan = fftwf_plan_dft_r2c_1d(n, in->data(), FFTOut, FFTW_ESTIMATE);
-    fftwf_execute(plan);
-
-    // ─────────────────────────────────────
+    if (n / 2 + 1 != Desc->SpectralPower.size()) {
+        Desc->SpectralPower.resize(n / 2 + 1);
+    }
+    fftwf_execute_dft_r2c(FFTPlan, in->data(), FFTOut);
     for (int i = 0; i < n / 2 + 1; i++) {
-        // Desc->SpectralReal.push_back(FFTOut[i][0]);
-        // Desc->SpectralImag.push_back(FFTOut[i][1]);
-        Desc->SpectralPower.push_back((FFTOut[i][0] * FFTOut[i][0] + FFTOut[i][1] * FFTOut[i][1]) /
-                                      n);
+        float real = FFTOut[i][0];
+        float imag = FFTOut[i][1];
+        Desc->SpectralPower[i] = (real * real + imag * imag) / n;
     }
 }
 
@@ -41,57 +41,13 @@ float getMaxElement(const std::vector<float> &vec) {
     if (vec.empty()) {
         return 0.0f; // or any other appropriate default value
     }
-
     float maxVal = vec[0];
     for (size_t i = 1; i < vec.size(); ++i) {
         if (vec[i] > maxVal) {
             maxVal = vec[i];
         }
     }
-
     return maxVal;
-}
-
-// ─────────────────────────────────────
-void FollowerMIR::GetChroma(std::vector<float> *in, Description *Desc) {
-    int ChromaClasses = 12;
-
-    Desc->SpectralChroma.clear();
-    Desc->SpectralChroma.resize(ChromaClasses, 0);
-    Desc->HigherChroma = 0;
-
-    float MaximaMidiDiff = 0.25;
-    float Tolerance = float(12) / float(ChromaClasses) * MaximaMidiDiff;
-    std::vector<float> Chroma(ChromaClasses, 0);
-    float HigherChroma = 0;
-    for (int i = 0; i < ChromaClasses; i++) {
-        float Interval = 12.0 / ChromaClasses;
-        float Fund = 21 + i; // 21 == A0
-        float Energy = 0.0f;
-        float IndexChroma = fmod(Fund, 12);
-        for (int j = 1; j < 12; j++) { // A2-A10
-            float HzFund = Mtof(Fund + (j * 12), Desc->Tunning);
-            float BinFund = Freq2Bin(HzFund, Desc->WindowSize, Desc->Sr);
-            if (BinFund > (Desc->WindowSize / 2) - 2 || BinFund < 1) {
-                break;
-            }
-            float BinAmpA = Desc->SpectralPower[BinFund - 1];
-            float BinAmpB = Desc->SpectralPower[BinFund];
-            float BinAmpC = Desc->SpectralPower[BinFund + 1];
-            float p = 0.5 * (BinAmpA - BinAmpC) / (BinAmpA - 2 * BinAmpB + BinAmpC);
-            float DescFreq = Desc->Sr / Desc->WindowSize * (BinFund + p);
-            float DescMidi = Ftom(DescFreq, Desc->Tunning);
-            float Diff = fabs(DescMidi - (Fund + (j * 12)));
-            Energy += Desc->SpectralPower[BinFund];
-        }
-
-        Desc->SpectralChroma[IndexChroma] = Energy;
-        if (Energy > HigherChroma) {
-            Desc->HigherChroma = IndexChroma;
-            HigherChroma = Energy;
-        }
-    }
-    // post("higherChroma %f", Desc->HigherChroma);
 }
 
 // ╭─────────────────────────────────────╮
@@ -165,7 +121,9 @@ void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, floa
     Desc->WindowSize = WindowSize;
     Desc->Sr = Sr;
     Desc->Tunning = Tunning;
+
     GetRMS(in, Desc);
+
     if (Desc->dB < -40) {
         return;
     }
@@ -175,5 +133,4 @@ void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, floa
     }
 
     GetFFT(in, Desc);
-    GetChroma(in, Desc);
 }

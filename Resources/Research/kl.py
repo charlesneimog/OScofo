@@ -22,8 +22,8 @@ def gaussian(x, amplitude, mu, sigma):
 def main(Fund):
     arrLen = 4096
     array = np.zeros(arrLen)
-    sigma = 1  # Standard deviation
-    harmonics = 3
+    sigma = 0.2  # Standard deviation
+    harmonics = 1
     # Build the Gaussian curve
     for h in range(harmonics):
         freq = (h + 1) * Fund
@@ -43,7 +43,7 @@ def main(Fund):
         plt.title('Curvas Gaussianas')
         plt.xlabel('Ponto')
         plt.ylabel('Amplitude')
-        plt.ylim(0, 1)  # Define os limites do eixo y para garantir que a amplitude esteja entre 0 e 1
+        # plt.ylim(0, 1)  # Define os limites do eixo y para garantir que a amplitude esteja entre 0 e 1
         plt.show()
 
 
@@ -52,5 +52,5 @@ def kl_setup():
 
 
 if __name__ == "__main__":
-    main(20000)
+    main(440)
 

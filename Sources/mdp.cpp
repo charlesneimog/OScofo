@@ -15,7 +15,8 @@ double UpdateR(double r, double eta_r, double t_n_1, double t_n, double psi_k, d
 }
 
 // ─────────────────────────────────────
-FollowerMDP::FollowerMDP() {
+FollowerMDP::FollowerMDP(Follower *Obj) {
+    x = Obj;
     Desc = new FollowerMIR::Description();
     BpmHistory.assign(20, 1);
 }
@@ -46,39 +47,47 @@ void FollowerMDP::ResetLiveBpm() {
 float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
                                            FollowerMIR::Description *Desc) {
 
+    // Prevision
     float KLDiv = 0.0;
+
+    // Pitch Template
     int Harmonics = 10;
+    float Sigma = 5;
+
     float Freq = FollowerMIR::Mtof(NextPossibleState.Midi, Tunning);
     float PitchSpectroForce = 0;
-    for (int i = 1; i < Harmonics; i++) {
-        float Harmonic = Freq * i;
-        float BinHarmonic = FollowerMIR::Freq2Bin(Harmonic, Desc->WindowSize, Desc->Sr);
-        for (int j = -2 * i; j < 2 * i; j++) {
-            float Bin = BinHarmonic + j;
-            PitchSpectroForce += Desc->SpectralPower[Bin];
+    std::vector<float> PitchTemplate(Desc->WindowSize, 0);
+
+    for (int i = 1; i <= Harmonics; i++) {
+        float FreqHarm = i * Freq;
+        int mu = round(FreqHarm / (Desc->Sr / Desc->WindowSize));
+        float Amp = 1 / exp(2);
+        for (int j = 0; j < Desc->WindowSize; j++) {
+            float x = j;
+            float gaussValue = exp(-0.5 * pow((x - mu) / Sigma, 2));
+            PitchTemplate[j] += gaussValue * Amp;
         }
     }
-    PitchSpectroForce = PitchSpectroForce / Harmonics;
-    post("PitchSpectroForce: %f | NextPossibleState.Midi: %f");
 
-    return KLDiv;
-}
-
-// ─────────────────────────────────────
-float FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
-    float NextMidi = NextPossibleState.Midi;
-    float DescMidi = Desc->Midi;
-    float NextFreq = Tunning * pow(2.0, (NextMidi - 69) / 12.0);
-    float DescFreq = Desc->Freq;
-    float Distance = abs(DescMidi - NextMidi);
-    float Similarity;
-    if (Distance < 1) {
-        Similarity = 1 - Distance;
-    } else {
-        Similarity = 0;
+    // use Kullback-Leibler divergence to compare Desc->SpectralPower with PitchTemplate
+    for (int i = 0; i < Desc->WindowSize; i++) {
+        float p = Desc->SpectralPower[i];
+        float q = PitchTemplate[i];
+        if (q > 0 && p > 0) {
+            // Equation 7.18 in Cont's thesis
+            KLDiv += p * log(p / q) - p + q;
+        }
     }
 
-    return Similarity;
+    PitchSpectroForce = exp(-0.4 * KLDiv);
+
+    t_atom out[2];
+    SETFLOAT(&out[0], NextPossibleState.Id + 1);
+    SETFLOAT(&out[1], KLDiv);
+
+    outlet_anything(x->Debug, gensym("pitch"), 2, out);
+
+    return PitchSpectroForce;
 }
 
 // ─────────────────────────────────────
@@ -138,22 +147,22 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
             continue;
         }
         State NextPossibleState = States[i];
-        // NOTE: no good
         NextPossibleState.WindowSize = CurState.WindowSize;
         NextPossibleState.Sr = CurState.Sr;
         float Similarity = GetSimilarity(NextPossibleState, Desc);
-        if (Similarity > MaxSimilarity && Similarity > 0.1) {
+        NextPossibleState.Similarity = Similarity;
+        if (Similarity > MaxSimilarity) {
             MaxSimilarity = Similarity;
-            // post("Similarity: %f | Event %d | Midi: %f | Time: %f", Similarity, i,
-            //      NextPossibleState.Midi, NextPossibleState.LiveOnset);
-            // BestGuess = i;
+            BestGuess = i;
         }
+        // post("Event %d | Similarity %f", i, Similarity);
     }
     return BestGuess;
 }
 
 // ─────────────────────────────────────
-int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
+int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
+
     // CurrentEvent represents the current event index.
     // In line with human understanding, the first note in the score
     // is indexed as 1 instead of 0. This adjustment is made in DspPerform.
@@ -167,7 +176,7 @@ int FollowerMDP::GetEvent(std::vector<float> *in, FollowerMIR *MIR) {
     State CurState = States[CurrentEvent];
 
     // Sound Description
-    MIR->GetDescription(in, Desc, Tunning);
+    MIR->GetDescription(x->inBuffer, Desc, Tunning);
     Desc->TimeElapsed = MIR->GetEventTimeElapsed();
 
     if (Desc->dB < -40) {

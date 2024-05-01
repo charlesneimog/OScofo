@@ -120,7 +120,7 @@ static t_int *DspPerform(t_int *w) {
     }
 
     x->BlockIndex = 0;
-    int Event = x->MDP->GetEvent(x->inBuffer, x->MIR) + 1;
+    int Event = x->MDP->GetEvent(x, x->MIR) + 1;
     if (Event == -1) {
         return (w + 4);
     }
@@ -164,6 +164,10 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
                     i++;
                 }
             }
+            if (argument == "-test") {
+                x->Testing = true;
+                x->Debug = outlet_new(&x->xObj, &s_anything);
+            }
         }
     }
     if (overlap != 4) {
@@ -178,10 +182,10 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
 
     x->Sr = sys_getsr();
 
-    x->Score = new FollowerScore();
-    x->MDP = new FollowerMDP();
+    x->Score = new FollowerScore(x);
+    x->MDP = new FollowerMDP(x);
     x->MDP->Tunning = 440;
-    x->MIR = new FollowerMIR(x->HopSize, x->WindowSize, x->Sr);
+    x->MIR = new FollowerMIR(x, x->HopSize, x->WindowSize, x->Sr);
 
     return x;
 }
