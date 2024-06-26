@@ -3,25 +3,24 @@
 #include <cmath>
 #include <math.h>
 #include <omp.h>
-// #include <random>
+
+#include <boost/math/special_functions/bessel.hpp>
 
 #define MAX_FREQUENCY_DIFFERENCE 10.0
 #define MAX_QUALITY_DIFFERENCE 0.5
 
-// TEST:
-double UpdateR(double r, double eta_r, double t_n_1, double t_n, double psi_k, double phi_n) {
-    r = r - eta_r * (r - cos(2 * M_PI * (t_n - t_n_1) / psi_k - phi_n));
-    return r;
-}
-
-// ─────────────────────────────────────
+// ╭─────────────────────────────────────╮
+// │           Init Functions            │
+// ╰─────────────────────────────────────╯
 FollowerMDP::FollowerMDP(Follower *Obj) {
     x = Obj;
     Desc = new FollowerMIR::Description();
     BpmHistory.assign(20, 1);
 }
 
-// ─────────────────────────────────────
+// ╭─────────────────────────────────────╮
+// │          Set|Get Functions          │
+// ╰─────────────────────────────────────╯
 void FollowerMDP::SetMinQualityForNote(float minQuality) {
     MinQualityForNote = minQuality;
 }
@@ -41,53 +40,127 @@ void FollowerMDP::ResetLiveBpm() {
     BpmHistory.assign(20, 1);
 }
 
+// ─────────────────────────────────────
+std::vector<FollowerMDP::State> FollowerMDP::GetStates() {
+    return States;
+}
+
+// ─────────────────────────────────────
+int FollowerMDP::GetStatesSize() {
+    return States.size();
+}
+// ─────────────────────────────────────
+void FollowerMDP::AddState(FollowerMDP::State state) {
+    States.push_back(state);
+}
+// ─────────────────────────────────────
+FollowerMDP::State FollowerMDP::GetState(int Index) {
+    return States[Index];
+}
+
+// ╭─────────────────────────────────────╮
+// │            Time Decoding            │
+// ╰─────────────────────────────────────╯
+FollowerMDP::TimeDecoder::TimeDecoder(Follower *Obj) {
+
+    // k é o número de ciclos para chegar em Onset[i]
+    unsigned int StateSize = Obj->MDP->GetStatesSize();
+
+    float k = 1; // TODO: How to calculate k?
+
+    for (int i = 1; i < StateSize; i++) {
+        State State0 = Obj->MDP->GetState(i - 1);
+        State State1 = Obj->MDP->GetState(i);
+
+        // eq 8
+        float Time = 60 / State1.Bpm;
+        float t0 = State0.Onset;
+        float t1 = State1.Onset;
+        float PhiN = t0 / Time + TWO_PI * k;
+        float PhiN1 = PhiN + (t1 - t0) / Time;
+        PhiN1 = fmod(PhiN1, TWO_PI) - PI;
+
+        // eq 10
+    }
+}
+
+// ─────────────────────────────────────
+double FollowerMDP::TimeDecoder::PhaseOfN() {
+
+    return 0;
+}
+
+double FollowerMDP::TimeDecoder::RDispersion(int n, double coupleStrength, std::vector<float> mean,
+                                             std::vector<float> expPhasePos) {
+
+    // Eq 13;
+    float sum = 0;
+    for (int i = 1; i < n; i++) {
+        sum += cos(TWO_PI * (mean[i] - expPhasePos[i]));
+    }
+    sum = sum / n;
+    return sum;
+}
+
+// ─────────────────────────────────────
+double FollowerMDP::TimeDecoder::HatKappa(double r, double tol, double max_iter) {
+
+    // Eq 14;
+    double low = 0.01, up = 10.0;
+    double mid;
+    int iter = 0;
+    while (iter < max_iter) {
+        mid = (low + up) / 2.0;
+        double f_mid = boost::math::cyl_bessel_i(1, mid) / boost::math::cyl_bessel_i(0, mid) - r;
+        if (std::abs(f_mid) < tol) {
+            return mid;
+        }
+        double f_lower = boost::math::cyl_bessel_i(1, low) / boost::math::cyl_bessel_i(0, low) - r;
+        if (f_lower * f_mid < 0) {
+            up = mid;
+        } else {
+            low = mid;
+        }
+        iter++;
+    }
+    return mid;
+}
+
+// ─────────────────────────────────────
+
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
 float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
                                            FollowerMIR::Description *Desc) {
-
     // Prevision
     float KLDiv = 0.0;
+    int harmonic = 10;
+    std::vector<float> PitchSpectro(Desc->WindowSize, 0);
 
-    // Pitch Template
-    int Harmonics = 10;
-    float Sigma = 5;
-
-    float Freq = FollowerMIR::Mtof(NextPossibleState.Midi, Tunning);
-    float PitchSpectroForce = 0;
-    std::vector<float> PitchTemplate(Desc->WindowSize, 0);
-
-    for (int i = 1; i <= Harmonics; i++) {
-        float FreqHarm = i * Freq;
-        int mu = round(FreqHarm / (Desc->Sr / Desc->WindowSize));
-        float Amp = 1 / exp(2);
-        for (int j = 0; j < Desc->WindowSize; j++) {
-            float x = j;
-            float gaussValue = exp(-0.5 * pow((x - mu) / Sigma, 2));
-            PitchTemplate[j] += gaussValue * Amp;
+    // create PitchSpectro
+    float Fund = NextPossibleState.Freq;
+    for (int i = 0; i < harmonic; i++) {
+        int j = i + 1;
+        float harmonic = Fund * j;
+        int bin = round(harmonic / (Desc->Sr / Desc->WindowSize));
+        for (int k = 0; k < 3; k++) {
+            float tIndex = (i * 3) + k;
+            int index = bin - 1 + k;
+            PitchSpectro[index] = PitchTemplate[tIndex];
         }
     }
 
-    // use Kullback-Leibler divergence to compare Desc->SpectralPower with PitchTemplate
-    for (int i = 0; i < Desc->WindowSize; i++) {
+    // use KLDiv to check divergence between Desc->SpectralPower and PitchTemplate
+    for (int i = 0; i < Desc->SpectralPower.size(); i++) {
         float p = Desc->SpectralPower[i];
-        float q = PitchTemplate[i];
-        if (q > 0 && p > 0) {
-            // Equation 7.18 in Cont's thesis
-            KLDiv += p * log(p / q) - p + q;
+        float q = PitchSpectro[i];
+        if (p > 0 && q > 0) {
+            KLDiv += p * log2(p / q);
         }
     }
 
-    PitchSpectroForce = exp(-0.4 * KLDiv);
-
-    t_atom out[2];
-    SETFLOAT(&out[0], NextPossibleState.Id + 1);
-    SETFLOAT(&out[1], KLDiv);
-
-    outlet_anything(x->Debug, gensym("pitch"), 2, out);
-
-    return PitchSpectroForce;
+    return KLDiv;
 }
 
 // ─────────────────────────────────────
@@ -186,15 +259,6 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     float BestGuess = GetBestEvent(States, Desc);
     if (BestGuess != CurrentEvent) {
         // Value of R
-        float Tn_1 = States[CurrentEvent].LiveOnset / 1000; // tn-1
-        float Tn = States[BestGuess].LiveOnset / 1000;      // tn0
-        float PsiK = 60 / States[CurrentEvent].Bpm;
-        float PhiN = States[CurrentEvent].TimePhase;
-        RValue = UpdateR(RValue, 0.01, Tn_1, Tn, PsiK, PhiN);
-
-        float EventTime = MIR->GetEventTimeElapsed();
-        MIR->ResetElapsedTime();
-        CurrentEvent = BestGuess;
     }
     return CurrentEvent;
 }

@@ -7,6 +7,54 @@
 static t_class *FollowerObj;
 
 // ─────────────────────────────────────
+void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
+    float *FFTIn;
+    fftwf_complex *FFTOut;
+    fftwf_plan FFTPlan;
+    x->MDP->PitchTemplate.clear();
+
+    FFTIn = (float *)fftwf_malloc(sizeof(float) * x->WindowSize);
+    FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (x->WindowSize / 2 + 1));
+    FFTPlan = fftwf_plan_dft_r2c_1d(x->WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+
+    t_garray *Array;
+    int VecSize;
+    t_word *Vec;
+
+    if (!(Array = (t_garray *)pd_findbyclass(s, garray_class))) {
+        pd_error(x, "[follower~] Array %s not found.", s->s_name);
+        return;
+    } else if (!garray_getfloatwords(Array, &VecSize, &Vec)) {
+        pd_error(x, "[follower~] Bad template for tabwrite '%s'.", s->s_name);
+        return;
+    }
+
+    // get middle of the array
+    int middle = VecSize / 2;
+    std::vector<float> AudioChunk(x->WindowSize, 0);
+    for (int i = 0; i < x->WindowSize; i++) {
+        AudioChunk[i] = Vec[middle + i].w_float;
+    }
+    fftwf_execute_dft_r2c(FFTPlan, AudioChunk.data(), FFTOut);
+
+    std::vector<double> SpectralPower(x->WindowSize / 2 + 1, 0);
+    for (int i = 0; i < x->WindowSize / 2 + 1; i++) {
+        float real = FFTOut[i][0];
+        float imag = FFTOut[i][1];
+        SpectralPower[i] = ((real * real + imag * imag) / x->WindowSize) / x->WindowSize;
+    }
+
+    for (int i = 0; i < h; i++) {
+        float pitchHz = fund * (i + 1);
+        int bin = round(pitchHz / (sr / x->WindowSize));
+        x->MDP->PitchTemplate.push_back(SpectralPower[bin - 1]);
+        x->MDP->PitchTemplate.push_back(SpectralPower[bin]);
+        x->MDP->PitchTemplate.push_back(SpectralPower[bin + 1]);
+    }
+    post("[follower~] Template loaded");
+}
+
+// ─────────────────────────────────────
 // Function to generate samples from a Gaussian distribution centered around bin
 std::vector<double> GenerateGaussianSamples(double Mu, double Sigma, int NumPoints) {
     std::random_device rd;
@@ -76,6 +124,7 @@ static void MinQuality(Follower *x, t_floatarg f) {
 static void Tunning(Follower *x, t_floatarg f) {
     post("[follower~] A4 set to %f Hz", f);
     x->MDP->Tunning = f;
+    x->Score->Tunning = f;
 }
 
 // ─────────────────────────────────────
@@ -217,5 +266,6 @@ extern "C" void follower_tilde_setup(void) {
     class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"), A_FLOAT, 0);
 
     // template
-    class_addmethod(FollowerObj, (t_method)GerenatePitchTemplate, gensym("template"), A_FLOAT, 0);
+    class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,
+                    A_FLOAT, A_FLOAT, A_FLOAT, 0);
 }

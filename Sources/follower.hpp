@@ -8,6 +8,9 @@
 // FFT
 #include <fftw3.h>
 
+#define PI 3.14159265358979323846
+#define TWO_PI (2 * M_PI)
+
 class Follower;
 
 // ╭─────────────────────────────────────╮
@@ -100,9 +103,6 @@ class FollowerMDP {
         int Id;
         bool Valid;
 
-        // Test
-        bool Testing;
-
         // Audio
         float Sr;
         float WindowSize;
@@ -112,21 +112,37 @@ class FollowerMDP {
 
         // Pitch
         float Midi;
+        float Freq;
 
         // Time
-        float LiveOnset; // ms
-        float TimePhasePrediction;
-        float Duration;
-        float TimePhase;
         float Bpm;
+        float Onset;
+        float Duration;
 
         // MDP
         float Similarity;
     };
     std::vector<State> States;
+
+    std::vector<State> GetStates();
+    State GetState(int Index);
+    void AddState(FollowerMDP::State state);
+    int GetStatesSize();
+    std::vector<double> PitchTemplate;
     float RValue;
 
     int GetEvent(Follower *x, FollowerMIR *MIR);
+    class TimeDecoder {
+      public:
+        TimeDecoder(Follower *Obj);
+        double HatKappa(double r, double tol = 1e-6, double max_iter = 100);
+        double RDispersion(int n, double coupleStrength, std::vector<float> mean,
+                           std::vector<float> expPhasePos);
+        double PhaseOfN();
+
+      private:
+        std::vector<float> Onsets;
+    };
 
     float Tunning = 440;
     int CurrentEvent = -1;
@@ -148,7 +164,6 @@ class FollowerMDP {
     FollowerMIR::Description *Desc;
     float MinQualityForNote = 0.9;
 
-    std::vector<float> PitchTemplate;
     std::vector<float> BpmHistory;
     float LiveBpm;
     float LiveTimePhase;
@@ -174,6 +189,8 @@ class FollowerScore {
     int Name2Midi(std::string note);
     void Parse(FollowerMDP *MDP, const char *score);
     float GetTimePhase(float t_n0, float t_n1, float phase0, float pulse);
+    float Tunning = 440;
+    float K = 1;
 
   private:
     FollowerMDP::State AddNote(FollowerMDP::State State, std::vector<std::string> tokens, float bpm,
@@ -210,13 +227,14 @@ class Follower {
     bool ScoreLoaded = false;
     bool Following = false;
     int CurrentEvent = 0;
+    std::vector<double> PitchTemplate;
 
     // Audio
     int BlockIndex;
     int BlockSize;
     int HopSize;
     int WindowSize;
-    int Sr;
+    float Sr;
 
     t_outlet *EventIndex;
     t_outlet *Tempo;

@@ -7,9 +7,6 @@
 
 #define ACCUMULATION_FACTOR 1 // TODO: define by user
 
-#define M_PI 3.14159265358979323846
-#define TWO_PI (2 * M_PI)
-
 // clang-format off
 
 // TODO: Add SECTION word, for example, "SECTION B" will start a score after the SECTION B event
@@ -18,51 +15,10 @@
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 
 
-// ╭─────────────────────────────────────╮
-// │             References              │
-// ╰─────────────────────────────────────╯
-/*
- * CONT, Arshia. Modeling Musical Anticipation: From the Time of Music to the Music of Time. 2008.
-
-*/
-
-
-// r = r - \eta_r \left[ r - \cos \left( 2\pi \frac{(t_n - t_{n-1} - \hat{\phi}_n)}{\psi_k} \right) \right]
-// \kappa = A^{-1}_2 (r) \quad \text{(Table lookup)}
-
-// clang-format on
-
-// ─────────────────────────────────────
-// double UpdateR(double r, double eta_r, double t_n, double t_n_1, double psi_k, double phi_n) {
-//     return r - eta_r * (r - cos(2 * M_PI * (t_n - t_n_1) / psi_k - phi_n));
-// }
-
-// ─────────────────────────────────────
-float New_R(float r, float eta, float t_n, float t_n1, float phi_n, float psi_k) {
-    float r_hat = std::cos(TWO_PI * ((t_n - t_n1 / psi_k) - phi_n));
-    float r_new = r - eta * (r - r_hat);
-    return r - eta * (r - r_hat);
-}
-
-// ─────────────────────────────────────
-float AttentionalFunction(float phi, float phi_mu, float kappa) {
-    // (CONT, 2008, p. 134) eq 7.9.
-    float cos_term = std::cos(TWO_PI * (phi - phi_mu));
-    float sin_term = std::sin(TWO_PI * (phi - phi_mu));
-    float exp_term = 1 / std::exp(kappa) * TWO_PI;
-    float result = exp_term * std::exp(kappa * cos_term) * sin_term;
-    return result;
-}
-
-// ─────────────────────────────────────
-float FollowerScore::GetTimePhase(float t_n0, float t_n1, float phase0, float pulse) {
-    float phi_n1 = phase0 + (t_n1 - t_n0) / pulse;
-    phi_n1 = std::fmod(phi_n1 + 0.5, 1.0) - 0.5;
-    return phi_n1;
-}
 // ─────────────────────────────────────
 FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<std::string> tokens,
                                           float bpm, int lineCount) {
+    K = 1;
     if (bpm == -1) {
         pd_error(NULL, "BPM not defined");
         return State;
@@ -83,6 +39,7 @@ FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<
             State.Midi = State.Midi * 0.01;
         }
     }
+    State.Freq = Tunning * std::pow(2, (State.Midi - 69) / 12);
 
     // check if there is / in the string
     bool isRatio = tokens[2].find('/') != std::string::npos;
@@ -103,15 +60,6 @@ FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<
     }
 
     // time phase
-    float t_n0 = lastOnset;
-    float t_n1 = t_n0 + State.Duration * 60000 / bpm;
-    float phase0 = lastPhase;
-    float pulse = 60000 / bpm;
-
-    lastPhase = GetTimePhase(t_n0, t_n1, phase0, pulse);
-    lastOnset = t_n1;
-
-    State.TimePhase = lastPhase;
     State.Bpm = bpm;
     State.Valid = true;
 
@@ -131,6 +79,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
     float bpm = -1;
     std::string line;
     int lineCount = 0;
+    float LastOnset = 0;
     while (std::getline(file, line)) {
         lineCount++;
         // parse line
@@ -149,7 +98,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         if (tokens[0] == "NOTE") {
             FollowerMDP::State State;
             State.Type = NOTE;
-            State.Id = MDP->States.size();
+            State.Id = MDP->GetStatesSize();
             if (State.Id == 0) {
                 MDP->SetLiveBpm(bpm);
             }
@@ -164,7 +113,9 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
-            MDP->States.push_back(State);
+            State.Onset = LastOnset + State.Duration;
+            MDP->AddState(State);
+            LastOnset = State.Onset;
 
         } else if (tokens[0] == "BPM") {
             bpm = std::stof(tokens[1]);
