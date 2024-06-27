@@ -10,14 +10,20 @@
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
 
-FollowerMIR::FollowerMIR(Follower *Obj, int hopSize, int windowSize, int sr)
-    : HopSize(hopSize), WindowSize(windowSize), Sr(sr) {
+FollowerMIR::FollowerMIR(Follower *Obj) {
+    LOGE() << "FollowerMIR::FollowerMIR";
 
+    HopSize = Obj->HopSize;
+    WindowSize = Obj->WindowSize;
+    Sr = Obj->Sr;
     x = Obj;
+
     // work with double?
     FFTIn = (float *)fftwf_malloc(sizeof(float) * WindowSize);
     FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (WindowSize / 2 + 1));
     FFTPlan = fftwf_plan_dft_r2c_1d(WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+
+    LOGE() << "FollowerMIR::FollowerMIR end";
 }
 
 // ╭─────────────────────────────────────╮
@@ -28,11 +34,18 @@ void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
     if (n / 2 + 1 != Desc->SpectralPower.size()) {
         Desc->SpectralPower.resize(n / 2 + 1);
     }
+
+    if (n / 2 + 1 != Desc->NormSpectralPower.size()) {
+        Desc->NormSpectralPower.resize(n / 2 + 1);
+    }
+
     fftwf_execute_dft_r2c(FFTPlan, in->data(), FFTOut);
+
     for (int i = 0; i < n / 2 + 1; i++) {
         float real = FFTOut[i][0];
         float imag = FFTOut[i][1];
         Desc->SpectralPower[i] = (real * real + imag * imag) / n;
+        Desc->NormSpectralPower[i] = Desc->SpectralPower[i] / n;
     }
 }
 

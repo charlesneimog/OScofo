@@ -183,19 +183,25 @@ static t_int *DspPerform(t_int *w) {
 
 // ─────────────────────────────────────
 static void AddDsp(Follower *x, t_signal **sp) {
+    LOGE() << "AddDsp";
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
     x->inBuffer = new std::vector<float>(x->WindowSize, 0.0f);
     dsp_add(DspPerform, 3, x, sp[0]->s_vec, sp[0]->s_n);
+    LOGE() << "AddDsp Successful";
 }
 
 // ─────────────────────────────────────
 static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
+    LOGE() << "NewFollower";
+
     Follower *x = (Follower *)pd_new(FollowerObj);
     x->EventIndex = outlet_new(&x->xObj, &s_float);
     x->Tempo = outlet_new(&x->xObj, &s_float);
-    x->WindowSize = 2048;
-    x->HopSize = 512;
+    x->WindowSize = 2048.0f;
+    x->HopSize = 512.0f;
+    x->Sr = sys_getsr();
+
     float overlap = 4;
 
     for (int i = 0; i < argc; i++) {
@@ -229,21 +235,22 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->Sr = sys_getsr();
-
-    x->Score = new FollowerScore(x);
+    x->Score = new FollowerScore(x); // TODO: rethink about use new
     x->MDP = new FollowerMDP(x);
+    x->MIR = new FollowerMIR(x);
     x->MDP->Tunning = 440;
-    x->MIR = new FollowerMIR(x, x->HopSize, x->WindowSize, x->Sr);
 
+    LOGE() << "Returning NewFollower";
     return x;
 }
 
 // ─────────────────────────────────────
 static void *FreeFollower(Follower *x) {
+    LOGE() << "Start Free of NewFollower";
     delete x->Score;
     delete x->MIR;
     delete x->MDP;
+    LOGE() << "End Free of NewFollower";
     return nullptr;
 }
 

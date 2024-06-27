@@ -151,7 +151,7 @@
 #X restore 306 393 pd debug;
 #X msg 132 292 template flute 44100 440 10;
 #X obj 505 195 switch~;
-#X obj 537 51 tgl 25 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737 0 1;
+#X obj 505 63 tgl 82 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737 0 1;
 #X obj 462 153 bng 25 250 50 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737;
 #X obj 451 -30 bang~;
 #X obj 520 -12 tgl 25 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737 0 1;

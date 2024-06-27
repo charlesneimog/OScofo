@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -18,17 +19,13 @@ class Follower;
 // ╰─────────────────────────────────────╯
 class FollowerMIR {
   public:
-    FollowerMIR(Follower *x, int HopSize, int WindowSize, int Sr);
+    FollowerMIR(Follower *x);
     static float Mtof(float note, float tunning);
     static float Ftom(float freq, float tunning);
     static float Freq2Bin(t_float freq, t_float n, t_float Sr);
     static unsigned GetPitchBinRanges(std::vector<float> binRanges, t_float thisPitch,
                                       t_float loFreq, t_float hiFreq, t_float pitchTolerance, int n,
                                       t_float sr);
-
-    float *FFTIn;
-    fftwf_complex *FFTOut;
-    fftwf_plan FFTPlan;
 
     struct Description {
         float WindowSize;
@@ -43,6 +40,7 @@ class FollowerMIR {
         std::vector<float> SpectralImag;
         std::vector<float> SpectralReal;
         std::vector<float> SpectralPower;
+        std::vector<float> NormSpectralPower;
 
         // Pitch
         std::vector<float> SpectralChroma;
@@ -63,6 +61,11 @@ class FollowerMIR {
   private:
     // Obj
     Follower *x;
+
+    // FFT
+    float *FFTIn;
+    fftwf_complex *FFTOut;
+    fftwf_plan FFTPlan;
 
     // Pitch
     bool CreateYin(float tolerance, float silence);
@@ -230,13 +233,35 @@ class Follower {
     std::vector<double> PitchTemplate;
 
     // Audio
-    int BlockIndex;
-    int BlockSize;
-    int HopSize;
-    int WindowSize;
+    float BlockIndex;
+    float BlockSize;
+    float HopSize;
+    float WindowSize;
     float Sr;
 
     t_outlet *EventIndex;
     t_outlet *Tempo;
     t_outlet *Debug;
 };
+
+class LogStream {
+  public:
+    template <typename T> LogStream &operator<<(const T &value) {
+        buffer << value;
+        return *this;
+    }
+
+    ~LogStream() {
+        // Convert the log message to a C string
+        std::string message = buffer.str();
+        const char *c_message = message.c_str();
+
+        // Print the log message to pd_error()
+        printf("%s\n", c_message);
+    }
+
+  private:
+    std::ostringstream buffer;
+};
+
+#define LOGE() LogStream()

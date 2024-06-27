@@ -135,61 +135,44 @@ float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
                                            FollowerMIR::Description *Desc) {
     // Prevision
     float KLDiv = 0.0;
-    int harmonic = 10;
-    std::vector<float> PitchSpectro(Desc->WindowSize, 0);
+    int Harmonic = 10;
+    float NextPitch = NextPossibleState.Freq;
+    float Sr = Desc->Sr;
+    int BinIndex = round(NextPitch / (Desc->Sr / Desc->WindowSize));
+    float Variacao = 0.5;
+    float Amplitude = 1;
 
-    // create PitchSpectro
-    float Fund = NextPossibleState.Freq;
-    for (int i = 0; i < harmonic; i++) {
-        int j = i + 1;
-        float harmonic = Fund * j;
-        int bin = round(harmonic / (Desc->Sr / Desc->WindowSize));
-        for (int k = 0; k < 3; k++) {
-            float tIndex = (i * 3) + k;
-            int index = bin - 1 + k;
-            PitchSpectro[index] = PitchTemplate[tIndex];
+    if (Desc->WindowSize / 2 + 1 != PitchTemplate.size()) {
+        PitchTemplate.resize(Desc->WindowSize / 2 + 1);
+    }
+    float n = Desc->WindowSize;
+
+    for (size_t i = 0; i < PitchTemplate.size(); i++) {
+        for (size_t j = 0; j < Harmonic; j++) {
+            PitchTemplate[i] +=
+                Amplitude * exp(-pow((i - BinIndex * (j + 1)), 2) / (2 * pow(Variacao, 2))) / n;
         }
     }
 
-    // use KLDiv to check divergence between Desc->SpectralPower and PitchTemplate
-    for (int i = 0; i < Desc->SpectralPower.size(); i++) {
-        float p = Desc->SpectralPower[i];
-        float q = PitchSpectro[i];
-        if (p > 0 && q > 0) {
-            KLDiv += p * log2(p / q);
+    // Kullback-Leibler Divergence
+    for (size_t i = 0; i < PitchTemplate.size(); i++) {
+        if (PitchTemplate[i] == 0 || Desc->SpectralPower[i] == 0) {
+            continue;
         }
+        KLDiv += PitchTemplate[i] * log(PitchTemplate[i] / Desc->SpectralPower[i]);
     }
+    PitchTemplate.clear();
 
+    // where z is the scaling factor that controls how fast an increase in distance translates
+    // to decrease in probability.
+    float z = 0.5;
+    KLDiv = exp(-z * KLDiv);
     return KLDiv;
 }
 
 // ─────────────────────────────────────
 float FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
-
-    float Similarity = 0.0;
-    float CorrectedDur = NextPossibleState.Duration * (60000.0f / LiveBpm);
-
-    if (CurrentEvent == NextPossibleState.Id || (CurrentEvent == -1 == NextPossibleState.Id == 0)) {
-        float margin = 0.2f * Desc->TimeElapsed;
-        float minTime = Desc->TimeElapsed - margin;
-        float maxTime = Desc->TimeElapsed + margin;
-        if (CorrectedDur >= minTime && CorrectedDur <= maxTime) {
-            Similarity = 1.0f; // Adjust weight as needed
-        } else {
-            Similarity = 0.5f;
-        }
-
-    } else if (NextPossibleState.Id == CurrentEvent + 1) {
-        float margin = 0.2f * Desc->TimeElapsed;
-        float minTime = Desc->TimeElapsed - margin;
-        float maxTime = Desc->TimeElapsed + margin;
-        if (CorrectedDur >= minTime && CorrectedDur <= maxTime) {
-            Similarity = 1.0f;
-        } else {
-            Similarity = 0.0f;
-        }
-    }
-    return Similarity;
+    return 0;
 }
 
 // ─────────────────────────────────────
@@ -197,14 +180,12 @@ float FollowerMDP::GetSimilarity(State NextPossibleState, FollowerMIR::Descripti
     float PitchWeight = 0.7;
     float TimeWeight = 0.3;
 
-    // float PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
-    // float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc);
+    float PitchSimilarity = CompareSpectralTemplate(NextPossibleState, Desc) * PitchWeight;
+    // float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
 
-    float Similarity = CompareSpectralTemplate(NextPossibleState, Desc);
+    // float Similarity = PitchSimilarity + TimeSimilarity;
 
-    // float Similarity = PitchSimilarity;
-
-    return Similarity;
+    return PitchSimilarity;
 }
 
 // ─────────────────────────────────────
@@ -228,8 +209,8 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
             MaxSimilarity = Similarity;
             BestGuess = i;
         }
-        // post("Event %d | Similarity %f", i, Similarity);
     }
+    CurrentEvent = BestGuess;
     return BestGuess;
 }
 
@@ -250,11 +231,10 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
 
     // Sound Description
     MIR->GetDescription(x->inBuffer, Desc, Tunning);
-    Desc->TimeElapsed = MIR->GetEventTimeElapsed();
-
-    if (Desc->dB < -40) {
+    if (Desc->dB < -40) { // TODO: Make this variable
         return CurrentEvent;
     }
+    Desc->TimeElapsed = MIR->GetEventTimeElapsed();
 
     float BestGuess = GetBestEvent(States, Desc);
     if (BestGuess != CurrentEvent) {
