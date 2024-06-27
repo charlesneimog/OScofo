@@ -1,5 +1,6 @@
 #include "follower.hpp"
 
+#include <algorithm> // For std::max_element
 #include <cmath>
 #include <math.h>
 #include <omp.h>
@@ -16,6 +17,9 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
     x = Obj;
     Desc = new FollowerMIR::Description();
     BpmHistory.assign(20, 1);
+    if (Obj->WindowSize / 2 != PitchTemplate.size()) {
+        PitchTemplate.resize(Obj->WindowSize / 2);
+    }
 }
 
 // ╭─────────────────────────────────────╮
@@ -126,47 +130,47 @@ double FollowerMDP::TimeDecoder::HatKappa(double r, double tol, double max_iter)
     return mid;
 }
 
-// ─────────────────────────────────────
-
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
+void FollowerMDP::SetPitchTemplateSigma(float f) {
+    m_PitchTemplateSigma = f;
+}
+// ─────────────────────────────────────
 float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
                                            FollowerMIR::Description *Desc) {
-    // Prevision
     float KLDiv = 0.0;
-    int Harmonic = 10;
+    int Harmonics = 5;
+    std::fill(PitchTemplate.begin(), PitchTemplate.end(), 0);
+
+    // Template Config
+    float z = 0.5;
+
     float NextPitch = NextPossibleState.Freq;
     float Sr = Desc->Sr;
-    int BinIndex = round(NextPitch / (Desc->Sr / Desc->WindowSize));
-    float Variacao = 0.5;
-    float Amplitude = 1;
+    float BinFreq = NextPitch / (Desc->Sr / Desc->WindowSize);
 
-    if (Desc->WindowSize / 2 + 1 != PitchTemplate.size()) {
-        PitchTemplate.resize(Desc->WindowSize / 2 + 1);
-    }
-    float n = Desc->WindowSize;
-
-    for (size_t i = 0; i < PitchTemplate.size(); i++) {
-        for (size_t j = 0; j < Harmonic; j++) {
-            PitchTemplate[i] +=
-                Amplitude * exp(-pow((i - BinIndex * (j + 1)), 2) / (2 * pow(Variacao, 2))) / n;
+    for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
+        for (size_t j = 0; j < Harmonics; j++) {
+            float amp = Desc->MaxAmp / (pow(2, j));
+            float num = std::pow(i - (BinFreq * (j + 1)), 2);
+            float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
+            PitchTemplate[i] += amp * exp(-(num / den));
         }
     }
 
-    // Kullback-Leibler Divergence
-    for (size_t i = 0; i < PitchTemplate.size(); i++) {
-        if (PitchTemplate[i] == 0 || Desc->SpectralPower[i] == 0) {
-            continue;
+    for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
+        float P = PitchTemplate[i];
+        float Q = Desc->NormSpectralPower[i];
+        if (P > 0 && Q > 0) {
+            KLDiv += P * log(P / Q) - P + Q;
+        } else if (P == 0 && Q >= 0) {
+            KLDiv += Q;
         }
-        KLDiv += PitchTemplate[i] * log(PitchTemplate[i] / Desc->SpectralPower[i]);
     }
-    PitchTemplate.clear();
 
-    // where z is the scaling factor that controls how fast an increase in distance translates
-    // to decrease in probability.
-    float z = 0.5;
     KLDiv = exp(-z * KLDiv);
+    LOGE() << "KLDiv " << KLDiv;
     return KLDiv;
 }
 
@@ -176,7 +180,7 @@ float FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::Descr
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
+float FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::Description *Desc) {
     float PitchWeight = 0.7;
     float TimeWeight = 0.3;
 
@@ -197,19 +201,22 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
 
     // 3 means that it just look for the next 3 events
     for (int i = CurrentEvent; i < (CurrentEvent + 3); i++) {
+        LOGE() << "Event " << i;
         if (i >= States.size() || i < 0) {
             continue;
         }
         State NextPossibleState = States[i];
         NextPossibleState.WindowSize = CurState.WindowSize;
         NextPossibleState.Sr = CurState.Sr;
-        float Similarity = GetSimilarity(NextPossibleState, Desc);
+        float Similarity = GetReward(NextPossibleState, Desc);
+        LOGE() << "Similarity " << Similarity;
         NextPossibleState.Similarity = Similarity;
         if (Similarity > MaxSimilarity) {
             MaxSimilarity = Similarity;
             BestGuess = i;
         }
     }
+    LOGE() << "\n";
     CurrentEvent = BestGuess;
     return BestGuess;
 }

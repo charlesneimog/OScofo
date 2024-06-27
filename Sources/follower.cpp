@@ -54,6 +54,21 @@ void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_
     post("[follower~] Template loaded");
 }
 
+static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
+    if (argv[0].a_type != A_SYMBOL) {
+        pd_error(x, "[follower~] First argument of set method must be a symbol");
+        return;
+    }
+    std::string method = atom_getsymbol(argv)->s_name;
+    if (method == "sigma") {
+        x->MDP->SetPitchTemplateSigma(atom_getfloat(argv + 1));
+    }
+
+    else {
+        pd_error(x, "[follower~] Unknown method");
+    }
+}
+
 // ─────────────────────────────────────
 // Function to generate samples from a Gaussian distribution centered around bin
 std::vector<double> GenerateGaussianSamples(double Mu, double Sigma, int NumPoints) {
@@ -236,8 +251,8 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Event = -1;
 
     x->Score = new FollowerScore(x); // TODO: rethink about use new
-    x->MDP = new FollowerMDP(x);
     x->MIR = new FollowerMIR(x);
+    x->MDP = new FollowerMDP(x);
     x->MDP->Tunning = 440;
 
     LOGE() << "Returning NewFollower";
@@ -271,6 +286,9 @@ extern "C" void follower_tilde_setup(void) {
     // config
     class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT, 0);
     class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"), A_FLOAT, 0);
+
+    // pitch template
+    class_addmethod(FollowerObj, (t_method)Set, gensym("set"), A_GIMME, 0);
 
     // template
     class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,

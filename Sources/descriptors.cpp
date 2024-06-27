@@ -3,8 +3,7 @@
 #include <cmath>
 #include <vector>
 
-// #include <chrono>
-// #include <iostream>
+#include <algorithm>
 
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
@@ -30,7 +29,9 @@ FollowerMIR::FollowerMIR(Follower *Obj) {
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
+
     int n = in->size();
+
     if (n / 2 + 1 != Desc->SpectralPower.size()) {
         Desc->SpectralPower.resize(n / 2 + 1);
     }
@@ -41,11 +42,20 @@ void FollowerMIR::GetFFT(std::vector<float> *in, Description *Desc) {
 
     fftwf_execute_dft_r2c(FFTPlan, in->data(), FFTOut);
 
+    float Real, Imag;
+    Desc->MaxAmp = 0;
     for (int i = 0; i < n / 2 + 1; i++) {
-        float real = FFTOut[i][0];
-        float imag = FFTOut[i][1];
-        Desc->SpectralPower[i] = (real * real + imag * imag) / n;
-        Desc->NormSpectralPower[i] = Desc->SpectralPower[i] / n;
+        Real = FFTOut[i][0];
+        Imag = FFTOut[i][1];
+        Desc->SpectralPower[i] = (Real * Real + Imag * Imag) / n;
+        if (Desc->SpectralPower[i] > Desc->MaxAmp) {
+            Desc->MaxAmp = Desc->SpectralPower[i];
+        }
+    }
+
+    // normalize using the maximum value
+    for (int i = 0; i < n / 2 + 1; i++) {
+        Desc->NormSpectralPower[i] = Desc->SpectralPower[i] / Desc->MaxAmp;
     }
 }
 
@@ -141,9 +151,7 @@ void FollowerMIR::GetDescription(std::vector<float> *in, Description *Desc, floa
         return;
     }
     // apply hanning to in
-    for (int i = 0; i < Desc->WindowSize; i++) {
-        (*in)[i] *= 0.5 * (1 - cos(2 * M_PI * i / (Desc->WindowSize - 1)));
-    }
-
+    // for (int i = 0; i < Desc->WindowSize; i++) {
+    //     (*in)[i] *= 0.5 * (1 - cos(2 * M_PI * i / (Desc->WindowSize - 1)));
     GetFFT(in, Desc);
 }

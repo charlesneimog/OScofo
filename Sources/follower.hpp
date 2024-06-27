@@ -41,6 +41,7 @@ class FollowerMIR {
         std::vector<float> SpectralReal;
         std::vector<float> SpectralPower;
         std::vector<float> NormSpectralPower;
+        float MaxAmp;
 
         // Pitch
         std::vector<float> SpectralChroma;
@@ -101,6 +102,9 @@ class FollowerMDP {
     void SetLiveBpm(float Bpm);
     void ResetLiveBpm();
 
+    // Config Functions
+    void SetPitchTemplateSigma(float f);
+
     // MDP
     struct State {
         int Id;
@@ -156,13 +160,13 @@ class FollowerMDP {
     Follower *x;
 
     float GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc);
-    float GetSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
+    float GetReward(State NextPossibleState, FollowerMIR::Description *Desc);
     float GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
     float GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
     float CompareSpectralTemplate(State NextPossibleState, FollowerMIR::Description *Desc);
 
-    // Thing place this
-    void GetPitchTemplate(State NextPossibleState);
+    float m_PitchTemplateSigma = 0.3;
+    float z = 0.5;
 
     FollowerMIR::Description *Desc;
     float MinQualityForNote = 0.9;
@@ -252,12 +256,13 @@ class LogStream {
     }
 
     ~LogStream() {
+#ifdef DEBUG
         // Convert the log message to a C string
         std::string message = buffer.str();
         const char *c_message = message.c_str();
 
-        // Print the log message to pd_error()
         printf("%s\n", c_message);
+#endif
     }
 
   private:
