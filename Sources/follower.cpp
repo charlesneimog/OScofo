@@ -11,7 +11,7 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
     float *FFTIn;
     fftwf_complex *FFTOut;
     fftwf_plan FFTPlan;
-    x->MDP->PitchTemplate.clear();
+    x->MDP->m_PitchTemplate.clear();
 
     FFTIn = (float *)fftwf_malloc(sizeof(float) * x->WindowSize);
     FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (x->WindowSize / 2 + 1));
@@ -47,9 +47,9 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
     for (int i = 0; i < h; i++) {
         float pitchHz = fund * (i + 1);
         int bin = round(pitchHz / (sr / x->WindowSize));
-        x->MDP->PitchTemplate.push_back(SpectralPower[bin - 1]);
-        x->MDP->PitchTemplate.push_back(SpectralPower[bin]);
-        x->MDP->PitchTemplate.push_back(SpectralPower[bin + 1]);
+        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin - 1]);
+        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin]);
+        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin + 1]);
     }
     post("[follower~] Template loaded");
 }
@@ -72,13 +72,13 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
 // ─────────────────────────────────────
 static void SetEvent(Follower *x, t_floatarg f) {
     x->CurrentEvent = f;
-    x->MDP->CurrentEvent = f;
+    x->MDP->m_CurrentEvent = f;
 }
 
 // ─────────────────────────────────────
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
-    x->MDP->CurrentEvent = -1;
+    x->MDP->m_CurrentEvent = -1;
     x->MDP->ResetLiveBpm();
 
     outlet_float(x->EventIndex, 0);
@@ -90,14 +90,10 @@ static void Follow(Follower *x, t_floatarg f) {
 }
 
 // ─────────────────────────────────────
-static void MinQuality(Follower *x, t_floatarg f) {
-    x->MDP->SetMinQualityForNote(f);
-}
-// ─────────────────────────────────────
 static void Tunning(Follower *x, t_floatarg f) {
     post("[follower~] A4 set to %f Hz", f);
-    x->MDP->Tunning = f;
-    x->Score->Tunning = f;
+    x->MDP->m_Tunning = f;
+    x->Score->m_Tunning = f;
 }
 
 // ─────────────────────────────────────
@@ -132,10 +128,10 @@ static t_int *DspPerform(t_int *w) {
         return (w + 4);
     }
 
-    std::rotate(x->inBuffer->begin(), x->inBuffer->begin() + n, x->inBuffer->end());
+    std::rotate(x->inBuffer.begin(), x->inBuffer.begin() + n, x->inBuffer.end());
 
     for (int i = 0; i < n; i++) {
-        x->inBuffer->at(x->WindowSize - n + i) = in[i];
+        x->inBuffer.at(x->WindowSize - n + i) = in[i];
     }
     x->BlockIndex += n;
     if (!x->ScoreLoaded) {
@@ -165,7 +161,7 @@ static void AddDsp(Follower *x, t_signal **sp) {
 
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
-    x->inBuffer = new std::vector<float>(x->WindowSize, 0.0f);
+    x->inBuffer.resize(x->WindowSize, 0.0f);
     dsp_add(DspPerform, 3, x, sp[0]->s_vec, sp[0]->s_n);
     LOGE() << "AddDsp Successful";
 }
@@ -217,7 +213,7 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Score = new FollowerScore(x); // TODO: rethink about use new
     x->MIR = new FollowerMIR(x);
     x->MDP = new FollowerMDP(x);
-    x->MDP->Tunning = 440;
+    x->MDP->m_Tunning = 440;
 
     LOGE() << "Returning NewFollower";
     return x;
@@ -249,7 +245,6 @@ extern "C" void follower_tilde_setup(void) {
 
     // config
     class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT, 0);
-    class_addmethod(FollowerObj, (t_method)MinQuality, gensym("quality"), A_FLOAT, 0);
 
     // pitch template
     class_addmethod(FollowerObj, (t_method)Set, gensym("set"), A_GIMME, 0);

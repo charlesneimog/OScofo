@@ -23,11 +23,8 @@ class FollowerMIR {
     static float Mtof(float note, float tunning);
     static float Ftom(float freq, float tunning);
     static float Freq2Bin(t_float freq, t_float n, t_float Sr);
-    static unsigned GetPitchBinRanges(std::vector<float> binRanges, t_float thisPitch,
-                                      t_float loFreq, t_float hiFreq, t_float pitchTolerance, int n,
-                                      t_float sr);
 
-    struct Description {
+    struct m_Description {
         float WindowSize;
         float Sr;
         float Tunning = 440;
@@ -48,7 +45,7 @@ class FollowerMIR {
         float HigherChroma;
     };
 
-    void GetDescription(std::vector<float> *in, Description *Desc, float Tunning);
+    void GetDescription(std::vector<float> in, m_Description *Desc, float Tunning);
     void GetMidi(float tunning);
 
     // Time
@@ -57,37 +54,28 @@ class FollowerMIR {
     void UpdateTempoInEvent();
     float GetEventTimeElapsed();
     float GetTempoInEvent();
-    float EventTimeElapsed = 0.0; // ms
 
   private:
     // Obj
-    Follower *x;
+    Follower *m_x;
 
     // FFT
-    float *FFTIn;
-    fftwf_complex *FFTOut;
-    fftwf_plan FFTPlan;
-
-    // Pitch
-    bool CreateYin(float tolerance, float silence);
-    void GetYin(std::vector<float> *in, Description *Desc);
-    void AubioYin(std::vector<float> *in, Description *Desc);
-
-    // MFCC
-    void GetMFCC(std::vector<float> *in, Description *Desc);
-    void GetChroma(std::vector<float> *in, Description *Desc);
-
-    // FFT
-    void GetFFT(std::vector<float> *in, Description *Desc);
+    float *m_FFTIn;
+    fftwf_complex *m_FFTOut;
+    fftwf_plan m_FFTPlan;
+    void GetFFT(std::vector<float> in, m_Description *Desc);
 
     // Env
-    void GetRMS(std::vector<float> *in, Description *Desc);
+    void GetRMS(std::vector<float> in, m_Description *Desc);
 
     // Audio
-    float WindowSize;
-    float BlockSize;
-    float HopSize;
-    float Sr;
+    float m_WindowSize;
+    float m_BlockSize;
+    float m_HopSize;
+    float m_Sr;
+
+    // Time
+    float m_EventTimeElapsed = 0.0; // ms
 };
 
 // ╭─────────────────────────────────────╮
@@ -97,83 +85,70 @@ class FollowerMDP {
   public:
     FollowerMDP(Follower *Obj);
 
-    void SetMinQualityForNote(float minQuality);
-    float GetLiveBpm();
+    // Config Functions
+    void SetPitchTemplateSigma(float f);
     void SetLiveBpm(float Bpm);
     void ResetLiveBpm();
 
-    // Config Functions
-    void SetPitchTemplateSigma(float f);
+    // Get Functions
+    float GetLiveBpm();
 
-    // MDP
-    struct State {
+    struct m_State {
         int Id;
         bool Valid;
-
-        // Audio
         float Sr;
         float WindowSize;
-
-        // Score
         int Type; // NOTE, CHORD, PIZZ, SILENCE
-
-        // Pitch
         float Midi;
         float Freq;
-
-        // Time
         float Bpm;
         float Onset;
         float Duration;
-
-        // MDP
-        float Similarity;
     };
-    std::vector<State> States;
-
-    std::vector<State> GetStates();
-    State GetState(int Index);
-    void AddState(FollowerMDP::State state);
+    std::vector<m_State> m_States;
+    std::vector<m_State> GetStates();
+    m_State GetState(int Index);
+    void AddState(m_State state);
     int GetStatesSize();
-    std::vector<double> PitchTemplate;
-    float RValue;
+    std::vector<double> m_PitchTemplate;
+    float m_RValue;
 
     int GetEvent(Follower *x, FollowerMIR *MIR);
-    class TimeDecoder {
+
+    float m_Tunning = 440;
+    int m_CurrentEvent = -1;
+    float m_LastOnset = 0;
+    float m_PhasePrediction = 0;
+
+  private:
+    Follower *m_x;
+    // MDP
+
+    class m_TimeDecoder {
       public:
-        TimeDecoder(Follower *Obj);
+        m_TimeDecoder(Follower *Obj);
         double HatKappa(double r, double tol = 1e-6, double max_iter = 100);
         double RDispersion(int n, double coupleStrength, std::vector<float> mean,
                            std::vector<float> expPhasePos);
         double PhaseOfN();
 
       private:
-        std::vector<float> Onsets;
+        std::vector<float> m_Onsets;
     };
 
-    float Tunning = 440;
-    int CurrentEvent = -1;
-    float LastOnset = 0;
-    float PhasePrediction = 0;
-
-  private:
-    Follower *x;
-
-    float GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc);
-    float GetReward(State NextPossibleState, FollowerMIR::Description *Desc);
-    float GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
-    float GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc);
-    float CompareSpectralTemplate(State NextPossibleState, FollowerMIR::Description *Desc);
+    void GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
+    float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
+    float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
+    float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
 
     float m_PitchTemplateSigma = 0.3;
-    float z = 0.5;
+    float m_z = 0.5; // TODO: How should I call this?
 
-    FollowerMIR::Description *Desc;
-    float MinQualityForNote = 0.9;
+    FollowerMIR::m_Description *m_Desc;
 
-    std::vector<float> BpmHistory;
-    float LiveBpm;
-    float LiveTimePhase;
+    std::vector<float> m_BpmHistory;
+    float m_LiveBpm;
+    float m_LiveTimePhase;
 };
 
 // ╭─────────────────────────────────────╮
@@ -184,7 +159,7 @@ class FollowerMDP {
 class FollowerScore {
   public:
     FollowerScore(Follower *x) {
-        this->x = x;
+        this->m_x = x;
     }
 
     enum EventType {
@@ -199,18 +174,18 @@ class FollowerScore {
     bool ScoreLoaded() {
         return m_ScoreLoaded;
     }
-    float Tunning = 440;
-    float K = 1;
+    float m_Tunning = 440;
+    float m_K = 1;
 
   private:
-    FollowerMDP::State AddNote(FollowerMDP::State State, std::vector<std::string> tokens, float bpm,
-                               int lineCount);
-
-    Follower *x;
-    float lastOnset = 0;
-    float lastPhase = 0;
-    bool m_ScoreLoaded = false;
+    FollowerMDP::m_State AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
+                                 float bpm, int lineCount);
     float FollowBpm(std::vector<std::string> tokens, int lineCount);
+
+    Follower *m_x;
+    float m_lastOnset = 0;
+    float m_lastPhase = 0;
+    bool m_ScoreLoaded = false;
 };
 
 // ╭─────────────────────────────────────╮
@@ -220,7 +195,7 @@ class Follower {
   public:
     t_object xObj;
     t_sample Sample;
-    std::vector<float> *inBuffer;
+    std::vector<float> inBuffer;
     t_clock *Clock;
 
     //

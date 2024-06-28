@@ -14,58 +14,48 @@
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
 FollowerMDP::FollowerMDP(Follower *Obj) {
-    x = Obj;
-    Desc = new FollowerMIR::Description();
-    BpmHistory.assign(20, 1);
-    if (Obj->WindowSize / 2 != PitchTemplate.size()) {
-        PitchTemplate.resize(Obj->WindowSize / 2);
+    m_x = Obj;
+    m_Desc = new FollowerMIR::m_Description();
+    m_BpmHistory.assign(20, 1);
+    if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
+        m_PitchTemplate.resize(Obj->WindowSize / 2);
     }
 }
 
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void FollowerMDP::SetMinQualityForNote(float minQuality) {
-    MinQualityForNote = minQuality;
-}
-
-// ─────────────────────────────────────
 float FollowerMDP::GetLiveBpm() {
-    return LiveBpm;
+    return m_LiveBpm;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::SetLiveBpm(float Bpm) {
-    LiveBpm = Bpm;
+    m_LiveBpm = Bpm;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::ResetLiveBpm() {
-    BpmHistory.assign(20, 1);
-}
-
-// ─────────────────────────────────────
-std::vector<FollowerMDP::State> FollowerMDP::GetStates() {
-    return States;
+    m_BpmHistory.assign(20, 1);
 }
 
 // ─────────────────────────────────────
 int FollowerMDP::GetStatesSize() {
-    return States.size();
+    return m_States.size();
 }
 // ─────────────────────────────────────
-void FollowerMDP::AddState(FollowerMDP::State state) {
-    States.push_back(state);
+void FollowerMDP::AddState(FollowerMDP::m_State state) {
+    m_States.push_back(state);
 }
 // ─────────────────────────────────────
-FollowerMDP::State FollowerMDP::GetState(int Index) {
-    return States[Index];
+FollowerMDP::m_State FollowerMDP::GetState(int Index) {
+    return m_States[Index];
 }
 
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-FollowerMDP::TimeDecoder::TimeDecoder(Follower *Obj) {
+FollowerMDP::m_TimeDecoder::m_TimeDecoder(Follower *Obj) {
 
     // k é o número de ciclos para chegar em Onset[i]
     unsigned int StateSize = Obj->MDP->GetStatesSize();
@@ -73,8 +63,8 @@ FollowerMDP::TimeDecoder::TimeDecoder(Follower *Obj) {
     float k = 1; // TODO: How to calculate k?
 
     for (int i = 1; i < StateSize; i++) {
-        State State0 = Obj->MDP->GetState(i - 1);
-        State State1 = Obj->MDP->GetState(i);
+        m_State State0 = Obj->MDP->GetState(i - 1);
+        m_State State1 = Obj->MDP->GetState(i);
 
         // eq 8
         float Time = 60 / State1.Bpm;
@@ -89,13 +79,14 @@ FollowerMDP::TimeDecoder::TimeDecoder(Follower *Obj) {
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::TimeDecoder::PhaseOfN() {
+double FollowerMDP::m_TimeDecoder::PhaseOfN() {
 
     return 0;
 }
 
-double FollowerMDP::TimeDecoder::RDispersion(int n, double coupleStrength, std::vector<float> mean,
-                                             std::vector<float> expPhasePos) {
+double FollowerMDP::m_TimeDecoder::RDispersion(int n, double coupleStrength,
+                                               std::vector<float> mean,
+                                               std::vector<float> expPhasePos) {
 
     // Eq 13;
     float sum = 0;
@@ -107,7 +98,7 @@ double FollowerMDP::TimeDecoder::RDispersion(int n, double coupleStrength, std::
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::TimeDecoder::HatKappa(double r, double tol, double max_iter) {
+double FollowerMDP::m_TimeDecoder::HatKappa(double r, double tol, double max_iter) {
 
     // Eq 14;
     double low = 0.01, up = 10.0;
@@ -137,29 +128,30 @@ void FollowerMDP::SetPitchTemplateSigma(float f) {
     m_PitchTemplateSigma = f;
 }
 // ─────────────────────────────────────
-float FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
+float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
     float KLDiv = 0.0;
     int Harmonics = 5;
-    std::fill(PitchTemplate.begin(), PitchTemplate.end(), 0);
+    std::fill(m_PitchTemplate.begin(), m_PitchTemplate.end(), 0);
 
     // Template Config
-    float z = 0.5;
+    float z = 0.5; // TODO: This is the beta value of function 16.
 
     float NextPitch = NextPossibleState.Freq;
     float Sr = Desc->Sr;
-    float BinFreq = NextPitch / (Desc->Sr / Desc->WindowSize);
+    float RootBinFreq = NextPitch / (Desc->Sr / Desc->WindowSize);
 
+    // TODO: This must be done offline, this function is called each audio block
     for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
         for (size_t j = 0; j < Harmonics; j++) {
             float amp = Desc->MaxAmp / (pow(2, j));
-            float num = std::pow(i - (BinFreq * (j + 1)), 2);
+            float num = std::pow(i - (RootBinFreq * (j + 1)), 2);
             float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
-            PitchTemplate[i] += amp * exp(-(num / den));
+            m_PitchTemplate[i] += amp * exp(-(num / den));
         }
     }
 
     for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
-        float P = PitchTemplate[i];
+        float P = m_PitchTemplate[i];
         float Q = Desc->NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
@@ -173,12 +165,12 @@ float FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::Desc
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
+float FollowerMDP::GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
     return 0;
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::Description *Desc) {
+float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
     float PitchWeight = 0.5;
     float TimeWeight = 0.5;
 
@@ -191,44 +183,40 @@ float FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::Description *
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Description *Desc) {
-    float BestGuess = CurrentEvent;
-    State CurState = States[CurrentEvent];
+void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
+    float BestGuess = m_CurrentEvent;
+    m_State CurState = States[m_CurrentEvent];
 
-    float Reward = -1;
+    float BestReward = -1;
 
-    // 3 means that it just look for the next 3 events
-    for (int i = CurrentEvent; i < (CurrentEvent + 6); i++) {
+    // Get Best Reward
+    for (int i = m_CurrentEvent; i < (m_CurrentEvent + 6); i++) {
         if (i >= States.size() || i < 0) {
             continue;
         }
-        State NextPossibleState = States[i];
-        NextPossibleState.WindowSize = CurState.WindowSize;
-        NextPossibleState.Sr = CurState.Sr;
-        float Similarity = GetReward(NextPossibleState, Desc);
-        NextPossibleState.Similarity = Similarity;
-        if (Similarity > Reward) {
-            Reward = Similarity;
+
+        m_State NextPossibleState = States[i];
+        float Reward = GetReward(NextPossibleState, Desc);
+
+        if (Reward > BestReward) {
+            BestReward = Reward;
             BestGuess = i;
         }
     }
-    CurrentEvent = BestGuess;
-    return BestGuess;
+    m_CurrentEvent = BestGuess;
 }
 
 // ─────────────────────────────────────
 int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
-
-    // CurrentEvent represents the current event index.
-    // In line with human understanding, the first note in the score
-    // is indexed as 1 instead of 0. This adjustment is made in DspPerform.
-    MIR->UpdateTempoInEvent();
+    // MIR->UpdateTempoInEvent();
 
     // Sound Description
-    MIR->GetDescription(x->inBuffer, Desc, Tunning);
-    if (Desc->dB < -40) { // TODO: Make this variable
-        return CurrentEvent;
+    MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
+
+    if (m_Desc->dB < -40) { // TODO: Make this -40 variable for user define
+        return m_CurrentEvent;
     }
-    Desc->TimeElapsed = MIR->GetEventTimeElapsed();
-    return CurrentEvent;
+    GetBestEvent(m_States, m_Desc);
+
+    return m_CurrentEvent;
 }

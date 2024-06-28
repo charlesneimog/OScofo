@@ -16,9 +16,9 @@
 
 
 // ─────────────────────────────────────
-FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<std::string> tokens,
+FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
                                           float bpm, int lineCount) {
-    K = 1;
+    m_K = 1;
     if (bpm == -1) {
         pd_error(NULL, "BPM not defined");
         return State;
@@ -39,7 +39,7 @@ FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<
             State.Midi = State.Midi * 0.01;
         }
     }
-    State.Freq = Tunning * std::pow(2, (State.Midi - 69) / 12);
+    State.Freq = m_Tunning * std::pow(2, (State.Midi - 69) / 12);
 
     // check if there is / in the string
     bool isRatio = tokens[2].find('/') != std::string::npos;
@@ -97,7 +97,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         }
 
         if (tokens[0] == "NOTE") {
-            FollowerMDP::State State;
+            FollowerMDP::m_State State;
             State.Type = NOTE;
             State.Id = MDP->GetStatesSize();
             if (State.Id == 0) {
