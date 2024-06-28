@@ -196,6 +196,9 @@ class FollowerScore {
     int Name2Midi(std::string note);
     void Parse(FollowerMDP *MDP, const char *score);
     float GetTimePhase(float t_n0, float t_n1, float phase0, float pulse);
+    bool ScoreLoaded() {
+        return m_ScoreLoaded;
+    }
     float Tunning = 440;
     float K = 1;
 
@@ -206,6 +209,7 @@ class FollowerScore {
     Follower *x;
     float lastOnset = 0;
     float lastPhase = 0;
+    bool m_ScoreLoaded = false;
     float FollowBpm(std::vector<std::string> tokens, int lineCount);
 };
 

@@ -170,7 +170,12 @@ static t_int *DspPerform(t_int *w) {
     float *in = (t_sample *)(w[2]);
     float n = (float)(w[3]);
 
+    if (!x->Score->ScoreLoaded()) {
+        return (w + 4);
+    }
+
     std::rotate(x->inBuffer->begin(), x->inBuffer->begin() + n, x->inBuffer->end());
+
     for (int i = 0; i < n; i++) {
         x->inBuffer->at(x->WindowSize - n + i) = in[i];
     }
@@ -199,6 +204,7 @@ static t_int *DspPerform(t_int *w) {
 // ─────────────────────────────────────
 static void AddDsp(Follower *x, t_signal **sp) {
     LOGE() << "AddDsp";
+
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
     x->inBuffer = new std::vector<float>(x->WindowSize, 0.0f);

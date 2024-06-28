@@ -137,8 +137,7 @@ void FollowerMDP::SetPitchTemplateSigma(float f) {
     m_PitchTemplateSigma = f;
 }
 // ─────────────────────────────────────
-float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
-                                           FollowerMIR::Description *Desc) {
+float FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::Description *Desc) {
     float KLDiv = 0.0;
     int Harmonics = 5;
     std::fill(PitchTemplate.begin(), PitchTemplate.end(), 0);
@@ -170,7 +169,6 @@ float FollowerMDP::CompareSpectralTemplate(State NextPossibleState,
     }
 
     KLDiv = exp(-z * KLDiv);
-    LOGE() << "KLDiv " << KLDiv;
     return KLDiv;
 }
 
@@ -181,15 +179,15 @@ float FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::Descr
 
 // ─────────────────────────────────────
 float FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::Description *Desc) {
-    float PitchWeight = 0.7;
-    float TimeWeight = 0.3;
+    float PitchWeight = 0.5;
+    float TimeWeight = 0.5;
 
-    float PitchSimilarity = CompareSpectralTemplate(NextPossibleState, Desc) * PitchWeight;
+    float PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
     // float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
 
-    // float Similarity = PitchSimilarity + TimeSimilarity;
+    float Reward = PitchSimilarity * PitchWeight;
 
-    return PitchSimilarity;
+    return Reward;
 }
 
 // ─────────────────────────────────────
@@ -197,11 +195,10 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
     float BestGuess = CurrentEvent;
     State CurState = States[CurrentEvent];
 
-    float MaxSimilarity = -1;
+    float Reward = -1;
 
     // 3 means that it just look for the next 3 events
-    for (int i = CurrentEvent; i < (CurrentEvent + 3); i++) {
-        LOGE() << "Event " << i;
+    for (int i = CurrentEvent; i < (CurrentEvent + 6); i++) {
         if (i >= States.size() || i < 0) {
             continue;
         }
@@ -209,14 +206,12 @@ float FollowerMDP::GetBestEvent(std::vector<State> States, FollowerMIR::Descript
         NextPossibleState.WindowSize = CurState.WindowSize;
         NextPossibleState.Sr = CurState.Sr;
         float Similarity = GetReward(NextPossibleState, Desc);
-        LOGE() << "Similarity " << Similarity;
         NextPossibleState.Similarity = Similarity;
-        if (Similarity > MaxSimilarity) {
-            MaxSimilarity = Similarity;
+        if (Similarity > Reward) {
+            Reward = Similarity;
             BestGuess = i;
         }
     }
-    LOGE() << "\n";
     CurrentEvent = BestGuess;
     return BestGuess;
 }

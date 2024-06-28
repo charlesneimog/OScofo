@@ -71,6 +71,7 @@ FollowerMDP::State FollowerScore::AddNote(FollowerMDP::State State, std::vector<
 // ╰─────────────────────────────────────╯
 void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
     // check if file exists
+    m_ScoreLoaded = false;
     std::ifstream file(score);
     if (!file) {
         pd_error(NULL, "File not found");
@@ -121,6 +122,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
             bpm = std::stof(tokens[1]);
         }
     }
+    m_ScoreLoaded = true;
 
     return;
 }
