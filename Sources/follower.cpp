@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <fstream>
-#include <random>
+#include <math.h>
 
 static t_class *FollowerObj;
 
 // ─────────────────────────────────────
-void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
+static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
     float *FFTIn;
     fftwf_complex *FFTOut;
     fftwf_plan FFTPlan;
@@ -67,48 +67,6 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
     else {
         pd_error(x, "[follower~] Unknown method");
     }
-}
-
-// ─────────────────────────────────────
-// Function to generate samples from a Gaussian distribution centered around bin
-std::vector<double> GenerateGaussianSamples(double Mu, double Sigma, int NumPoints) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<double> dist(Mu, Sigma);
-
-    std::vector<double> samples(NumPoints);
-    for (auto &sample : samples) {
-        sample = dist(gen);
-    }
-    return samples;
-}
-
-// ─────────────────────────────────────
-void GerenatePitchTemplate(Follower *x, t_floatarg f) {
-    std::vector<double> Template;
-    const double mu1 = 30 * 1;
-    const double mu2 = 60 * 1;
-    std::vector<double> samples1 = GenerateGaussianSamples(mu1, 1, 1024);
-    std::vector<double> samples2 = GenerateGaussianSamples(mu2, 1, 1024);
-    std::vector<double> samples;
-
-    samples.reserve(2048);
-    samples.insert(samples.end(), samples1.begin(), samples1.end());
-    samples.insert(samples.end(), samples2.begin(), samples2.end());
-
-    double sum = 0.0;
-    for (int i = 0; i < 2048; i++) {
-        sum += samples[i];
-    }
-    for (int i = 0; i < 2048; i++) {
-        samples[i] = samples[i] / sum;
-    }
-
-    t_atom *out = new t_atom[2048];
-    for (int i = 0; i < 2048; i++) {
-        SETFLOAT(out + i, samples[i]);
-    }
-    outlet_list(x->Tempo, &s_list, 2048, out);
 }
 
 // ─────────────────────────────────────

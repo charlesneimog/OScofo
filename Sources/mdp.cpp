@@ -222,14 +222,7 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     // CurrentEvent represents the current event index.
     // In line with human understanding, the first note in the score
     // is indexed as 1 instead of 0. This adjustment is made in DspPerform.
-
     MIR->UpdateTempoInEvent();
-    int EventId = CurrentEvent;
-    float maxProb = -1;
-    float Similarity;
-
-    // MDP States
-    State CurState = States[CurrentEvent];
 
     // Sound Description
     MIR->GetDescription(x->inBuffer, Desc, Tunning);
@@ -237,10 +230,5 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
         return CurrentEvent;
     }
     Desc->TimeElapsed = MIR->GetEventTimeElapsed();
-
-    float BestGuess = GetBestEvent(States, Desc);
-    if (BestGuess != CurrentEvent) {
-        // Value of R
-    }
     return CurrentEvent;
 }
