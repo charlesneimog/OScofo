@@ -9,7 +9,6 @@
 // FFT
 #include <fftw3.h>
 
-#define PI 3.14159265358979323846
 #define TWO_PI (2 * M_PI)
 #define DEBUG true
 
@@ -90,7 +89,6 @@ class FollowerMDP {
     void SetPitchTemplateSigma(float f);
     void SetLiveBpm(float Bpm);
     void ResetLiveBpm();
-    float GetBpm();
 
     // Get Functions
     float GetLiveBpm();
@@ -124,9 +122,7 @@ class FollowerMDP {
     std::vector<float> m_RealtimeDur; // TODO: How to name this?
     float m_BPM = 0;
     float m_PrevBPM = 0;
-    float m_EtaS = 0.5;
-    float m_EtaPhi = 0.5;
-    float m_LastPhi = 0;
+    float m_EtaPhi = 0.1;
 
   private:
     Follower *m_x;
@@ -136,7 +132,8 @@ class FollowerMDP {
       public:
         m_TimeDecoder(Follower *Obj);
         double HatKappa(double r, double tol = 1e-6, double max_iter = 100);
-        double RDispersion(int n, double coupleStrength, std::vector<float> mean, std::vector<float> expPhasePos);
+        double RDispersion(int n, double coupleStrength, std::vector<float> mean,
+                           std::vector<float> expPhasePos);
         double PhaseOfN();
 
       private:
@@ -148,9 +145,13 @@ class FollowerMDP {
     float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetLiveBpm(std::vector<m_State> States);
+    void GetKappaTable(float Min, float Max, int p);
 
     float m_PitchTemplateSigma = 0.3;
     float m_z = 0.5; // TODO: How should I call this?
+    std::vector<std::pair<float, float>> m_KappaTable;
+    double GetKappa(double r);
+    float DistributionFunction(float phi, float phi_mu, float kappa);
 
     FollowerMIR::m_Description *m_Desc;
 
@@ -186,7 +187,8 @@ class FollowerScore {
     float m_K = 1;
 
   private:
-    FollowerMDP::m_State AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens, float bpm, int lineCount);
+    FollowerMDP::m_State AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
+                                 float bpm, int lineCount);
     float FollowBpm(std::vector<std::string> tokens, int lineCount);
 
     Follower *m_x;

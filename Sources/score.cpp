@@ -114,10 +114,10 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
-            State.Onset = LastOnset + State.Duration;
-            post("onset is %f", State.Onset);
+            State.Onset = LastOnset + State.Duration; // in beats
             MDP->AddState(State);
             LastOnset = State.Onset;
+                    
 
         } else if (tokens[0] == "BPM") {
             bpm = std::stof(tokens[1]);

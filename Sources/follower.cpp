@@ -7,63 +7,10 @@
 static t_class *FollowerObj;
 
 // ─────────────────────────────────────
-// Equation 9 of Cont's article
-void EQ11(Follower *x) {
-    double phi_n = 0; // phase onset of the event
-    int size = x->MDP->m_States.size() - 1;
-    x->MDP->m_States[0].PhaseOnset = 0;
-
-    std::vector<float> PhiValues;
-    float CouplingFactor = 0.5;
-    PhiValues.push_back(0);
-    for (int i = 1; i < size; i++) {
-        float BPM = x->MDP->m_States[i].Bpm;
-        float psi_k = 60 / BPM;
-        float t_n0 = x->MDP->m_States[i - 1].Onset;
-        float t_n1 = x->MDP->m_States[i].Onset;
-        float Mean = 0;
-        for (float Phi : PhiValues) {
-            Mean += Phi;
-        }
-        Mean /= PhiValues.size();
-        float Variance;
-        if (Mean < 0.53) {
-            Variance = 2 * Mean + std::pow(Mean, 3) + 5 * std::pow(Mean, 5) / 6;
-        } else if (Mean < 0.85) {
-            Variance = -0.4 + 1.39 * Mean + 0.43 / (1 - Mean);
-        } else {
-            Variance = 1 / (std::pow(Mean, 3) - 4 * std::pow(Mean, 2) + 3 * Mean);
-        }
-
-        // EQ 10
-        float eq10_1 = 1.f / 2 * PI * std::exp(Variance);
-        float eq10_2 = exp(Variance * cos(TWO_PI * (phi_n - Mean)));
-        float eq10_3 = sin(TWO_PI * (phi_n - Mean));
-        float eq10 = eq10_1 * eq10_2 * eq10_3;
-
-        // EQ 11
-        float eq11_1 = phi_n + ((t_n1 - t_n0) / psi_k) + CouplingFactor * eq10;
-        float eq11 = std::fmod(eq11_1 + PI, TWO_PI) - PI;
-        phi_n = eq11;
-        x->MDP->m_States[i].PhaseOnset = eq11;
-
-        // calculate value of r (eq 13).
-        // TODO: Need to rethink about this
-        float r = 0;
-        for (int j = 1; j < i; j++) {
-            r = cos(TWO_PI * (phi_n - x->MDP->m_States[j].PhaseOnset));
-        }
-        x->MDP->m_States[i].Dispersion = r;
-    }
-}
-
-// ─────────────────────────────────────
 static void TimeValues(Follower *x) {
     if (!x->Score->ScoreLoaded()) {
         return;
     }
-
-    EQ11(x);
 }
 
 // ─────────────────────────────────────
@@ -139,8 +86,7 @@ static void SetEvent(Follower *x, t_floatarg f) {
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
     x->MDP->m_CurrentEvent = -1;
-    x->MDP->ResetLiveBpm();
-
+    outlet_float(x->Tempo, x->MDP->m_BPM);
     outlet_float(x->EventIndex, 0);
 }
 
@@ -170,13 +116,12 @@ static void Score(Follower *x, t_symbol *s) {
     x->Score->Parse(x->MDP, completePath.c_str());
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
-    EQ11(x);
 }
 
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
     outlet_float(x->EventIndex, x->Event);
-    outlet_float(x->Tempo, x->MDP->GetBpm());
+    outlet_float(x->Tempo, x->MDP->GetLiveBpm());
 }
 
 // ─────────────────────────────────────
@@ -292,8 +237,8 @@ static void *FreeFollower(Follower *x) {
 
 // ─────────────────────────────────────
 extern "C" void follower_tilde_setup(void) {
-    FollowerObj = class_new(gensym("follower~"), (t_newmethod)NewFollower, (t_method)FreeFollower, sizeof(Follower),
-                            CLASS_DEFAULT, A_GIMME, 0);
+    FollowerObj = class_new(gensym("follower~"), (t_newmethod)NewFollower, (t_method)FreeFollower,
+                            sizeof(Follower), CLASS_DEFAULT, A_GIMME, 0);
 
     CLASS_MAINSIGNALIN(FollowerObj, Follower, Sample);
     class_addmethod(FollowerObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
@@ -311,8 +256,8 @@ extern "C" void follower_tilde_setup(void) {
     class_addmethod(FollowerObj, (t_method)Set, gensym("set"), A_GIMME, 0);
 
     // template
-    class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL, A_FLOAT, A_FLOAT,
-                    A_FLOAT, 0);
+    class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,
+                    A_FLOAT, A_FLOAT, A_FLOAT, 0);
 
     class_addbang(FollowerObj, (t_method)TimeValues);
 }

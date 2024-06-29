@@ -20,18 +20,20 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
     if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
         m_PitchTemplate.resize(Obj->WindowSize / 2);
     }
+
+    GetKappaTable(0.01, 10, 1000);
 }
 
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
 float FollowerMDP::GetLiveBpm() {
-    return m_LiveBpm;
+    return m_BPM;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::SetLiveBpm(float Bpm) {
-    m_LiveBpm = Bpm;
+    m_BPM = Bpm;
 }
 
 // ─────────────────────────────────────
@@ -55,72 +57,217 @@ FollowerMDP::m_State FollowerMDP::GetState(int Index) {
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
+static float VonMissesDistribution(float phi, float phi_mu, float kappa) {
+    // phi current phase
+    // phi_mu mean
+    // kappa variance
+    float exponential = exp(kappa * cos(phi - phi_mu));
+    float bessel = 1 / (2 * M_PI * boost::math::cyl_bessel_i(0, kappa));
+    return bessel;
+}
 
-static float Equation10(float phi, float phi_mu, float kappa) {
-    float eq10_1 = 1.f / (2 * PI * std::exp(kappa));
-    float eq10_2 = exp(kappa * cos(TWO_PI * (phi - phi_mu)));
-    float eq10_3 = sin(TWO_PI * (phi - phi_mu));
-    return eq10_1 * eq10_2 * eq10_3;
+// ─────────────────────────────────────
+void FollowerMDP::GetKappaTable(float Min, float Max, int p) {
+    std::vector<std::pair<float, float>> Table;
+    float step = (Max - Min) / (p - 1);
+    for (int i = 0; i < p; ++i) {
+        float lambda = Min + i * step;
+        float kappa = boost::math::cyl_bessel_i(2, lambda) / boost::math::cyl_bessel_i(1, lambda);
+        Table.emplace_back(kappa, lambda);
+    }
+    m_KappaTable = Table;
+}
+
+// ─────────────────────────────────────
+double FollowerMDP::GetKappa(double r) {
+    auto it = std::lower_bound(m_KappaTable.begin(), m_KappaTable.end(),
+                               std::make_pair(static_cast<float>(r), 0.0f),
+                               [](const std::pair<float, float> &a,
+                                  const std::pair<float, float> &b) { return a.first < b.first; });
+
+    if (it == m_KappaTable.end()) {
+        return m_KappaTable.back().second;
+    } else if (it == m_KappaTable.begin()) {
+        return m_KappaTable.front().second;
+    } else {
+        // Linear interpolation
+        auto it1 = it - 1;
+        double r1 = it1->first;
+        double lambda1 = it1->second;
+        double r2 = it->first;
+        double lambda2 = it->second;
+        return lambda1 + (r - r1) * (lambda2 - lambda1) / (r2 - r1);
+    }
+}
+
+// ─────────────────────────────────────
+float FollowerMDP::DistributionFunction(float phi, float phi_mu,
+                                        float kappa) { // TODO: RENAME TO CORRECTION
+    // Normalization factor: 1 / (2π * exp(κ))
+    float normalizationFactor = 1.f / (2 * M_PI * std::exp(kappa));
+    float expComponent = exp(kappa * cos(TWO_PI * (phi - phi_mu)));
+    // Sine component: sin(2π * (φ - φ_mu))
+    float sinComponent = sin(TWO_PI * (phi - phi_mu));
+    // Final distribution function value
+    return normalizationFactor * expComponent * sinComponent;
+}
+
+float A2_inverse(float r) {
+    // Initial approximation
+    float kappa;
+    if (r < 0.53) {
+        kappa = 2 * r + pow(r, 3) + (5 * pow(r, 5)) / 6.0;
+    } else if (r < 0.85) {
+        kappa = -0.4 + 1.39 * r + 0.43 / (1 - r);
+    } else {
+        kappa = 1 / (pow(r, 3) - 4 * pow(r, 2) + 3 * r);
+    }
+
+    // Iterate using Newton-Raphson method to improve approximation
+    for (int i = 0; i < 5; ++i) {
+        float I0 = boost::math::cyl_bessel_i(0, kappa);
+        float I1 = boost::math::cyl_bessel_i(1, kappa);
+        float f_kappa = I1 / I0 - r;
+        float f_prime_kappa = 1 - (I1 * I1) / (I0 * I0);
+        kappa -= f_kappa / f_prime_kappa;
+    }
+
+    return kappa;
 }
 
 // ─────────────────────────────────────
 float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
-    if (m_CurrentEvent == 0) {
-        return 0;
+    if (m_CurrentEvent < 1) {
+        return m_BPM;
     }
+    float phi_n = 0; // Initial phase
+    float r = 0;     // Initial dispersion
+    std::vector<float> PhiValues;
+    PhiValues.push_back(0);
 
-    // Calculate r with correction term
-    float r = States[m_CurrentEvent].Dispersion;
-    float t_n0 = States[m_CurrentEvent - 1].Onset;
-    float t_n1 = States[m_CurrentEvent].Onset;
-    float psi_k = 60 / States[m_CurrentEvent].Bpm;
-    float v0 = (t_n1 - t_n0) / psi_k - States[m_CurrentEvent].PhaseOnset;
-    r = r - m_EtaS * (r - cos(TWO_PI * v0));
+    float CouplingFactor = 0.5;
+    float eta_phi = 0.1; // Small coupling constant for phase update
+    float eta_s = 0.05;  // Small coupling constant for dispersion update
 
-    // Solve for kappa
-    double low = 0.01, up = 10.0;
-    int max_iter = 100;
-    double mid;
-    int iter = 0;
-    float tol = 1e-6;
-    while (iter < max_iter) {
-        mid = (low + up) / 2.0;
-        double f_mid = boost::math::cyl_bessel_i(1, mid) / boost::math::cyl_bessel_i(0, mid) - r;
-        if (std::abs(f_mid) < tol) {
-            break;
+    float psi_k = 60 / States[0].Bpm;
+    float psi_n = psi_k;
+
+    for (int i = 1; i < m_CurrentEvent; i++) {
+        // Calculate psi_k
+        psi_k = 60 / States[i].Bpm;
+
+        // Calculate phases using Equation 8
+        float t_n0 = States[i - 1].Onset * psi_k;
+        float t_n1 = States[i].Onset * psi_k;
+        float ExpectedPhase = phi_n + ((t_n1 - t_n0) / psi_k);
+        ExpectedPhase = fmod(ExpectedPhase + M_PI, TWO_PI) - M_PI;
+        PhiValues.push_back(ExpectedPhase);
+
+        // Calculate dispersion r using Equation 13
+        float sumCos = 0;
+        for (float phi : PhiValues) {
+            sumCos += std::cos(2 * M_PI * (phi - phi_n));
         }
-        double f_lower = boost::math::cyl_bessel_i(1, low) / boost::math::cyl_bessel_i(0, low) - r;
-        if (f_lower * f_mid < 0) {
-            up = mid;
-        } else {
-            low = mid;
-        }
-        iter++;
+        r = sumCos / PhiValues.size();
+
+        // Update kappa
+        r = r - eta_s * (r - std::cos(2 * M_PI * ((t_n1 - t_n0) / psi_n - ExpectedPhase)));
+        float kappa = A2_inverse(r);
+
+        // Calculate F using Equation 10
+        float F_value = (1 / (TWO_PI * std::exp(kappa))) *
+                        std::exp(kappa * std::cos(TWO_PI * (phi_n - ExpectedPhase))) *
+                        std::sin(TWO_PI * (phi_n - ExpectedPhase));
+
+        // Update phase using Equation 11
+        phi_n = phi_n + ((t_n1 - t_n0) / psi_n) + m_EtaPhi * F_value;
+        phi_n = fmod(phi_n + M_PI, TWO_PI) - M_PI;
+
+        // Update psi using Equation 15
+        psi_n = psi_n * (1 + kappa * F_value);
     }
-    float kappa = mid;
+    m_BPM = 60 / psi_n;
 
-    // Phase update
-    float t_n = States[m_CurrentEvent].Onset;
-    float last_t_n = States[m_CurrentEvent - 1].Onset;
-    float last_psi_n = 60 / States[m_CurrentEvent - 1].Bpm;
-    float LastPhiHat = States[m_CurrentEvent - 1].PhaseOnset;
-
-    float eq10 = Equation10(m_LastPhi, LastPhiHat, kappa);
-
-    m_LastPhi = m_LastPhi + (t_n - last_t_n) / last_psi_n + m_EtaPhi * eq10;
-    m_LastPhi = fmod(m_LastPhi, TWO_PI);
-
-    // BPM prediction
-    float PhiHat = States[m_CurrentEvent].PhaseOnset;
-    m_BPM = m_BPM * (1 + m_EtaS * Equation10(m_LastPhi, PhiHat, kappa));
-    return m_BPM;
+    return 0;
 }
-
-float FollowerMDP::GetBpm() {
-    return m_BPM;
-}
-
 // ─────────────────────────────────────
+// float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
+//     if (m_CurrentEvent < 1) {
+//         return m_BPM;
+//     }
+//     float psi_k; // Valor fixo (?)
+//
+//     // Calculate initial value of r
+//     float r = 0;
+//     std::vector<float> PhiValues;
+//     float CurrentPhase = 0;
+//     float CouplingFactor = 0.1;
+//     PhiValues.push_back(0);
+//     for (int i = 0; i < m_CurrentEvent - 1; i++) {
+//         psi_k = 60 / States[i].Bpm;
+//
+//         // First Phase
+//         float t_n = States[i].Onset * psi_k;
+//         float t_n1 = States[i + 1].Onset * psi_k; // ????????w
+//         float ExpectedPhase = CurrentPhase + ((t_n1 - t_n) / psi_k);
+//         ExpectedPhase = fmod(CurrentPhase + M_PI, TWO_PI) - M_PI;
+//
+//         PhiValues.push_back(ExpectedPhase);
+//
+//         float Mean = 0;
+//         for (float Phi : PhiValues) {
+//             Mean += Phi;
+//         }
+//         Mean /= PhiValues.size();
+//         float kappa;
+//         if (Mean < 0.53) {
+//             kappa = 2 * Mean + std::pow(Mean, 3) + 5 * std::pow(Mean, 5) / 6;
+//         } else if (Mean < 0.85) {
+//             kappa = -0.4 + 1.39 * Mean + 0.43 / (1 - Mean);
+//         } else {
+//             kappa = 1 / (std::pow(Mean, 3) - 4 * std::pow(Mean, 2) + 3 * Mean);
+//         }
+//
+//         // Von Mises Distribution
+//         float VonMises = VonMissesDistribution(CurrentPhase, ExpectedPhase, kappa);
+//         float Correction = DistributionFunction(CurrentPhase, ExpectedPhase, kappa);
+//
+//         float eq11_1 = VonMises + CouplingFactor * Correction;
+//         float eq11 = std::fmod(eq11_1 + M_PI, TWO_PI) - M_PI;
+//         CurrentPhase = eq11;
+//         r = 1.0 / PhiValues.size();
+//     }
+//     for (float phi : PhiValues) {
+//         r += std::cos(2 * M_PI * (phi - CurrentPhase));
+//     }
+//     r /= PhiValues.size();
+//
+//     // Update r and Kappa
+//     psi_k = 60 / m_BPM;
+//     float t_n = States[m_CurrentEvent].Onset * psi_k;
+//     float t_nm1 = States[m_CurrentEvent - 1].Onset * psi_k;
+//     float v0 = (t_nm1 - t_n) / psi_k - States[m_CurrentEvent].PhaseOnset;
+//     r = r - m_EtaS * (r - cos(TWO_PI * v0));
+//     float kappa = GetKappa(r);
+//
+//     // Update Phi N
+//     t_n = States[m_CurrentEvent].Onset * psi_k;
+//     float last_t_n = States[m_CurrentEvent - 1].Onset * psi_k;
+//     float psi_n = 60 / m_BPM;
+//     float last_psi_n = 60 / m_BPM;
+//     float LastPhiHat = States[m_CurrentEvent - 1].PhaseOnset;
+//     float DF = DistributionFunction(m_LastPhi, LastPhiHat, kappa);
+//     float Phi = m_LastPhi + ((t_n - last_t_n) / last_psi_n) + m_EtaPhi * DF;
+//     Phi = fmod(Phi + M_PI, TWO_PI) - M_PI;
+//
+//     // BPM prediction
+//     float PhiHat = States[m_CurrentEvent].PhaseOnset;
+//     float DecodedPsi = psi_n * (1 + m_EtaS * DistributionFunction(Phi, PhiHat, kappa));
+//     m_BPM = 60 / (DecodedPsi - 1);
+//
+//     m_LastPhi = Phi;
+//     return m_BPM;
+// }
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
@@ -186,19 +333,18 @@ float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Descripti
 
 // ─────────────────────────────────────
 void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
-    if (m_BPM == 0 && m_CurrentEvent == -1) {
+    if (m_CurrentEvent == -1) {
         m_BPM = States[0].Bpm;
     }
 
-    float BestGuess = m_CurrentEvent;
+    // TODO: Make this user defined
+    float LookAhead = 5; // Look 5 seconds in future
+
+    int BestGuess, i = m_CurrentEvent;
     float BestReward = -1;
-    float LookAhead = 5;
     float EventLookAhead = 0;
-    int i = m_CurrentEvent;
     int StatesSize = States.size();
-
     int lastLook = 0;
-
     while (EventLookAhead < LookAhead) {
         if (i >= StatesSize) {
             break;
@@ -206,7 +352,7 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
         if (i < 0) {
             i = 0;
         }
-        EventLookAhead += States[i].Duration * 60 / m_BPM;
+        EventLookAhead += States[i].Duration * 60 / States[i].Bpm; // TODO: Realtime bpm
         m_State NextPossibleState = States[i];
         float Reward = GetReward(NextPossibleState, Desc);
         if (Reward > BestReward) {
@@ -235,14 +381,15 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
 
 // ─────────────────────────────────────
 int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
-    // MIR->UpdateTempoInEvent();
-
-    // Sound Description
+    // Get Sound Description saved in m_Desc
     MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
 
+    // Check if we have silence
     if (m_Desc->dB < -40) { // TODO: Make this -40 variable for user define
         return m_CurrentEvent;
     }
+
+    // Get the best event to describe the current state
     GetBestEvent(m_States, m_Desc);
 
     return m_CurrentEvent;
