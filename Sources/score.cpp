@@ -14,11 +14,11 @@
 // TODO: ADD CHORD, MULTI, etc.
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 
-
 // ─────────────────────────────────────
 FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
                                           float bpm, int lineCount) {
     m_K = 1;
+    float Midi;
     if (bpm == -1) {
         pd_error(NULL, "BPM not defined");
         return State;
@@ -32,14 +32,14 @@ FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vec
     if (!std::isdigit(tokens[1][0])) {
         std::string noteName = tokens[1];
         int midi = Name2Midi(noteName);
-        State.Midi = midi;
+        Midi = midi;
     } else {
-        State.Midi = std::stof(tokens[1]);
-        if (State.Midi > 127) {
-            State.Midi = State.Midi * 0.01;
+        Midi = std::stof(tokens[1]);
+        if (Midi > 127) {
+            Midi = Midi * 0.01;
         }
     }
-    State.Freq = m_Tunning * std::pow(2, (State.Midi - 69) / 12);
+    State.Freq = m_Tunning * std::pow(2, (Midi - 69) / 12);
 
     // check if there is / in the string
     bool isRatio = tokens[2].find('/') != std::string::npos;
@@ -115,6 +115,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 return;
             }
             State.Onset = LastOnset + State.Duration;
+            post("onset is %f", State.Onset);
             MDP->AddState(State);
             LastOnset = State.Onset;
 

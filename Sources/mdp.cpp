@@ -55,60 +55,39 @@ FollowerMDP::m_State FollowerMDP::GetState(int Index) {
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-FollowerMDP::m_TimeDecoder::m_TimeDecoder(Follower *Obj) {
 
-    // k é o número de ciclos para chegar em Onset[i]
-    unsigned int StateSize = Obj->MDP->GetStatesSize();
-
-    float k = 1; // TODO: How to calculate k?
-
-    for (int i = 1; i < StateSize; i++) {
-        m_State State0 = Obj->MDP->GetState(i - 1);
-        m_State State1 = Obj->MDP->GetState(i);
-
-        // eq 8
-        float Time = 60 / State1.Bpm;
-        float t0 = State0.Onset;
-        float t1 = State1.Onset;
-        float PhiN = t0 / Time + TWO_PI * k;
-        float PhiN1 = PhiN + (t1 - t0) / Time;
-        PhiN1 = fmod(PhiN1, TWO_PI) - PI;
-
-        // eq 10
-    }
+static float Equation10(float phi, float phi_mu, float kappa) {
+    float eq10_1 = 1.f / (2 * PI * std::exp(kappa));
+    float eq10_2 = exp(kappa * cos(TWO_PI * (phi - phi_mu)));
+    float eq10_3 = sin(TWO_PI * (phi - phi_mu));
+    return eq10_1 * eq10_2 * eq10_3;
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::m_TimeDecoder::PhaseOfN() {
-
-    return 0;
-}
-
-double FollowerMDP::m_TimeDecoder::RDispersion(int n, double coupleStrength,
-                                               std::vector<float> mean,
-                                               std::vector<float> expPhasePos) {
-
-    // Eq 13;
-    float sum = 0;
-    for (int i = 1; i < n; i++) {
-        sum += cos(TWO_PI * (mean[i] - expPhasePos[i]));
+float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
+    if (m_CurrentEvent == 0) {
+        return 0;
     }
-    sum = sum / n;
-    return sum;
-}
 
-// ─────────────────────────────────────
-double FollowerMDP::m_TimeDecoder::HatKappa(double r, double tol, double max_iter) {
+    // Calculate r with correction term
+    float r = States[m_CurrentEvent].Dispersion;
+    float t_n0 = States[m_CurrentEvent - 1].Onset;
+    float t_n1 = States[m_CurrentEvent].Onset;
+    float psi_k = 60 / States[m_CurrentEvent].Bpm;
+    float v0 = (t_n1 - t_n0) / psi_k - States[m_CurrentEvent].PhaseOnset;
+    r = r - m_EtaS * (r - cos(TWO_PI * v0));
 
-    // Eq 14;
+    // Solve for kappa
     double low = 0.01, up = 10.0;
+    int max_iter = 100;
     double mid;
     int iter = 0;
+    float tol = 1e-6;
     while (iter < max_iter) {
         mid = (low + up) / 2.0;
         double f_mid = boost::math::cyl_bessel_i(1, mid) / boost::math::cyl_bessel_i(0, mid) - r;
         if (std::abs(f_mid) < tol) {
-            return mid;
+            break;
         }
         double f_lower = boost::math::cyl_bessel_i(1, low) / boost::math::cyl_bessel_i(0, low) - r;
         if (f_lower * f_mid < 0) {
@@ -118,8 +97,30 @@ double FollowerMDP::m_TimeDecoder::HatKappa(double r, double tol, double max_ite
         }
         iter++;
     }
-    return mid;
+    float kappa = mid;
+
+    // Phase update
+    float t_n = States[m_CurrentEvent].Onset;
+    float last_t_n = States[m_CurrentEvent - 1].Onset;
+    float last_psi_n = 60 / States[m_CurrentEvent - 1].Bpm;
+    float LastPhiHat = States[m_CurrentEvent - 1].PhaseOnset;
+
+    float eq10 = Equation10(m_LastPhi, LastPhiHat, kappa);
+
+    m_LastPhi = m_LastPhi + (t_n - last_t_n) / last_psi_n + m_EtaPhi * eq10;
+    m_LastPhi = fmod(m_LastPhi, TWO_PI);
+
+    // BPM prediction
+    float PhiHat = States[m_CurrentEvent].PhaseOnset;
+    m_BPM = m_BPM * (1 + m_EtaS * Equation10(m_LastPhi, PhiHat, kappa));
+    return m_BPM;
 }
+
+float FollowerMDP::GetBpm() {
+    return m_BPM;
+}
+
+// ─────────────────────────────────────
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
@@ -173,36 +174,62 @@ float FollowerMDP::GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_D
 float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
     float PitchWeight = 0.5;
     float TimeWeight = 0.5;
+    // FUTURE: Add Attack Envelope
 
     float PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
-    // float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
+    float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
 
-    float Reward = PitchSimilarity * PitchWeight;
+    float Reward = (PitchSimilarity * PitchWeight) + (TimeSimilarity * TimeWeight);
 
     return Reward;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
+    if (m_BPM == 0 && m_CurrentEvent == -1) {
+        m_BPM = States[0].Bpm;
+    }
+
     float BestGuess = m_CurrentEvent;
-    m_State CurState = States[m_CurrentEvent];
-
     float BestReward = -1;
+    float LookAhead = 5;
+    float EventLookAhead = 0;
+    int i = m_CurrentEvent;
+    int StatesSize = States.size();
 
-    // Get Best Reward
-    for (int i = m_CurrentEvent; i < (m_CurrentEvent + 6); i++) {
-        if (i >= States.size() || i < 0) {
-            continue;
+    int lastLook = 0;
+
+    while (EventLookAhead < LookAhead) {
+        if (i >= StatesSize) {
+            break;
         }
-
+        if (i < 0) {
+            i = 0;
+        }
+        EventLookAhead += States[i].Duration * 60 / m_BPM;
         m_State NextPossibleState = States[i];
         float Reward = GetReward(NextPossibleState, Desc);
-
         if (Reward > BestReward) {
             BestReward = Reward;
             BestGuess = i;
         }
+        lastLook = i;
+        i++;
     }
+
+    if (BestGuess == m_CurrentEvent) {
+        int BlockDurMs = m_x->HopSize / m_x->Sr * 1000;
+        m_TimeInThisEvent += BlockDurMs;
+        return;
+    } else if (m_CurrentEvent != -1) {
+        int i = m_CurrentEvent;
+        float ExpectedDuration = States[m_CurrentEvent].Duration * 60 / m_BPM * 1000;
+        m_RealtimeDur.push_back(m_TimeInThisEvent);
+
+        m_TimeInThisEvent = 0;
+    }
+
+    GetLiveBpm(States);
     m_CurrentEvent = BestGuess;
 }
 
