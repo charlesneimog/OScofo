@@ -1,9 +1,5 @@
 #include "follower.hpp"
 
-#include <cmath>
-#include <math.h>
-#include <omp.h>
-
 #include <boost/math/special_functions/bessel.hpp>
 
 #define MAX_FREQUENCY_DIFFERENCE 10.0
@@ -44,10 +40,10 @@ void FollowerMDP::UpdatePitchTemplate() {
             }
             for (size_t i = 0; i < m_WindowSize / 2; ++i) {
                 for (size_t j = 0; j < m_Harmonics; ++j) {
-                    float amp = 1 / (pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+                    float amp = 1 / (std::pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
                     float num = std::pow(i - (RootBinFreq * (j + 1)), 2);
                     float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
-                    m_PitchTemplates[RootBinFreq][i] += amp * exp(-(num / den));
+                    m_PitchTemplates[RootBinFreq][i] += amp * std::exp(-(num / den));
                     if (m_PitchTemplateHigherBin < RootBinFreq) {
                         m_PitchTemplateHigherBin = RootBinFreq;
                     }
@@ -211,7 +207,7 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
         if (i > m_PitchTemplateHigherBin) {
             break;
         }
-        float P = PitchTemplate[i];
+        float P = PitchTemplate[i] * Desc->MaxAmp;
         float Q = Desc->NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
@@ -226,7 +222,6 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
 
 // ─────────────────────────────────────
 float FollowerMDP::GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
-    post("print spent in this event %f", m_TimeInThisEvent);
     return 0;
 }
 
@@ -245,19 +240,20 @@ float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Descripti
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
+float FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
     if (m_CurrentEvent == -1) {
         m_BPM = States[0].BPM;
     }
 
     // TODO: Make this user defined
-    float LookAhead = 5; // Look 5 seconds in future
+    float LookAhead = 2; // Look 5 seconds in future
 
     int BestGuess, i = m_CurrentEvent;
     float BestReward = -1;
     float EventLookAhead = 0;
     int StatesSize = States.size();
     int lastLook = 0;
+
     while (EventLookAhead < LookAhead) {
         if (i >= StatesSize) {
             break;
@@ -275,17 +271,8 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
         lastLook = i;
         i++;
     }
-
-    if (BestGuess == m_CurrentEvent) {
-        int BlockDurMs = m_x->HopSize / m_x->Sr * 1000;
-        m_TimeInThisEvent += BlockDurMs;
-        return;
-    } else if (m_CurrentEvent != -1) {
-        m_TimeInThisEvent = 0;
-    }
-
     GetBPM(States);
-    m_CurrentEvent = BestGuess;
+    return BestGuess;
 }
 
 // ─────────────────────────────────────
@@ -294,11 +281,23 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
 
     if (m_Desc->dB < m_dBTreshold) {
+        printf("silence\n");
+        int BlockDurMs = m_x->HopSize / m_x->Sr * 1000;
+        m_TimeInThisEvent += BlockDurMs;
         return m_CurrentEvent;
     }
 
     // Get the best event to describe the current state
-    GetBestEvent(m_States, m_Desc);
+    float Event = GetBestEvent(m_States, m_Desc);
+
+    if (Event == m_CurrentEvent) {
+        int BlockDurMs = m_x->HopSize / m_x->Sr * 1000;
+        m_TimeInThisEvent += BlockDurMs;
+    } else if (Event != m_CurrentEvent) {
+        printf("Spent %f ms in event %d\n", m_TimeInThisEvent, m_CurrentEvent);
+        m_TimeInThisEvent = 0;
+    }
+    m_CurrentEvent = Event;
 
     return m_CurrentEvent;
 }

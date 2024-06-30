@@ -27,7 +27,7 @@
 #X obj 311 391 nbx 13 34 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
 #X obj -16 -74 loadbang;
 #X msg -14 -34 1;
-#X msg -77 369 set threshold -50;
+#X msg -77 369 set threshold -90;
 #X connect 0 0 2 0;
 #X connect 2 0 9 0;
 #X connect 2 2 18 0;

@@ -157,7 +157,7 @@ class FollowerMDP {
     std::unordered_map<float, PitchTemplateArray> m_PitchTemplates;
 
     // MDP
-    void GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
+    float GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
     float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
