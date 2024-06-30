@@ -16,12 +16,9 @@
 FollowerMDP::FollowerMDP(Follower *Obj) {
     m_x = Obj;
     m_Desc = new FollowerMIR::m_Description();
-    m_BpmHistory.assign(20, 1);
     if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
         m_PitchTemplate.resize(Obj->WindowSize / 2);
     }
-
-    GetKappaTable(0.01, 10, 1000);
 }
 
 // ╭─────────────────────────────────────╮
@@ -34,11 +31,6 @@ float FollowerMDP::GetLiveBpm() {
 // ─────────────────────────────────────
 void FollowerMDP::SetLiveBpm(float Bpm) {
     m_BPM = Bpm;
-}
-
-// ─────────────────────────────────────
-void FollowerMDP::ResetLiveBpm() {
-    m_BpmHistory.assign(20, 1);
 }
 
 // ─────────────────────────────────────
@@ -57,98 +49,17 @@ FollowerMDP::m_State FollowerMDP::GetState(int Index) {
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-static float VonMissesDistribution(float phi, float phi_mu, float kappa) {
-    // phi current phase
-    // phi_mu mean
-    // kappa variance
-    float exponential = exp(kappa * cos(phi - phi_mu));
-    float bessel = 1 / (2 * M_PI * boost::math::cyl_bessel_i(0, kappa));
-    return bessel;
-}
-
-// ─────────────────────────────────────
-void FollowerMDP::GetKappaTable(float Min, float Max, int p) {
-    std::vector<std::pair<float, float>> Table;
-    float step = (Max - Min) / (p - 1);
-    for (int i = 0; i < p; ++i) {
-        float lambda = Min + i * step;
-        float kappa = boost::math::cyl_bessel_i(2, lambda) / boost::math::cyl_bessel_i(1, lambda);
-        Table.emplace_back(kappa, lambda);
-    }
-    m_KappaTable = Table;
-}
-
-// ─────────────────────────────────────
-double FollowerMDP::GetKappa(double r) {
-    auto it = std::lower_bound(m_KappaTable.begin(), m_KappaTable.end(),
-                               std::make_pair(static_cast<float>(r), 0.0f),
-                               [](const std::pair<float, float> &a,
-                                  const std::pair<float, float> &b) { return a.first < b.first; });
-
-    if (it == m_KappaTable.end()) {
-        return m_KappaTable.back().second;
-    } else if (it == m_KappaTable.begin()) {
-        return m_KappaTable.front().second;
-    } else {
-        // Linear interpolation
-        auto it1 = it - 1;
-        double r1 = it1->first;
-        double lambda1 = it1->second;
-        double r2 = it->first;
-        double lambda2 = it->second;
-        return lambda1 + (r - r1) * (lambda2 - lambda1) / (r2 - r1);
-    }
-}
-
-// ─────────────────────────────────────
-float FollowerMDP::DistributionFunction(float phi, float phi_mu,
-                                        float kappa) { // TODO: RENAME TO CORRECTION
-    // Normalization factor: 1 / (2π * exp(κ))
-    float normalizationFactor = 1.f / (2 * M_PI * std::exp(kappa));
-    float expComponent = exp(kappa * cos(TWO_PI * (phi - phi_mu)));
-    // Sine component: sin(2π * (φ - φ_mu))
-    float sinComponent = sin(TWO_PI * (phi - phi_mu));
-    // Final distribution function value
-    return normalizationFactor * expComponent * sinComponent;
-}
-
-float A2_inverse(float r) {
-    // Initial approximation
-    float kappa;
-    if (r < 0.53) {
-        kappa = 2 * r + pow(r, 3) + (5 * pow(r, 5)) / 6.0;
-    } else if (r < 0.85) {
-        kappa = -0.4 + 1.39 * r + 0.43 / (1 - r);
-    } else {
-        kappa = 1 / (pow(r, 3) - 4 * pow(r, 2) + 3 * r);
-    }
-
-    // Iterate using Newton-Raphson method to improve approximation
-    for (int i = 0; i < 5; ++i) {
-        float I0 = boost::math::cyl_bessel_i(0, kappa);
-        float I1 = boost::math::cyl_bessel_i(1, kappa);
-        float f_kappa = I1 / I0 - r;
-        float f_prime_kappa = 1 - (I1 * I1) / (I0 * I0);
-        kappa -= f_kappa / f_prime_kappa;
-    }
-
-    return kappa;
-}
-
-// ─────────────────────────────────────
-float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
+void FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
     if (m_CurrentEvent < 1) {
-        return m_BPM;
+        return;
     }
     float phi_n = 0; // Initial phase
     float r = 0;     // Initial dispersion
     std::vector<float> PhiValues;
     PhiValues.push_back(0);
 
-    float CouplingFactor = 0.5;
-    float eta_phi = 0.1; // Small coupling constant for phase update
-    float eta_s = 0.05;  // Small coupling constant for dispersion update
-
+    // float eta_s = 0.05; // Small coupling constant for dispersion update
+    float eta_s = 0.2; // Small coupling constant for dispersion update
     float psi_k = 60 / States[0].Bpm;
     float psi_n = psi_k;
 
@@ -166,13 +77,30 @@ float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
         // Calculate dispersion r using Equation 13
         float sumCos = 0;
         for (float phi : PhiValues) {
-            sumCos += std::cos(2 * M_PI * (phi - phi_n));
+            sumCos += std::cos(TWO_PI * (phi - phi_n));
         }
         r = sumCos / PhiValues.size();
 
         // Update kappa
-        r = r - eta_s * (r - std::cos(2 * M_PI * ((t_n1 - t_n0) / psi_n - ExpectedPhase)));
-        float kappa = A2_inverse(r);
+        r = r - eta_s * (r - std::cos(TWO_PI * ((t_n1 - t_n0) / psi_n - ExpectedPhase)));
+
+        float kappa;
+        if (r < 0.53) {
+            kappa = 2 * r + pow(r, 3) + (5 * pow(r, 5)) / 6.0;
+        } else if (r < 0.85) {
+            kappa = -0.4 + 1.39 * r + 0.43 / (1 - r);
+        } else {
+            kappa = 1 / (pow(r, 3) - 4 * pow(r, 2) + 3 * r);
+        }
+
+        // Iterate using Newton-Raphson method to improve approximation
+        for (int i = 0; i < 1000; ++i) {
+            float I0 = boost::math::cyl_bessel_i(0, kappa);
+            float I1 = boost::math::cyl_bessel_i(1, kappa);
+            float f_kappa = I1 / I0 - r;
+            float f_prime_kappa = 1 - (I1 * I1) / (I0 * I0);
+            kappa -= f_kappa / f_prime_kappa;
+        }
 
         // Calculate F using Equation 10
         float F_value = (1 / (TWO_PI * std::exp(kappa))) *
@@ -187,8 +115,6 @@ float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
         psi_n = psi_n * (1 + kappa * F_value);
     }
     m_BPM = 60 / psi_n;
-
-    return 0;
 }
 // ─────────────────────────────────────
 // float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {

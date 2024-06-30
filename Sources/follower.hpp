@@ -140,24 +140,18 @@ class FollowerMDP {
         std::vector<float> m_Onsets;
     };
 
+    float m_PitchTemplateSigma = 0.3;
+    float m_z = 0.5; // TODO: How should I call this?
+
     void GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
     float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
-    float GetLiveBpm(std::vector<m_State> States);
-    void GetKappaTable(float Min, float Max, int p);
 
-    float m_PitchTemplateSigma = 0.3;
-    float m_z = 0.5; // TODO: How should I call this?
-    std::vector<std::pair<float, float>> m_KappaTable;
-    double GetKappa(double r);
-    float DistributionFunction(float phi, float phi_mu, float kappa);
+    // Time Prediction
+    void GetLiveBpm(std::vector<m_State> States);
 
     FollowerMIR::m_Description *m_Desc;
-
-    std::vector<float> m_BpmHistory;
-    float m_LiveBpm;
-    float m_LiveTimePhase;
 };
 
 // ╭─────────────────────────────────────╮
