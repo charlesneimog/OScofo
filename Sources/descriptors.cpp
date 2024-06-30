@@ -6,7 +6,6 @@
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
-
 FollowerMIR::FollowerMIR(Follower *Obj) {
     LOGE() << "FollowerMIR::FollowerMIR";
 
@@ -21,6 +20,13 @@ FollowerMIR::FollowerMIR(Follower *Obj) {
     m_FFTPlan = fftwf_plan_dft_r2c_1d(m_WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
 
     LOGE() << "FollowerMIR::FollowerMIR end";
+}
+
+// ╭─────────────────────────────────────╮
+// │          Set|Get Functions          │
+// ╰─────────────────────────────────────╯
+void FollowerMIR::SetTreshold(float dB) {
+    m_dBTreshold = dB;
 }
 
 // ╭─────────────────────────────────────╮
@@ -75,49 +81,6 @@ void FollowerMIR::GetRMS(std::vector<float> in, m_Description *Desc) {
 }
 
 // ╭─────────────────────────────────────╮
-// │                Time                 │
-// ╰─────────────────────────────────────╯
-/*
- * LARGE and JONES. The Dynamics of Attending: How People Track Time-Varying Events. 1999.
-
-*/
-float FollowerMIR::TimePrediction() {
-
-    return 0;
-}
-
-void FollowerMIR::ResetElapsedTime() {
-    m_EventTimeElapsed = 0;
-}
-
-void FollowerMIR::UpdateTempoInEvent() {
-    m_EventTimeElapsed += 1000 / m_Sr * m_HopSize;
-}
-
-float FollowerMIR::GetEventTimeElapsed() {
-    return m_EventTimeElapsed;
-};
-
-// ─────────────────────────────────────
-float BesselFunction(float x) {
-    int n = 1000;        // Number of intervals for numerical integration
-    double h = M_PI / n; // Width of each interval
-    double sum = 0.0;
-    // Use the trapezoidal rule for numerical integration
-    for (int i = 0; i <= n; ++i) {
-        double theta = i * h;
-        double term = exp(x * cos(theta));
-        if (i == 0 || i == n) {
-            sum += 0.5 * term;
-        } else {
-            sum += term;
-        }
-    }
-
-    return sum * h / M_PI;
-}
-
-// ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetDescription(std::vector<float> in, m_Description *Desc, float Tunning) {
@@ -125,8 +88,12 @@ void FollowerMIR::GetDescription(std::vector<float> in, m_Description *Desc, flo
     Desc->Sr = m_Sr;
 
     GetRMS(in, Desc);
-    if (Desc->dB < -40) {
+
+    if (Desc->dB < m_dBTreshold) {
         return;
+    }
+    for (int i = 0; i < m_WindowSize; i++) {
+        in[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (m_WindowSize - 1)));
     }
 
     GetFFT(in, Desc);

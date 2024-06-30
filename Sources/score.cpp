@@ -72,6 +72,8 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
     LOGE() << "start FollowerScore::Parse";
     m_ScoreLoaded = false;
     std::ifstream File(score);
+    MDP->ClearStates();
+
     if (!File) {
         pd_error(NULL, "File not found");
         return;

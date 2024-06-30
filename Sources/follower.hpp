@@ -27,6 +27,7 @@ class FollowerMIR {
     static float Ftom(float freq, float tunning);
     static float Freq2Bin(t_float freq, t_float n, t_float Sr);
 
+    void SetTreshold(float dB);
     struct m_Description {
         float WindowSize;
         float Sr;
@@ -60,6 +61,10 @@ class FollowerMIR {
     // Obj
     Follower *m_x;
 
+    // Helpers
+    std::vector<float> m_WindowingFunc;
+    void GetHanning(int WindowSize);
+
     // FFT
     float *m_FFTIn;
     fftwf_complex *m_FFTOut;
@@ -67,6 +72,7 @@ class FollowerMIR {
     void GetFFT(std::vector<float> in, m_Description *Desc);
 
     // Env
+    float m_dBTreshold = -40;
     void GetRMS(std::vector<float> in, m_Description *Desc);
 
     // Audio
@@ -107,6 +113,7 @@ class FollowerMDP {
     void SetHarmonics(int i);
     void SetBPM(float Bpm);
     void ResetLiveBpm();
+    void SetTreshold(float dB);
 
     // Get Functions
     float GetBPM();
@@ -118,6 +125,8 @@ class FollowerMDP {
     std::vector<m_State> GetStates();
     m_State GetState(int Index);
     void AddState(m_State state);
+    void ClearStates();
+
     int GetStatesSize();
     int GetEvent(Follower *x, FollowerMIR *MIR);
 
@@ -134,6 +143,7 @@ class FollowerMDP {
     float m_HopSize;
     float m_Harmonics = 10;
     float m_PitchTemplateHigherBin = 0;
+    float m_dBTreshold = -40;
 
     float m_Tunning = 440;
     int m_CurrentEvent = -1;
@@ -153,6 +163,10 @@ class FollowerMDP {
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
 
     // Time Prediction
+    // std::vector<std::pair<float, float>> m_KappaTable;
+    // void CreateKappaTable();
+    // float GetKappaFromTable(float r);
+
     void GetBPM(std::vector<m_State> States);
     FollowerMIR::m_Description *m_Desc;
 };

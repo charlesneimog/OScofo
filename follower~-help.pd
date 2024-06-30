@@ -114,7 +114,7 @@
 #X connect 10 0 11 0;
 #X connect 12 0 7 0;
 #X restore -48 268 pd antescofo;
-#N canvas 0 50 450 300 follower 1;
+#N canvas 0 50 450 300 follower 0;
 #X obj 336 149 nbx 13 26 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
 #X obj 59 149 nbx 13 26 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
 #X obj 59 29 inlet~;
@@ -124,7 +124,7 @@
 #X obj 320 277 switch~;
 #X msg 164 64 set harmonics;
 #X obj 164 31 nbx 4 18 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
-#X obj 59 119 follower~ -w 2048 -o 4, f 50;
+#X obj 59 119 follower~ -w 4096 -o 4, f 50;
 #X connect 0 0 3 1;
 #X connect 1 0 3 0;
 #X connect 2 0 9 0;
@@ -140,7 +140,7 @@
 #X obj 19 231 tgl 25 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737 0 1;
 #X obj -75 231 tgl 25 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737 0 1;
 #X listbox -48 295 22 0 0 0 - - - 36;
-#X listbox -131 456 22 0 0 0 - - - 36;
+#X listbox -131 357 22 0 0 0 - - - 36;
 #X obj 169 281 loadbang;
 #X msg 169 310 1;
 #X connect 0 0 2 0;
@@ -168,3 +168,4 @@
 #X connect 20 0 17 1;
 #X connect 23 0 24 0;
 #X connect 24 0 20 0;
+#X connect 24 0 19 0;

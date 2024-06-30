@@ -38,8 +38,6 @@ void FollowerMDP::UpdatePitchTemplate() {
             float Pitch = m_States[h].Freq;
             float RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
-                LOGE() << "Pitch Template already " << RootBinFreq << " exits...";
-
                 continue;
             } else {
                 m_PitchTemplates[RootBinFreq].resize(m_WindowSize / 2);
@@ -64,6 +62,10 @@ void FollowerMDP::UpdatePitchTemplate() {
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
+void FollowerMDP::ClearStates() {
+    m_States.clear();
+}
+// ─────────────────────────────────────
 float FollowerMDP::GetBPM() {
     return m_BPM;
 }
@@ -71,6 +73,11 @@ float FollowerMDP::GetBPM() {
 // ─────────────────────────────────────
 void FollowerMDP::SetBPM(float BPM) {
     m_BPM = BPM;
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::SetTreshold(float dB) {
+    m_dBTreshold = dB;
 }
 
 // ─────────────────────────────────────
@@ -114,72 +121,74 @@ void FollowerMDP::SetPitchTemplateSigma(float f) {
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
+float A1_2(float r) {
+    // Handle edge cases to avoid division by zero and other numerical issues
+    if (r <= 0.0f) {
+        return 0.0f; // Or another appropriate value based on your application's requirements
+    }
+    if (r >= 1.0f) {
+        return std::numeric_limits<float>::infinity(); // r should not be greater than or equal to 1
+    }
+
+    // Calculate modified Bessel functions of the first kind
+    float I_neg_half = boost::math::cyl_bessel_i(1, r);
+    // or
+
+    float I_pos_half = boost::math::cyl_bessel_i(2, r);
+
+    // Handle potential division by zero if I_neg_half is very small
+    if (std::abs(I_neg_half) < 1e-8f) {
+        return std::numeric_limits<float>::infinity(); // Or a large value to indicate an error
+    }
+
+    // Calculate and return the ratio
+    return (I_pos_half / I_neg_half) - r;
+}
+
 void FollowerMDP::GetBPM(std::vector<m_State> States) {
     if (m_CurrentEvent < 1) {
-        return;
+        return; // Not enough events to estimate tempo
     }
-    float phi_n = 0; // Initial phase
-    float r = 0;     // Initial dispersion
-    std::vector<float> PhiValues;
-    PhiValues.push_back(0);
 
-    // float eta_s = 0.05; // Small coupling constant for dispersion update
-    float eta_s = 0.2; // Small coupling constant for dispersion update
-    float psi_k = 60 / States[0].BPM;
-    float psi_n = psi_k;
+    float phi_n = 0.0f; // Initial phase
+    float r = 0.0f;     // Initial dispersion
+
+    // Coupling constants (tuned based on experimentation)
+    float eta_s = 0.4f;   // Dispersion update coupling strength
+    float eta_phi = 0.5f; // Phase update coupling strength
+
+    float psi_n = 1.0f / States[0].BPM * 60.0f; // Initial tempo in seconds/beat
 
     for (int i = 1; i < m_CurrentEvent; i++) {
-        // Calculate psi_k
-        psi_k = 60 / States[i].BPM;
+        // Calculate psi_k (expected tempo for current event)
+        float psi_k = 60.0f / States[i].BPM;
 
-        // Calculate phases using Equation 8
+        // Calculate expected phase using Equation 11
         float t_n0 = States[i - 1].Onset * psi_k;
         float t_n1 = States[i].Onset * psi_k;
-        float ExpectedPhase = phi_n + ((t_n1 - t_n0) / psi_k);
-        ExpectedPhase = fmod(ExpectedPhase + M_PI, TWO_PI) - M_PI;
-        PhiValues.push_back(ExpectedPhase);
+        float expectedPhase = phi_n + ((t_n1 - t_n0) / psi_k);
+        expectedPhase = fmod(expectedPhase + M_PI, TWO_PI) - M_PI;
 
-        // Calculate dispersion r using Equation 13
-        float sumCos = 0;
-        for (float phi : PhiValues) {
-            sumCos += std::cos(TWO_PI * (phi - phi_n));
-        }
-        r = sumCos / PhiValues.size();
+        // Calculate dispersion r using Equation 13 (recursive update)
+        r = r - eta_s * (r - cos(TWO_PI * ((t_n1 - t_n0) / psi_n - expectedPhase)));
 
-        // Update kappa
-        r = r - eta_s * (r - std::cos(TWO_PI * ((t_n1 - t_n0) / psi_n - ExpectedPhase)));
-
-        float kappa;
-        if (r < 0.53) {
-            kappa = 2 * r + pow(r, 3) + (5 * pow(r, 5)) / 6.0;
-        } else if (r < 0.85) {
-            kappa = -0.4 + 1.39 * r + 0.43 / (1 - r);
-        } else {
-            kappa = 1 / (pow(r, 3) - 4 * pow(r, 2) + 3 * r);
-        }
-
-        // Iterate using Newton-Raphson method to improve approximation
-        for (int i = 0; i < 1000; ++i) {
-            float I0 = boost::math::cyl_bessel_i(0, kappa);
-            float I1 = boost::math::cyl_bessel_i(1, kappa);
-            float f_kappa = I1 / I0 - r;
-            float f_prime_kappa = 1 - (I1 * I1) / (I0 * I0);
-            kappa -= f_kappa / f_prime_kappa;
-        }
+        // Calculate kappa using Equation 14 (approximation from the paper)
+        float kappa = A1_2(r); // Assuming A1_2 is a function implementing the lookup table
 
         // Calculate F using Equation 10
-        float F_value = (1 / (TWO_PI * std::exp(kappa))) *
-                        std::exp(kappa * std::cos(TWO_PI * (phi_n - ExpectedPhase))) *
-                        std::sin(TWO_PI * (phi_n - ExpectedPhase));
+        float F_value = (1.0f / (TWO_PI * exp(kappa))) *
+                        exp(kappa * cos(TWO_PI * (phi_n - expectedPhase))) *
+                        sin(TWO_PI * (phi_n - expectedPhase));
 
         // Update phase using Equation 11
-        phi_n = phi_n + ((t_n1 - t_n0) / psi_n) + m_EtaPhi * F_value;
+        phi_n = phi_n + ((t_n1 - t_n0) / psi_n) + eta_phi * F_value;
         phi_n = fmod(phi_n + M_PI, TWO_PI) - M_PI;
 
-        // Update psi using Equation 15
-        psi_n = psi_n * (1 + kappa * F_value);
+        // Update psi (tempo) using Equation 12
+        psi_n = psi_n * (1.0f + eta_phi * F_value);
     }
-    m_BPM = 60 / psi_n;
+
+    m_BPM = 60.0f / psi_n; // Convert tempo back to BPM
 }
 
 // ╭─────────────────────────────────────╮
@@ -217,6 +226,7 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
 
 // ─────────────────────────────────────
 float FollowerMDP::GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
+    post("print spent in this event %f", m_TimeInThisEvent);
     return 0;
 }
 
@@ -271,9 +281,6 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
         m_TimeInThisEvent += BlockDurMs;
         return;
     } else if (m_CurrentEvent != -1) {
-        int i = m_CurrentEvent;
-        // TODO: FINISH
-
         m_TimeInThisEvent = 0;
     }
 
@@ -286,8 +293,7 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     // Get Sound Description saved in m_Desc
     MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
 
-    // Check if we have silence
-    if (m_Desc->dB < -40) { // TODO: Make this -40 variable for user define
+    if (m_Desc->dB < m_dBTreshold) {
         return m_CurrentEvent;
     }
 

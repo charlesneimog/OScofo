@@ -70,9 +70,15 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
     std::string method = atom_getsymbol(argv)->s_name;
     if (method == "sigma") {
         x->MDP->SetPitchTemplateSigma(atom_getfloat(argv + 1));
+        post("[follower~] Sigma set to %f", atom_getfloat(argv + 1));
     } else if (method == "harmonics") {
         x->MDP->SetHarmonics(atom_getint(argv + 1));
         x->MDP->UpdatePitchTemplate();
+        post("[follower~] Using pitch template with %d harmonics", atom_getint(argv + 1));
+    } else if (method == "threshold") {
+        x->MIR->SetTreshold(atom_getfloat(argv + 1));
+        x->MDP->SetTreshold(atom_getfloat(argv + 1));
+        post("[follower~] Treshold set to %f", atom_getfloat(argv + 1));
     }
 
     else {
