@@ -3,8 +3,6 @@
 #include <cmath>
 #include <vector>
 
-#include <algorithm>
-
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
@@ -125,7 +123,6 @@ float BesselFunction(float x) {
 void FollowerMIR::GetDescription(std::vector<float> in, m_Description *Desc, float Tunning) {
     Desc->WindowSize = m_WindowSize;
     Desc->Sr = m_Sr;
-    Desc->Tunning = Tunning;
 
     GetRMS(in, Desc);
     if (Desc->dB < -40) {

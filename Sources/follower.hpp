@@ -1,7 +1,9 @@
 #pragma once
 
+#include <iostream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <m_pd.h>
@@ -13,6 +15,7 @@
 #define DEBUG true
 
 class Follower;
+using PitchTemplateArray = std::vector<float>;
 
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
@@ -27,22 +30,20 @@ class FollowerMIR {
     struct m_Description {
         float WindowSize;
         float Sr;
-        float Tunning = 440;
-
         float Freq;
         float Midi;
         float Quality;
         float dB;
-        float TimeElapsed;
-        std::vector<float> SpectralImag;
-        std::vector<float> SpectralReal;
+        // float TimeElapsed;
+        // std::vector<float> SpectralImag;
+        // std::vector<float> SpectralReal;
         std::vector<float> SpectralPower;
         std::vector<float> NormSpectralPower;
         float MaxAmp;
 
         // Pitch
-        std::vector<float> SpectralChroma;
-        float HigherChroma;
+        // std::vector<float> SpectralChroma;
+        // float HigherChroma;
     };
 
     void GetDescription(std::vector<float> in, m_Description *Desc, float Tunning);
@@ -84,15 +85,6 @@ class FollowerMIR {
 class FollowerMDP {
   public:
     FollowerMDP(Follower *Obj);
-
-    // Config Functions
-    void SetPitchTemplateSigma(float f);
-    void SetLiveBpm(float Bpm);
-    void ResetLiveBpm();
-
-    // Get Functions
-    float GetLiveBpm();
-
     struct m_State {
         int Id;
         bool Valid;
@@ -100,57 +92,68 @@ class FollowerMDP {
         float Freq;
 
         // Time
-        float Bpm;
+        float BPM;
         float Onset;
         float PhaseOnset;
         float Duration;
         float Dispersion;
     };
+
+    // Init Functions
+    void UpdatePitchTemplate();
+
+    // Config Functions
+    void SetPitchTemplateSigma(float f);
+    void SetHarmonics(int i);
+    void SetBPM(float Bpm);
+    void ResetLiveBpm();
+
+    // Get Functions
+    float GetBPM();
+    int GetTunning();
+
     std::vector<m_State> m_States;
+    std::vector<double> m_PitchTemplate;
+
     std::vector<m_State> GetStates();
     m_State GetState(int Index);
     void AddState(m_State state);
     int GetStatesSize();
-    std::vector<double> m_PitchTemplate;
-    float m_RValue;
-
     int GetEvent(Follower *x, FollowerMIR *MIR);
+
+    // Set Variables
+    void SetTunning(float Tunning);
+    void SetEvent(int Event);
+
+  private:
+    Follower *m_x;
+
+    // Audio
+    float m_Sr;
+    float m_WindowSize;
+    float m_HopSize;
+    float m_Harmonics = 10;
+    float m_PitchTemplateHigherBin = 0;
 
     float m_Tunning = 440;
     int m_CurrentEvent = -1;
     float m_TimeInThisEvent = 0;
-    std::vector<float> m_RealtimeDur; // TODO: How to name this?
     float m_BPM = 0;
-    float m_PrevBPM = 0;
     float m_EtaPhi = 0.1;
 
-  private:
-    Follower *m_x;
-    // MDP
-
-    class m_TimeDecoder {
-      public:
-        m_TimeDecoder(Follower *Obj);
-        double HatKappa(double r, double tol = 1e-6, double max_iter = 100);
-        double RDispersion(int n, double coupleStrength, std::vector<float> mean,
-                           std::vector<float> expPhasePos);
-        double PhaseOfN();
-
-      private:
-        std::vector<float> m_Onsets;
-    };
-
+    // Pitch
     float m_PitchTemplateSigma = 0.3;
-    float m_z = 0.5; // TODO: How should I call this?
+    float m_Z = 0.5; // TODO: How should I call this?
+    std::unordered_map<float, PitchTemplateArray> m_PitchTemplates;
 
+    // MDP
     void GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
     float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
 
     // Time Prediction
-    void GetLiveBpm(std::vector<m_State> States);
-
+    void GetBPM(std::vector<m_State> States);
     FollowerMIR::m_Description *m_Desc;
 };
 
@@ -243,7 +246,8 @@ class LogStream {
         std::string message = buffer.str();
         const char *c_message = message.c_str();
 
-        printf("%s\n", c_message);
+        printf("%s >> ", c_message);
+        std::cout.flush();
 #endif
     }
 

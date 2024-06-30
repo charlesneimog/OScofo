@@ -61,6 +61,7 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
     post("[follower~] Template loaded");
 }
 
+// ─────────────────────────────────────
 static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
     if (argv[0].a_type != A_SYMBOL) {
         pd_error(x, "[follower~] First argument of set method must be a symbol");
@@ -69,6 +70,9 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
     std::string method = atom_getsymbol(argv)->s_name;
     if (method == "sigma") {
         x->MDP->SetPitchTemplateSigma(atom_getfloat(argv + 1));
+    } else if (method == "harmonics") {
+        x->MDP->SetHarmonics(atom_getint(argv + 1));
+        x->MDP->UpdatePitchTemplate();
     }
 
     else {
@@ -79,14 +83,14 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
 // ─────────────────────────────────────
 static void SetEvent(Follower *x, t_floatarg f) {
     x->CurrentEvent = f;
-    x->MDP->m_CurrentEvent = f;
+    x->MDP->SetEvent(f);
 }
 
 // ─────────────────────────────────────
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
-    x->MDP->m_CurrentEvent = -1;
-    outlet_float(x->Tempo, x->MDP->m_BPM);
+    x->MDP->SetEvent(-1);
+    outlet_float(x->Tempo, x->MDP->GetBPM());
     outlet_float(x->EventIndex, 0);
 }
 
@@ -98,8 +102,7 @@ static void Follow(Follower *x, t_floatarg f) {
 // ─────────────────────────────────────
 static void Tunning(Follower *x, t_floatarg f) {
     post("[follower~] A4 set to %f Hz", f);
-    x->MDP->m_Tunning = f;
-    x->Score->m_Tunning = f;
+    x->MDP->SetTunning(f);
 }
 
 // ─────────────────────────────────────
@@ -114,6 +117,7 @@ static void Score(Follower *x, t_symbol *s) {
         return;
     }
     x->Score->Parse(x->MDP, completePath.c_str());
+    x->MDP->UpdatePitchTemplate();
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
 }
@@ -121,24 +125,22 @@ static void Score(Follower *x, t_symbol *s) {
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
     outlet_float(x->EventIndex, x->Event);
-    outlet_float(x->Tempo, x->MDP->GetLiveBpm());
+    outlet_float(x->Tempo, x->MDP->GetBPM());
 }
 
 // ─────────────────────────────────────
 static t_int *DspPerform(t_int *w) {
     Follower *x = (Follower *)(w[1]);
-    float *in = (t_sample *)(w[2]);
-    float n = (float)(w[3]);
+    t_sample *in = (t_sample *)(w[2]);
+    int n = static_cast<int>(w[3]); // Assuming n is an integer
 
     if (!x->Score->ScoreLoaded()) {
         return (w + 4);
     }
 
-    std::rotate(x->inBuffer.begin(), x->inBuffer.begin() + n, x->inBuffer.end());
+    std::copy(x->inBuffer.begin() + n, x->inBuffer.end(), x->inBuffer.begin());
+    std::copy(in, in + n, x->inBuffer.end() - n);
 
-    for (int i = 0; i < n; i++) {
-        x->inBuffer.at(x->WindowSize - n + i) = in[i];
-    }
     x->BlockIndex += n;
     if (!x->ScoreLoaded) {
         return (w + 4);
@@ -197,6 +199,7 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
             if (argument == "-o") {
                 if (argv[i + 1].a_type == A_FLOAT) {
                     overlap = atom_getfloat(&argv[i + 1]);
+                    post("overlap %f", overlap);
                     i++;
                 }
             }
@@ -219,7 +222,6 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->Score = new FollowerScore(x); // TODO: rethink about use new
     x->MIR = new FollowerMIR(x);
     x->MDP = new FollowerMDP(x);
-    x->MDP->m_Tunning = 440;
 
     LOGE() << "Returning NewFollower";
     return x;

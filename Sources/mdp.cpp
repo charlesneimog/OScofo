@@ -1,6 +1,5 @@
 #include "follower.hpp"
 
-#include <algorithm> // For std::max_element
 #include <cmath>
 #include <math.h>
 #include <omp.h>
@@ -15,22 +14,83 @@
 // ╰─────────────────────────────────────╯
 FollowerMDP::FollowerMDP(Follower *Obj) {
     m_x = Obj;
+    m_HopSize = Obj->HopSize;
+    m_WindowSize = Obj->WindowSize;
+    m_Sr = Obj->Sr;
+
     m_Desc = new FollowerMIR::m_Description();
     if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
         m_PitchTemplate.resize(Obj->WindowSize / 2);
     }
+
+    SetTunning(440);
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::UpdatePitchTemplate() {
+    LOGE() << "start FollowerMDP::UpdatePitchTemplate";
+    m_PitchTemplates.clear();
+    m_PitchTemplateHigherBin = 0;
+
+    int StateSize = m_States.size();
+    for (int h = 0; h < StateSize; h++) {
+        if (m_States[h].Valid) {
+            float Pitch = m_States[h].Freq;
+            float RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
+            if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
+                LOGE() << "Pitch Template already " << RootBinFreq << " exits...";
+
+                continue;
+            } else {
+                m_PitchTemplates[RootBinFreq].resize(m_WindowSize / 2);
+            }
+            for (size_t i = 0; i < m_WindowSize / 2; ++i) {
+                for (size_t j = 0; j < m_Harmonics; ++j) {
+                    float amp = 1 / (pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+                    float num = std::pow(i - (RootBinFreq * (j + 1)), 2);
+                    float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
+                    m_PitchTemplates[RootBinFreq][i] += amp * exp(-(num / den));
+                    if (m_PitchTemplateHigherBin < RootBinFreq) {
+                        m_PitchTemplateHigherBin = RootBinFreq;
+                    }
+                }
+            }
+        }
+    }
+
+    LOGE() << "end FollowerMDP::UpdatePitchTemplate";
 }
 
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-float FollowerMDP::GetLiveBpm() {
+float FollowerMDP::GetBPM() {
     return m_BPM;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetLiveBpm(float Bpm) {
-    m_BPM = Bpm;
+void FollowerMDP::SetBPM(float BPM) {
+    m_BPM = BPM;
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::SetTunning(float Tunning) {
+    m_Tunning = Tunning;
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::SetHarmonics(int Harmonics) {
+    m_Harmonics = Harmonics;
+}
+
+// ─────────────────────────────────────
+int FollowerMDP::GetTunning() {
+    return m_Tunning;
+}
+
+// ─────────────────────────────────────
+void FollowerMDP::SetEvent(int Event) {
+    m_CurrentEvent = Event;
 }
 
 // ─────────────────────────────────────
@@ -38,18 +98,23 @@ int FollowerMDP::GetStatesSize() {
     return m_States.size();
 }
 // ─────────────────────────────────────
-void FollowerMDP::AddState(FollowerMDP::m_State state) {
-    m_States.push_back(state);
+void FollowerMDP::AddState(FollowerMDP::m_State State) {
+    m_States.push_back(State);
 }
 // ─────────────────────────────────────
 FollowerMDP::m_State FollowerMDP::GetState(int Index) {
     return m_States[Index];
 }
 
+// ─────────────────────────────────────
+void FollowerMDP::SetPitchTemplateSigma(float f) {
+    m_PitchTemplateSigma = f;
+}
+
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-void FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
+void FollowerMDP::GetBPM(std::vector<m_State> States) {
     if (m_CurrentEvent < 1) {
         return;
     }
@@ -60,12 +125,12 @@ void FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
 
     // float eta_s = 0.05; // Small coupling constant for dispersion update
     float eta_s = 0.2; // Small coupling constant for dispersion update
-    float psi_k = 60 / States[0].Bpm;
+    float psi_k = 60 / States[0].BPM;
     float psi_n = psi_k;
 
     for (int i = 1; i < m_CurrentEvent; i++) {
         // Calculate psi_k
-        psi_k = 60 / States[i].Bpm;
+        psi_k = 60 / States[i].BPM;
 
         // Calculate phases using Equation 8
         float t_n0 = States[i - 1].Onset * psi_k;
@@ -116,116 +181,28 @@ void FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
     }
     m_BPM = 60 / psi_n;
 }
-// ─────────────────────────────────────
-// float FollowerMDP::GetLiveBpm(std::vector<m_State> States) {
-//     if (m_CurrentEvent < 1) {
-//         return m_BPM;
-//     }
-//     float psi_k; // Valor fixo (?)
-//
-//     // Calculate initial value of r
-//     float r = 0;
-//     std::vector<float> PhiValues;
-//     float CurrentPhase = 0;
-//     float CouplingFactor = 0.1;
-//     PhiValues.push_back(0);
-//     for (int i = 0; i < m_CurrentEvent - 1; i++) {
-//         psi_k = 60 / States[i].Bpm;
-//
-//         // First Phase
-//         float t_n = States[i].Onset * psi_k;
-//         float t_n1 = States[i + 1].Onset * psi_k; // ????????w
-//         float ExpectedPhase = CurrentPhase + ((t_n1 - t_n) / psi_k);
-//         ExpectedPhase = fmod(CurrentPhase + M_PI, TWO_PI) - M_PI;
-//
-//         PhiValues.push_back(ExpectedPhase);
-//
-//         float Mean = 0;
-//         for (float Phi : PhiValues) {
-//             Mean += Phi;
-//         }
-//         Mean /= PhiValues.size();
-//         float kappa;
-//         if (Mean < 0.53) {
-//             kappa = 2 * Mean + std::pow(Mean, 3) + 5 * std::pow(Mean, 5) / 6;
-//         } else if (Mean < 0.85) {
-//             kappa = -0.4 + 1.39 * Mean + 0.43 / (1 - Mean);
-//         } else {
-//             kappa = 1 / (std::pow(Mean, 3) - 4 * std::pow(Mean, 2) + 3 * Mean);
-//         }
-//
-//         // Von Mises Distribution
-//         float VonMises = VonMissesDistribution(CurrentPhase, ExpectedPhase, kappa);
-//         float Correction = DistributionFunction(CurrentPhase, ExpectedPhase, kappa);
-//
-//         float eq11_1 = VonMises + CouplingFactor * Correction;
-//         float eq11 = std::fmod(eq11_1 + M_PI, TWO_PI) - M_PI;
-//         CurrentPhase = eq11;
-//         r = 1.0 / PhiValues.size();
-//     }
-//     for (float phi : PhiValues) {
-//         r += std::cos(2 * M_PI * (phi - CurrentPhase));
-//     }
-//     r /= PhiValues.size();
-//
-//     // Update r and Kappa
-//     psi_k = 60 / m_BPM;
-//     float t_n = States[m_CurrentEvent].Onset * psi_k;
-//     float t_nm1 = States[m_CurrentEvent - 1].Onset * psi_k;
-//     float v0 = (t_nm1 - t_n) / psi_k - States[m_CurrentEvent].PhaseOnset;
-//     r = r - m_EtaS * (r - cos(TWO_PI * v0));
-//     float kappa = GetKappa(r);
-//
-//     // Update Phi N
-//     t_n = States[m_CurrentEvent].Onset * psi_k;
-//     float last_t_n = States[m_CurrentEvent - 1].Onset * psi_k;
-//     float psi_n = 60 / m_BPM;
-//     float last_psi_n = 60 / m_BPM;
-//     float LastPhiHat = States[m_CurrentEvent - 1].PhaseOnset;
-//     float DF = DistributionFunction(m_LastPhi, LastPhiHat, kappa);
-//     float Phi = m_LastPhi + ((t_n - last_t_n) / last_psi_n) + m_EtaPhi * DF;
-//     Phi = fmod(Phi + M_PI, TWO_PI) - M_PI;
-//
-//     // BPM prediction
-//     float PhiHat = States[m_CurrentEvent].PhaseOnset;
-//     float DecodedPsi = psi_n * (1 + m_EtaS * DistributionFunction(Phi, PhiHat, kappa));
-//     m_BPM = 60 / (DecodedPsi - 1);
-//
-//     m_LastPhi = Phi;
-//     return m_BPM;
-// }
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-void FollowerMDP::SetPitchTemplateSigma(float f) {
-    m_PitchTemplateSigma = f;
-}
-// ─────────────────────────────────────
 float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
     float KLDiv = 0.0;
-    int Harmonics = 5;
-    std::fill(m_PitchTemplate.begin(), m_PitchTemplate.end(), 0);
+    float RootBinFreq = round(NextPossibleState.Freq / (m_Sr / m_WindowSize));
 
-    // Template Config
-    float z = 0.5; // TODO: This is the beta value of function 16.
-
-    float NextPitch = NextPossibleState.Freq;
-    float Sr = Desc->Sr;
-    float RootBinFreq = NextPitch / (Desc->Sr / Desc->WindowSize);
-
-    // TODO: This must be done offline, this function is called each audio block
-    for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
-        for (size_t j = 0; j < Harmonics; j++) {
-            float amp = Desc->MaxAmp / (pow(2, j));
-            float num = std::pow(i - (RootBinFreq * (j + 1)), 2);
-            float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
-            m_PitchTemplate[i] += amp * exp(-(num / den));
-        }
+    PitchTemplateArray PitchTemplate;
+    if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
+        PitchTemplate = m_PitchTemplates[RootBinFreq];
+    } else {
+        pd_error(NULL,
+                 "[follower~] Pitch Template not found, it should not happen, please report it");
+        return 0;
     }
 
-    for (size_t i = 0; i < Desc->WindowSize / 2; i++) {
-        float P = m_PitchTemplate[i];
+    for (size_t i = 0; i < m_WindowSize / 2; i++) {
+        if (i > m_PitchTemplateHigherBin) {
+            break;
+        }
+        float P = PitchTemplate[i];
         float Q = Desc->NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
@@ -234,7 +211,7 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
         }
     }
 
-    KLDiv = exp(-z * KLDiv);
+    KLDiv = exp(-m_Z * KLDiv);
     return KLDiv;
 }
 
@@ -260,7 +237,7 @@ float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Descripti
 // ─────────────────────────────────────
 void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc) {
     if (m_CurrentEvent == -1) {
-        m_BPM = States[0].Bpm;
+        m_BPM = States[0].BPM;
     }
 
     // TODO: Make this user defined
@@ -278,7 +255,7 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
         if (i < 0) {
             i = 0;
         }
-        EventLookAhead += States[i].Duration * 60 / States[i].Bpm; // TODO: Realtime bpm
+        EventLookAhead += States[i].Duration * 60 / States[i].BPM; // TODO: Realtime bpm
         m_State NextPossibleState = States[i];
         float Reward = GetReward(NextPossibleState, Desc);
         if (Reward > BestReward) {
@@ -295,13 +272,12 @@ void FollowerMDP::GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Descr
         return;
     } else if (m_CurrentEvent != -1) {
         int i = m_CurrentEvent;
-        float ExpectedDuration = States[m_CurrentEvent].Duration * 60 / m_BPM * 1000;
-        m_RealtimeDur.push_back(m_TimeInThisEvent);
+        // TODO: FINISH
 
         m_TimeInThisEvent = 0;
     }
 
-    GetLiveBpm(States);
+    GetBPM(States);
     m_CurrentEvent = BestGuess;
 }
 

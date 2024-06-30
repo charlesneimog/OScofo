@@ -16,10 +16,9 @@
 
 // ─────────────────────────────────────
 FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
-                                          float bpm, int lineCount) {
-    m_K = 1;
+                                          float BPM, int lineCount) {
     float Midi;
-    if (bpm == -1) {
+    if (BPM== -1) {
         pd_error(NULL, "BPM not defined");
         return State;
     }
@@ -60,7 +59,7 @@ FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vec
     }
 
     // time phase
-    State.Bpm = bpm;
+    State.BPM = BPM;
     State.Valid = true;
 
     return State;
@@ -70,47 +69,41 @@ FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vec
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
 void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
-    // check if file exists
+    LOGE() << "start FollowerScore::Parse";
     m_ScoreLoaded = false;
-    std::ifstream file(score);
-    if (!file) {
+    std::ifstream File(score);
+    if (!File) {
         pd_error(NULL, "File not found");
         return;
     }
-    float bpm = -1;
-    std::string line;
-    int lineCount = 0;
+    float BPM= -1;
+    std::string Line;
+    int LineCount = 0;
     float LastOnset = 0;
-    while (std::getline(file, line)) {
-        lineCount++;
-        // parse line
-        if (line[0] == '#' || line.empty() || line[0] == ';') {
+    while (std::getline(File, Line)) {
+        LineCount++;
+        if (Line[0] == '#' || Line.empty() || Line[0] == ';') {
             continue;
         }
-        // parse line
-        std::istringstream iss(line);
-        std::string token;
-        std::vector<std::string> tokens;
+        std::istringstream iss(Line);
+        std::string Token;
+        std::vector<std::string> Tokens;
 
-        while (std::getline(iss, token, ' ')) {
-            tokens.push_back(token);
+        while (std::getline(iss, Token, ' ')) {
+            Tokens.push_back(Token);
         }
 
-        if (tokens[0] == "NOTE") {
+        if (Tokens[0] == "NOTE") {
             FollowerMDP::m_State State;
             State.Type = NOTE;
             State.Id = MDP->GetStatesSize();
-            if (State.Id == 0) {
-                MDP->SetLiveBpm(bpm);
-            }
-
-            State = AddNote(State, tokens, bpm, lineCount);
+            State = AddNote(State, Tokens, BPM, LineCount);
 
             if (!State.Valid) {
-                pd_error(NULL, "Error adding note on line %d", lineCount);
+                pd_error(NULL, "Error adding note on line %d", LineCount);
                 return;
             }
-            if (bpm == -1) {
+            if (BPM== -1) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
@@ -119,11 +112,11 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
             LastOnset = State.Onset;
                     
 
-        } else if (tokens[0] == "BPM") {
-            bpm = std::stof(tokens[1]);
+        } else if (Tokens[0] == "BPM") {
+            BPM= std::stof(Tokens[1]);
         }
     }
     m_ScoreLoaded = true;
-
+    LOGE() << "end FollowerScore::Parse";
     return;
 }
