@@ -4,6 +4,8 @@
 #include <fstream>
 #include <math.h>
 
+#include <boost/math/special_functions/bessel.hpp>
+
 static t_class *FollowerObj;
 
 // ─────────────────────────────────────
@@ -79,9 +81,17 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
         x->MIR->SetTreshold(atom_getfloat(argv + 1));
         x->MDP->SetTreshold(atom_getfloat(argv + 1));
         post("[follower~] Treshold set to %f", atom_getfloat(argv + 1));
-    }
+    } else if (method == "time") {
+        std::string submethod = atom_getsymbol(argv + 1)->s_name;
+        if (submethod == "accum") {
+            x->MDP->SetTimeAccumFactor(atom_getfloat(argv + 2));
+            post("[follower~] Time accumulation set to %.4f", atom_getfloat(argv + 2));
+        } else if (submethod == "coupling") {
+            x->MDP->SetTimeCouplingStrength(atom_getfloat(argv + 2));
+            post("[follower~] Time coupling set to %.4f", atom_getfloat(argv + 2));
+        }
 
-    else {
+    } else {
         pd_error(x, "[follower~] Unknown method");
     }
 }
@@ -96,7 +106,7 @@ static void SetEvent(Follower *x, t_floatarg f) {
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
     x->MDP->SetEvent(-1);
-    outlet_float(x->Tempo, x->MDP->GetBPM());
+    outlet_float(x->Tempo, x->MDP->GetLiveBPM());
     outlet_float(x->EventIndex, 0);
 }
 
@@ -116,7 +126,6 @@ static void Score(Follower *x, t_symbol *s) {
     std::string completePath = x->patchDir->s_name;
     completePath += "/";
     completePath += s->s_name;
-    // check if file exists
     std::ifstream file(completePath);
     if (!file) {
         pd_error(nullptr, "[follower~] Score file not found");
@@ -124,6 +133,7 @@ static void Score(Follower *x, t_symbol *s) {
     }
     x->Score->Parse(x->MDP, completePath.c_str());
     x->MDP->UpdatePitchTemplate();
+    x->MDP->UpdatePhaseValues();
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
 }
@@ -131,7 +141,7 @@ static void Score(Follower *x, t_symbol *s) {
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
     outlet_float(x->EventIndex, x->Event);
-    outlet_float(x->Tempo, x->MDP->GetBPM());
+    outlet_float(x->Tempo, x->MDP->GetLiveBPM());
 }
 
 // ─────────────────────────────────────
@@ -187,8 +197,8 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     Follower *x = (Follower *)pd_new(FollowerObj);
     x->EventIndex = outlet_new(&x->xObj, &s_float);
     x->Tempo = outlet_new(&x->xObj, &s_float);
-    x->WindowSize = 2048.0f;
-    x->HopSize = 512.0f;
+    x->WindowSize = 4096.0f;
+    x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
 
     float overlap = 4;

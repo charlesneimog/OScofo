@@ -45,7 +45,12 @@ else()
   target_include_directories(
     follower_tilde
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-
   target_link_libraries(follower_tilde PRIVATE fftw3f)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL
+                                             "Clang")
+    add_compile_options(-Wall -Wextra -Wunused-variable)
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(/W4)
+  endif()
 
 endif()

@@ -82,6 +82,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
     std::string Line;
     int LineCount = 0;
     float LastOnset = 0;
+    float Event = 0;
     while (std::getline(File, Line)) {
         LineCount++;
         if (Line[0] == '#' || Line.empty() || Line[0] == ';') {
@@ -109,13 +110,18 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
-            State.Onset = LastOnset + State.Duration; // in beats
+            if (Event != 0){
+                State.OnsetExpected = LastOnset + State.Duration * (60 / BPM); // in beats
+            } else{
+                State.OnsetExpected = 0;
+            }
+            Event++;
             MDP->AddState(State);
-            LastOnset = State.Onset;
+            LastOnset = State.OnsetExpected;
                     
 
         } else if (Tokens[0] == "BPM") {
-            BPM= std::stof(Tokens[1]);
+            BPM = std::stof(Tokens[1]);
         }
     }
     m_ScoreLoaded = true;

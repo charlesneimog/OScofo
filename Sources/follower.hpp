@@ -12,7 +12,7 @@
 #include <fftw3.h>
 
 #define TWO_PI (2 * M_PI)
-#define DEBUG true
+#define DEBUG false
 
 class Follower;
 using PitchTemplateArray = std::vector<float>;
@@ -72,7 +72,7 @@ class FollowerMIR {
     void GetFFT(std::vector<float> in, m_Description *Desc);
 
     // Env
-    float m_dBTreshold = -40;
+    float m_dBTreshold = -80;
     void GetRMS(std::vector<float> in, m_Description *Desc);
 
     // Audio
@@ -99,24 +99,29 @@ class FollowerMDP {
 
         // Time
         float BPM;
-        float Onset;
-        float PhaseOnset;
+        float OnsetExpected;
+        float OnsetObserved;
+        float IOI;
+
+        float PhaseExpected;
+        float PhaseObserved;
         float Duration;
         float Dispersion;
     };
 
     // Init Functions
     void UpdatePitchTemplate();
+    void UpdatePhaseValues();
 
     // Config Functions
     void SetPitchTemplateSigma(float f);
     void SetHarmonics(int i);
     void SetBPM(float Bpm);
+    float GetLiveBPM();
     void ResetLiveBpm();
     void SetTreshold(float dB);
 
     // Get Functions
-    float GetBPM();
     int GetTunning();
 
     std::vector<m_State> m_States;
@@ -133,6 +138,8 @@ class FollowerMDP {
     // Set Variables
     void SetTunning(float Tunning);
     void SetEvent(int Event);
+    void SetTimeAccumFactor(float f);
+    void SetTimeCouplingStrength(float f);
 
   private:
     Follower *m_x;
@@ -143,13 +150,36 @@ class FollowerMDP {
     float m_HopSize;
     float m_Harmonics = 10;
     float m_PitchTemplateHigherBin = 0;
-    float m_dBTreshold = -40;
+    float m_dBTreshold = -80;
+    FollowerMIR::m_Description *m_Desc;
 
+    // Events
     float m_Tunning = 440;
     int m_CurrentEvent = -1;
+
+    // Time
+    void GetBPM();
+    float m_AccumulationFactor = 0.01;
+    float m_CouplingStrength = 0.01;
+    float m_LastPhiN = 0;
+    float m_LastPhiNHat = 0;
+    // float m_LastExpectedPhase = 0;
+    // float m_LastObservedPhase = 0;
+    float m_LastR = 1;
     float m_TimeInThisEvent = 0;
+    float m_Tn = 0;
+    float m_TnMinus1 = 0;
+
+    float m_PsiK = 0;
+    float m_PsiNMinus1 = 0;
+    float m_PsiN = 0;
+    float m_PsiN1 = 0;
     float m_BPM = 0;
-    float m_EtaPhi = 0.1;
+
+    // Helpers
+    double InverseA2(double r);
+    float ModPhases(float value);
+    float VonMises(float Phi, float PhiMu, float Kappa);
 
     // Pitch
     float m_PitchTemplateSigma = 0.3;
@@ -157,18 +187,10 @@ class FollowerMDP {
     std::unordered_map<float, PitchTemplateArray> m_PitchTemplates;
 
     // MDP
-    float GetBestEvent(std::vector<m_State> States, FollowerMIR::m_Description *Desc);
+    float GetBestEvent(FollowerMIR::m_Description *Desc);
     float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
     float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
-
-    // Time Prediction
-    // std::vector<std::pair<float, float>> m_KappaTable;
-    // void CreateKappaTable();
-    // float GetKappaFromTable(float r);
-
-    void GetBPM(std::vector<m_State> States);
-    FollowerMIR::m_Description *m_Desc;
 };
 
 // ╭─────────────────────────────────────╮
