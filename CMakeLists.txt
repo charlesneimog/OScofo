@@ -14,7 +14,7 @@ project(follower~)
 cmake_policy(SET CMP0135 NEW)
 option(BUILD_SHARED_LIBS OFF)
 option(BUILD_TESTS OFF)
-option(DISABLE_FORTRAN ON)
+# option(DISABLE_FORTRAN ON)
 
 # check if fftw-3.3.10.tar.gz has been downloaded
 set(FFTW3_FILE ${CMAKE_BINARY_DIR}/fftw-3.3.10.tar.gz)
@@ -45,12 +45,9 @@ else()
   target_include_directories(
     follower_tilde
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-  target_link_libraries(follower_tilde PRIVATE fftw3f)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL
-                                             "Clang")
-    add_compile_options(-Wall -Wextra -Wunused-variable)
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    add_compile_options(/W4)
-  endif()
+  target_link_libraries(follower_tilde PRIVATE fftw3)
+
+  # Ensure proper compilation definitions
+  # target_compile_definitions(follower_tilde PRIVATE FFTW3)
 
 endif()
