@@ -6,18 +6,18 @@
 // │              MIR Utils              │
 // ╰─────────────────────────────────────╯
 //  ─────────────────────────────────────
-float FollowerMIR::Mtof(float note, float tunning) {
+double FollowerMIR::Mtof(double note, double tunning) {
     return tunning * pow(2.0, (note - 69) / 12.0);
 }
 
 // ─────────────────────────────────────
-float FollowerMIR::Ftom(float freq, float tunning) {
+double FollowerMIR::Ftom(double freq, double tunning) {
     return 69 + 12 * log2(freq / tunning);
 }
 
 // ─────────────────────────────────────
-float FollowerMIR::Freq2Bin(t_float freq, t_float n, t_float sr) {
-    t_float bin;
+double FollowerMIR::Freq2Bin(double freq, double n, double sr) {
+    double bin;
     bin = freq * n / sr;
     return round(bin);
 }

@@ -17,14 +17,14 @@ static void TimeValues(Follower *x) {
 
 // ─────────────────────────────────────
 static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
-    float *FFTIn;
-    fftwf_complex *FFTOut;
-    fftwf_plan FFTPlan;
+    double *FFTIn;
+    fftw_complex *FFTOut;
+    fftw_plan FFTPlan;
     x->MDP->m_PitchTemplate.clear();
 
-    FFTIn = (float *)fftwf_malloc(sizeof(float) * x->WindowSize);
-    FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (x->WindowSize / 2 + 1));
-    FFTPlan = fftwf_plan_dft_r2c_1d(x->WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+    FFTIn = (double *)fftw_malloc(sizeof(double) * x->WindowSize);
+    FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (x->WindowSize / 2 + 1));
+    FFTPlan = fftw_plan_dft_r2c_1d(x->WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
 
     t_garray *Array;
     int VecSize;
@@ -40,21 +40,21 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
 
     // get middle of the array
     int middle = VecSize / 2;
-    std::vector<float> AudioChunk(x->WindowSize, 0);
+    std::vector<double> AudioChunk(x->WindowSize, 0);
     for (int i = 0; i < x->WindowSize; i++) {
         AudioChunk[i] = Vec[middle + i].w_float;
     }
-    fftwf_execute_dft_r2c(FFTPlan, AudioChunk.data(), FFTOut);
+    fftw_execute_dft_r2c(FFTPlan, AudioChunk.data(), FFTOut);
 
     std::vector<double> SpectralPower(x->WindowSize / 2 + 1, 0);
     for (int i = 0; i < x->WindowSize / 2 + 1; i++) {
-        float real = FFTOut[i][0];
-        float imag = FFTOut[i][1];
+        double real = FFTOut[i][0];
+        double imag = FFTOut[i][1];
         SpectralPower[i] = ((real * real + imag * imag) / x->WindowSize) / x->WindowSize;
     }
 
     for (int i = 0; i < h; i++) {
-        float pitchHz = fund * (i + 1);
+        double pitchHz = fund * (i + 1);
         int bin = round(pitchHz / (sr / x->WindowSize));
         x->MDP->m_PitchTemplate.push_back(SpectralPower[bin - 1]);
         x->MDP->m_PitchTemplate.push_back(SpectralPower[bin]);
@@ -85,10 +85,10 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
         std::string submethod = atom_getsymbol(argv + 1)->s_name;
         if (submethod == "accum") {
             x->MDP->SetTimeAccumFactor(atom_getfloat(argv + 2));
-            post("[follower~] Time accumulation set to %.4f", atom_getfloat(argv + 2));
+            printf("[follower~] Time accumulation set to %.4f\n", atom_getfloat(argv + 2));
         } else if (submethod == "coupling") {
             x->MDP->SetTimeCouplingStrength(atom_getfloat(argv + 2));
-            post("[follower~] Time coupling set to %.4f", atom_getfloat(argv + 2));
+            printf("[follower~] Time coupling set to %.4f\n", atom_getfloat(argv + 2));
         }
 
     } else {
@@ -106,7 +106,12 @@ static void SetEvent(Follower *x, t_floatarg f) {
 static void Start(Follower *x) {
     x->CurrentEvent = -1;
     x->MDP->SetEvent(-1);
-    outlet_float(x->Tempo, x->MDP->GetLiveBPM());
+    States ScoreStates = x->Score->GetStates();
+    x->MDP->SetScoreStates(ScoreStates);
+    x->MDP->UpdatePitchTemplate();
+    x->MDP->UpdatePhaseValues();
+
+    outlet_float(x->Tempo, ScoreStates[0].BPMExpected);
     outlet_float(x->EventIndex, 0);
 }
 
@@ -123,6 +128,7 @@ static void Tunning(Follower *x, t_floatarg f) {
 
 // ─────────────────────────────────────
 static void Score(Follower *x, t_symbol *s) {
+    LOGE() << "PureData Score Method";
     std::string completePath = x->patchDir->s_name;
     completePath += "/";
     completePath += s->s_name;
@@ -132,16 +138,21 @@ static void Score(Follower *x, t_symbol *s) {
         return;
     }
     x->Score->Parse(x->MDP, completePath.c_str());
+    States ScoreStates = x->Score->GetStates();
+    x->MDP->SetScoreStates(ScoreStates);
     x->MDP->UpdatePitchTemplate();
     x->MDP->UpdatePhaseValues();
+
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
 }
 
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
-    outlet_float(x->EventIndex, x->Event);
-    outlet_float(x->Tempo, x->MDP->GetLiveBPM());
+    if (x->Event != 0) {
+        outlet_float(x->Tempo, x->MDP->GetLiveBPM());
+        outlet_float(x->EventIndex, x->Event);
+    }
 }
 
 // ─────────────────────────────────────
@@ -201,7 +212,7 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
 
-    float overlap = 4;
+    double overlap = 4;
 
     for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {

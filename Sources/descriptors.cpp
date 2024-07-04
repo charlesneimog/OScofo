@@ -14,10 +14,8 @@ FollowerMIR::FollowerMIR(Follower *Obj) {
     m_Sr = Obj->Sr;
     m_x = Obj;
 
-    // work with double?
-    m_FFTIn = (float *)fftwf_malloc(sizeof(float) * m_WindowSize);
-    m_FFTOut = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * (m_WindowSize / 2 + 1));
-    m_FFTPlan = fftwf_plan_dft_r2c_1d(m_WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+    m_FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (m_WindowSize / 2 + 1));
+    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
 
     LOGE() << "FollowerMIR::FollowerMIR end";
 }
@@ -25,14 +23,14 @@ FollowerMIR::FollowerMIR(Follower *Obj) {
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::SetTreshold(float dB) {
+void FollowerMIR::SetTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetFFT(std::vector<float> in, m_Description *Desc) {
+void FollowerMIR::GetFFT(std::vector<double> in, m_Description *Desc) {
 
     int n = in.size();
 
@@ -44,9 +42,10 @@ void FollowerMIR::GetFFT(std::vector<float> in, m_Description *Desc) {
         Desc->NormSpectralPower.resize(n / 2 + 1);
     }
 
-    fftwf_execute_dft_r2c(m_FFTPlan, in.data(), m_FFTOut);
+    std::vector<double> inCopy = in;
+    fftw_execute_dft_r2c(m_FFTPlan, inCopy.data(), m_FFTOut);
 
-    float Real, Imag;
+    double Real, Imag;
     Desc->MaxAmp = 0;
     for (int i = 0; i < n / 2 + 1; i++) {
         Real = m_FFTOut[i][0];
@@ -66,14 +65,13 @@ void FollowerMIR::GetFFT(std::vector<float> in, m_Description *Desc) {
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetRMS(std::vector<float> in, m_Description *Desc) {
+void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
     double sumOfSquares = 0.0;
-    for (float sample : in) {
+    for (double sample : in) {
         sumOfSquares += sample * sample;
     }
     double rms = std::sqrt(sumOfSquares / in.size());
-    float reference = 1.0;
-    float dB = 20.0 * std::log10(rms / reference);
+    double dB = 20.0 * std::log10(rms);
     if (std::isinf(dB)) {
         dB = -100;
     }
@@ -83,7 +81,7 @@ void FollowerMIR::GetRMS(std::vector<float> in, m_Description *Desc) {
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetDescription(std::vector<float> in, m_Description *Desc, float Tunning) {
+void FollowerMIR::GetDescription(std::vector<double> in, m_Description *Desc, double Tunning) {
     Desc->WindowSize = m_WindowSize;
     Desc->Sr = m_Sr;
 

@@ -15,9 +15,9 @@
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 
 // ─────────────────────────────────────
-FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
-                                          float BPM, int lineCount) {
-    float Midi;
+State FollowerScore::AddNote(State State, std::vector<std::string> tokens,
+                                          double BPM, int lineCount) {
+    double Midi;
     if (BPM== -1) {
         pd_error(NULL, "BPM not defined");
         return State;
@@ -51,17 +51,16 @@ FollowerMDP::m_State FollowerScore::AddNote(FollowerMDP::m_State State, std::vec
         while (std::getline(iss, token, ' ')) {
             ratioTokens.push_back(token);
         }
-        float numerator = std::stof(ratioTokens[0]);
-        float denominator = std::stof(ratioTokens[1]);
+        double numerator = std::stof(ratioTokens[0]);
+        double denominator = std::stof(ratioTokens[1]);
         State.Duration = numerator / denominator;
     } else {
         State.Duration = std::stof(tokens[2]);
     }
 
     // time phase
-    State.BPM = BPM;
+    State.BPMExpected = BPM;
     State.Valid = true;
-
     return State;
 }
 
@@ -78,11 +77,12 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         pd_error(NULL, "File not found");
         return;
     }
-    float BPM= -1;
+    double BPM= -1;
     std::string Line;
     int LineCount = 0;
-    float LastOnset = 0;
-    float Event = 0;
+    double LastOnset = 0;
+    double Event = 0;
+
     while (std::getline(File, Line)) {
         LineCount++;
         if (Line[0] == '#' || Line.empty() || Line[0] == ';') {
@@ -97,10 +97,11 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
         }
 
         if (Tokens[0] == "NOTE") {
-            FollowerMDP::m_State State;
+            State State;
             State.Type = NOTE;
             State.Id = MDP->GetStatesSize();
             State = AddNote(State, Tokens, BPM, LineCount);
+            // TODO: Rethink
 
             if (!State.Valid) {
                 pd_error(NULL, "Error adding note on line %d", LineCount);
@@ -111,12 +112,12 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 return;
             }
             if (Event != 0){
-                State.OnsetExpected = LastOnset + State.Duration * (60 / BPM); // in beats
+                State.OnsetExpected = LastOnset + State.Duration * (60 / BPM); // in Seconds
             } else{
                 State.OnsetExpected = 0;
             }
             Event++;
-            MDP->AddState(State);
+            AddState(State);
             LastOnset = State.OnsetExpected;
                     
 

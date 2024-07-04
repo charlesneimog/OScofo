@@ -23,6 +23,10 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
 }
 
 // ─────────────────────────────────────
+void FollowerMDP::SetScoreStates(States States) {
+    m_States = States;
+}
+// ─────────────────────────────────────
 void FollowerMDP::UpdatePitchTemplate() {
     LOGE() << "start FollowerMDP::UpdatePitchTemplate";
     m_PitchTemplates.clear();
@@ -31,8 +35,8 @@ void FollowerMDP::UpdatePitchTemplate() {
     int StateSize = m_States.size();
     for (int h = 0; h < StateSize; h++) {
         if (m_States[h].Valid) {
-            float Pitch = m_States[h].Freq;
-            float RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
+            double Pitch = m_States[h].Freq;
+            double RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
                 continue;
             } else {
@@ -40,9 +44,9 @@ void FollowerMDP::UpdatePitchTemplate() {
             }
             for (size_t i = 0; i < m_WindowSize / 2; ++i) {
                 for (size_t j = 0; j < m_Harmonics; ++j) {
-                    float amp = 1 / (std::pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
-                    float num = std::pow(i - (RootBinFreq * (j + 1)), 2);
-                    float den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
+                    double amp = 1 / (std::pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+                    double num = std::pow(i - (RootBinFreq * (j + 1)), 2);
+                    double den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
                     m_PitchTemplates[RootBinFreq][i] += amp * std::exp(-(num / den));
                     if (m_PitchTemplateHigherBin < RootBinFreq) {
                         m_PitchTemplateHigherBin = RootBinFreq;
@@ -51,24 +55,22 @@ void FollowerMDP::UpdatePitchTemplate() {
             }
         }
     }
-
     LOGE() << "end FollowerMDP::UpdatePitchTemplate";
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::UpdatePhaseValues() {
-    m_LastR = 1;
     m_States[0].PhaseExpected = 0;
-    float Tn = m_States[0].OnsetExpected;
+
     for (int i = 0; i < m_States.size() - 1; i++) {
-        float PsiK = 60.0f / m_States[i].BPM;
-        float Tn = m_States[i].OnsetExpected;
-        float Tn1 = m_States[i + 1].OnsetExpected;
-        float PhiN0 = m_States[i].PhaseExpected;
-        float PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        double PsiK = 60.0f / m_States[i].BPMExpected;
+        double Tn = m_States[i].OnsetExpected;
+        double Tn1 = m_States[i + 1].OnsetExpected;
+        double PhiN0 = m_States[i].PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
         PhiN1 = ModPhases(PhiN1);
-        m_States[i].IOI = ModPhases(PhiN1 - PhiN0);
         m_States[i + 1].PhaseExpected = PhiN1;
+        m_States[i + 1].PhaseObserved = PhiN1;
     }
 }
 
@@ -79,22 +81,22 @@ void FollowerMDP::ClearStates() {
     m_States.clear();
 }
 // ─────────────────────────────────────
-float FollowerMDP::GetLiveBPM() {
+double FollowerMDP::GetLiveBPM() {
     return m_BPM;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetBPM(float BPM) {
+void FollowerMDP::SetBPM(double BPM) {
     m_BPM = BPM;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTreshold(float dB) {
+void FollowerMDP::SetTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTunning(float Tunning) {
+void FollowerMDP::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
 
@@ -118,26 +120,26 @@ int FollowerMDP::GetStatesSize() {
     return m_States.size();
 }
 // ─────────────────────────────────────
-void FollowerMDP::AddState(FollowerMDP::m_State State) {
+void FollowerMDP::AddState(State State) {
     m_States.push_back(State);
 }
 // ─────────────────────────────────────
-FollowerMDP::m_State FollowerMDP::GetState(int Index) {
+State FollowerMDP::GetState(int Index) {
     return m_States[Index];
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetPitchTemplateSigma(float f) {
+void FollowerMDP::SetPitchTemplateSigma(double f) {
     m_PitchTemplateSigma = f;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTimeAccumFactor(float f) {
+void FollowerMDP::SetTimeAccumFactor(double f) {
     m_AccumulationFactor = f;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTimeCouplingStrength(float f) {
+void FollowerMDP::SetTimeCouplingStrength(double f) {
     m_CouplingStrength = f;
 }
 
@@ -145,7 +147,7 @@ void FollowerMDP::SetTimeCouplingStrength(float f) {
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
 double FollowerMDP::InverseA2(double r) {
-    if (r > 0.95) { // Following Large (1999) p. 157
+    if (r > 0.95) {
         return 10.0f;
     }
 
@@ -154,11 +156,10 @@ double FollowerMDP::InverseA2(double r) {
     double High = std::max(r, 10.0);
     double Mid;
 
-    int i;
-    for (i = 0; i < 10000; ++i) {
+    for (int i = 0; i < 10000; ++i) {
         Mid = (Low + High) / 2.0;
-        double I1 = boost::math::cyl_bessel_i(1, r);
-        double I0 = boost::math::cyl_bessel_i(0, r);
+        double I1 = boost::math::cyl_bessel_i(1, Mid);
+        double I0 = boost::math::cyl_bessel_i(0, Mid);
         double A2Mid = I1 / I0;
         if (std::fabs(A2Mid - r) < Tol) {
             return Mid;
@@ -172,64 +173,60 @@ double FollowerMDP::InverseA2(double r) {
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::VonMises(float Phi, float PhiMu, float Kappa) { // TODO: Rename to Von Mises
-    float Exponent = Kappa * cos(TWO_PI * (Phi - PhiMu));
-    float Coefficient = 1 / (TWO_PI * exp(Kappa));
-    float PhiN = Coefficient * exp(Exponent) * sin(TWO_PI * (Phi - PhiMu));
-    PhiN = ModPhases(PhiN);
+double FollowerMDP::VonMises(double Phi, double PhiMu, double Kappa) {
+    double ExpKappa = exp(Kappa);
+    double CosTerm = cos(TWO_PI * (Phi - PhiMu));
+    double SinTerm = sin(TWO_PI * (Phi - PhiMu));
+    double PhiN = (1 / (TWO_PI * ExpKappa)) * exp(Kappa * CosTerm) * SinTerm;
     return PhiN;
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::ModPhases(float Value) {
-    float ModValue = M_PI;
-    Value = fmod(Value + ModValue, ModValue * 2) - ModValue;
-    return Value;
+double FollowerMDP::ModPhases(double Phase) {
+    Phase = fmod(Phase, 1) - 0.5;
+
+    return Phase;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::GetBPM() {
-    float HatPhiN, HatLastPhiN;
-
-    HatPhiN = m_States[m_CurrentEvent].PhaseExpected; // IOI
-    HatLastPhiN = m_States[m_CurrentEvent - 1].PhaseExpected;
-
-    float Tn = m_States[m_CurrentEvent].IOI;
-    float TnMinus1 = m_States[m_CurrentEvent - 1].IOI;
-
-    // Correction - Update Kappa
-    double CosTerm = TWO_PI * ((Tn - TnMinus1) / m_PsiK - HatPhiN);
+    // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
+    double IOISeconds = m_Tn - m_TnMinus1;
+    double HatPhiN = m_States[m_CurrentEvent].PhaseExpected;
+    double CosTerm = TWO_PI * (IOISeconds / m_PsiK - HatPhiN);
     double CosValue = cos(CosTerm);
-    float R = m_LastR - m_AccumulationFactor * (m_LastR - CosValue);
-    if (R > 0.95) { // Following Large (1999) p. 157
-        R = 0.95;
-    }
-    float Kappa = InverseA2(R);
-    printf("Kappa: %f\n", Kappa);
+    double R = m_LastR - m_AccumulationFactor * (m_LastR - CosValue);
+    double Kappa = InverseA2(R);
+    m_LastR = R;
 
-    // Update PhiN
-    double FValue = VonMises(m_LastPhiN, HatLastPhiN, Kappa);
-    double PhiN = m_LastPhiN + (Tn - TnMinus1) / m_PsiNMinus1 + m_CouplingStrength * FValue;
+    // Update and Correct PhiN
+    double LastPhiN = m_States[m_CurrentEvent - 1].PhaseObserved;
+    double HatLastPhiN = m_States[m_CurrentEvent - 1].PhaseExpected;
+    double FValue = VonMises(LastPhiN, HatLastPhiN, Kappa);
+    double PhiN = LastPhiN + (IOISeconds / m_PsiNMinus1) + (m_CouplingStrength * FValue);
     PhiN = ModPhases(PhiN);
+    m_States[m_CurrentEvent].PhaseObserved = PhiN;
 
     // Prediction
-    FValue = VonMises(m_LastPhiN, HatLastPhiN, Kappa);
-    float PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValue);
+    FValue = VonMises(PhiN, HatPhiN, Kappa);
+    double PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValue);
 
-    m_LastPhiN = PhiN;
+    // Update Previous Values
+    m_BPM = 60.0f / m_PsiN1;
     m_PsiNMinus1 = m_PsiN;
     m_PsiN = m_PsiN1;
     m_PsiN1 = PsiN1;
-    m_LastR = R;
-    m_BPM = 60.0f / m_PsiN1;
+    m_States[m_CurrentEvent].PhaseObserved = PhiN;
+
+    LOGE() << "m_BPM " << m_BPM << "\n";
 }
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
-    float KLDiv = 0.0;
-    float RootBinFreq = round(NextPossibleState.Freq / (m_Sr / m_WindowSize));
+double FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+    double KLDiv = 0.0;
+    double RootBinFreq = round(NextPossibleState.Freq / (m_Sr / m_WindowSize));
 
     PitchTemplateArray PitchTemplate;
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
@@ -244,8 +241,8 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
         if (i > m_PitchTemplateHigherBin) {
             break;
         }
-        float P = PitchTemplate[i] * Desc->MaxAmp;
-        float Q = Desc->NormSpectralPower[i];
+        double P = PitchTemplate[i] * Desc->MaxAmp;
+        double Q = Desc->NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
         } else if (P == 0 && Q >= 0) {
@@ -258,36 +255,36 @@ float FollowerMDP::GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
+double FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc) {
     return 0;
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc) {
-    float PitchWeight = 0.5;
-    float TimeWeight = 0.5;
+double FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+    double PitchWeight = 0.5;
+    double TimeWeight = 0.5;
     // FUTURE: Add Attack Envelope
 
-    float PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
-    float TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
+    double PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
+    double TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
 
-    float Reward = (PitchSimilarity * PitchWeight) + (TimeSimilarity * TimeWeight);
+    double Reward = (PitchSimilarity * PitchWeight) + (TimeSimilarity * TimeWeight);
 
     return Reward;
 }
 
 // ─────────────────────────────────────
-float FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
+double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
     if (m_CurrentEvent == -1) {
-        m_BPM = m_States[0].BPM;
+        m_BPM = m_States[0].BPMExpected;
     }
 
     // TODO: Make this user defined
-    float LookAhead = 2; // Look 5 seconds in future
+    double LookAhead = 2; // Look 5 seconds in future
 
     int BestGuess, i = m_CurrentEvent;
-    float BestReward = -1;
-    float EventLookAhead = 0;
+    double BestReward = -1;
+    double EventLookAhead = 0;
     int StatesSize = m_States.size();
     int lastLook = 0;
 
@@ -298,9 +295,9 @@ float FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
         if (i < 0) {
             i = 0;
         }
-        EventLookAhead += m_States[i].Duration * 60 / m_States[i].BPM; // TODO: Realtime bpm
-        m_State NextPossibleState = m_States[i];
-        float Reward = GetReward(NextPossibleState, Desc);
+        EventLookAhead += m_States[i].Duration * m_PsiN; // TODO: Realtime bpm
+        State NextPossibleState = m_States[i];
+        double Reward = GetReward(NextPossibleState, Desc);
         if (Reward > BestReward) {
             BestReward = Reward;
             BestGuess = i;
@@ -313,45 +310,36 @@ float FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
 
 // ─────────────────────────────────────
 int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
+    double BlockDur = 1 / m_x->Sr;
+    m_TimeInThisEvent += BlockDur * m_x->HopSize;
+
     MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
 
     if (m_Desc->dB < m_dBTreshold) {
-        float BlockDur = 1 / m_x->Sr;
-        m_TimeInThisEvent += BlockDur * m_x->HopSize;
+        double BlockDur = 1 / m_x->Sr;
         return m_CurrentEvent;
     }
 
     // Get the best event to describe the current state
-    float Event = GetBestEvent(m_Desc);
-    if (Event == m_CurrentEvent && Event != -1) {
-        float BlockDur = 1 / m_x->Sr;
-        m_TimeInThisEvent += BlockDur * m_x->HopSize;
-    } else if (Event != m_CurrentEvent && Event == 0) {
+    double Event = GetBestEvent(m_Desc);
+    if (Event != m_CurrentEvent && Event == 0) {
         printf("\n");
-        printf("============================================\n");
         m_CurrentEvent = Event;
-        m_PsiK = 60 / m_States[0].BPM;
+        m_PsiK = 60 / m_States[0].BPMExpected;
         m_PsiNMinus1 = m_PsiK;
         m_PsiN = m_PsiK;
         m_PsiN1 = m_PsiK;
         m_States[0].OnsetObserved = 0;
-
-        // == psi
-        m_LastPhiN = 0;
-        m_LastPhiNHat = 0;
-
-        m_BPM = m_States[0].BPM;
+        m_BPM = m_States[0].BPMExpected;
         m_Tn = 0;
+        m_TnMinus1 = 0;
         m_TimeInThisEvent = 0;
     } else if (Event != m_CurrentEvent && Event != 0) {
         m_CurrentEvent = Event;
         m_TnMinus1 = m_Tn;
         m_Tn += m_TimeInThisEvent;
         GetBPM();
-
         m_TimeInThisEvent = 0;
-        float BlockDur = 1 / m_x->Sr;
-        m_TimeInThisEvent += BlockDur * m_x->HopSize;
     }
 
     return m_CurrentEvent;

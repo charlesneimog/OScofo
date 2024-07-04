@@ -11,11 +11,36 @@
 // FFT
 #include <fftw3.h>
 
+#ifndef TWO_PI
 #define TWO_PI (2 * M_PI)
-#define DEBUG false
+#endif
+#define DEBUG true
 
 class Follower;
-using PitchTemplateArray = std::vector<float>;
+using PitchTemplateArray = std::vector<double>;
+
+// ╭─────────────────────────────────────╮
+// │            States of MDP            │
+// ╰─────────────────────────────────────╯
+struct State {
+    int Id;
+    bool Valid;
+    int Type; // NOTE, CHORD, PIZZ, SILENCE
+    double Freq;
+
+    // Time
+    double BPMExpected;
+    double BPMObserved;
+
+    double OnsetExpected;
+    double OnsetObserved;
+
+    double PhaseExpected;
+    double PhaseObserved;
+
+    double Duration;
+};
+using States = std::vector<State>;
 
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
@@ -23,66 +48,66 @@ using PitchTemplateArray = std::vector<float>;
 class FollowerMIR {
   public:
     FollowerMIR(Follower *x);
-    static float Mtof(float note, float tunning);
-    static float Ftom(float freq, float tunning);
-    static float Freq2Bin(t_float freq, t_float n, t_float Sr);
+    static double Mtof(double note, double tunning);
+    static double Ftom(double freq, double tunning);
+    static double Freq2Bin(double freq, double n, double Sr);
 
-    void SetTreshold(float dB);
+    void SetTreshold(double dB);
     struct m_Description {
-        float WindowSize;
-        float Sr;
-        float Freq;
-        float Midi;
-        float Quality;
-        float dB;
-        // float TimeElapsed;
-        // std::vector<float> SpectralImag;
-        // std::vector<float> SpectralReal;
-        std::vector<float> SpectralPower;
-        std::vector<float> NormSpectralPower;
-        float MaxAmp;
+        double WindowSize;
+        double Sr;
+        double Freq;
+        double Midi;
+        double Quality;
+        double dB;
+        // double TimeElapsed;
+        // std::vector<double> SpectralImag;
+        // std::vector<double> SpectralReal;
+        std::vector<double> SpectralPower;
+        std::vector<double> NormSpectralPower;
+        double MaxAmp;
 
         // Pitch
-        // std::vector<float> SpectralChroma;
-        // float HigherChroma;
+        // std::vector<double> SpectralChroma;
+        // double HigherChroma;
     };
 
-    void GetDescription(std::vector<float> in, m_Description *Desc, float Tunning);
-    void GetMidi(float tunning);
+    void GetDescription(std::vector<double> in, m_Description *Desc, double Tunning);
+    void GetMidi(double tunning);
 
     // Time
-    float TimePrediction();
+    double TimePrediction();
     void ResetElapsedTime();
     void UpdateTempoInEvent();
-    float GetEventTimeElapsed();
-    float GetTempoInEvent();
+    double GetEventTimeElapsed();
+    double GetTempoInEvent();
 
   private:
     // Obj
     Follower *m_x;
 
     // Helpers
-    std::vector<float> m_WindowingFunc;
+    std::vector<double> m_WindowingFunc;
     void GetHanning(int WindowSize);
 
     // FFT
-    float *m_FFTIn;
-    fftwf_complex *m_FFTOut;
-    fftwf_plan m_FFTPlan;
-    void GetFFT(std::vector<float> in, m_Description *Desc);
+    // double *m_FFTIn;
+    fftw_complex *m_FFTOut;
+    fftw_plan m_FFTPlan;
+    void GetFFT(std::vector<double> in, m_Description *Desc);
 
     // Env
-    float m_dBTreshold = -80;
-    void GetRMS(std::vector<float> in, m_Description *Desc);
+    double m_dBTreshold = -80;
+    void GetRMS(std::vector<double> in, m_Description *Desc);
 
     // Audio
-    float m_WindowSize;
-    float m_BlockSize;
-    float m_HopSize;
-    float m_Sr;
+    double m_WindowSize;
+    double m_BlockSize;
+    double m_HopSize;
+    double m_Sr;
 
     // Time
-    float m_EventTimeElapsed = 0.0; // ms
+    double m_EventTimeElapsed = 0.0; // ms
 };
 
 // ╭─────────────────────────────────────╮
@@ -91,106 +116,96 @@ class FollowerMIR {
 class FollowerMDP {
   public:
     FollowerMDP(Follower *Obj);
-    struct m_State {
-        int Id;
-        bool Valid;
-        int Type; // NOTE, CHORD, PIZZ, SILENCE
-        float Freq;
-
-        // Time
-        float BPM;
-        float OnsetExpected;
-        float OnsetObserved;
-        float IOI;
-
-        float PhaseExpected;
-        float PhaseObserved;
-        float Duration;
-        float Dispersion;
-    };
 
     // Init Functions
+    void SetScoreStates(States States);
     void UpdatePitchTemplate();
     void UpdatePhaseValues();
 
     // Config Functions
-    void SetPitchTemplateSigma(float f);
+    void SetPitchTemplateSigma(double f);
     void SetHarmonics(int i);
-    void SetBPM(float Bpm);
-    float GetLiveBPM();
+    void SetBPM(double Bpm);
+    double GetLiveBPM();
     void ResetLiveBpm();
-    void SetTreshold(float dB);
+    void SetTreshold(double dB);
 
     // Get Functions
     int GetTunning();
 
-    std::vector<m_State> m_States;
+    std::vector<State> m_States;
     std::vector<double> m_PitchTemplate;
 
-    std::vector<m_State> GetStates();
-    m_State GetState(int Index);
-    void AddState(m_State state);
+    std::vector<State> GetStates();
+    State GetState(int Index);
+    void AddState(State state);
     void ClearStates();
 
     int GetStatesSize();
     int GetEvent(Follower *x, FollowerMIR *MIR);
 
     // Set Variables
-    void SetTunning(float Tunning);
+    void SetTunning(double Tunning);
     void SetEvent(int Event);
-    void SetTimeAccumFactor(float f);
-    void SetTimeCouplingStrength(float f);
+    void SetTimeAccumFactor(double f);
+    void SetTimeCouplingStrength(double f);
 
   private:
     Follower *m_x;
 
     // Audio
-    float m_Sr;
-    float m_WindowSize;
-    float m_HopSize;
-    float m_Harmonics = 10;
-    float m_PitchTemplateHigherBin = 0;
-    float m_dBTreshold = -80;
+    double m_Sr;
+    double m_WindowSize;
+    double m_HopSize;
+    double m_Harmonics = 10;
+    double m_PitchTemplateHigherBin = 0;
+    double m_dBTreshold = -80;
     FollowerMIR::m_Description *m_Desc;
 
     // Events
-    float m_Tunning = 440;
+    double m_Tunning = 440;
     int m_CurrentEvent = -1;
 
     // Time
     void GetBPM();
-    float m_AccumulationFactor = 0.01;
-    float m_CouplingStrength = 0.01;
-    float m_LastPhiN = 0;
-    float m_LastPhiNHat = 0;
-    // float m_LastExpectedPhase = 0;
-    // float m_LastObservedPhase = 0;
-    float m_LastR = 1;
-    float m_TimeInThisEvent = 0;
-    float m_Tn = 0;
-    float m_TnMinus1 = 0;
+    double m_AccumulationFactor =
+        0.5; // The adaptation rate between 0-1 determines an adaptation time constant, with
+             // smaller values approximating r over longer time periods (LARGE, 1999, p. n.
 
-    float m_PsiK = 0;
-    float m_PsiNMinus1 = 0;
-    float m_PsiN = 0;
-    float m_PsiN1 = 0;
-    float m_BPM = 0;
+    double m_CouplingStrength =
+        0.5; // Coupling strength captures the amount of force exerted on the
+             // attentional rhythm and determines, among other factors, the
+             // speed with which the coupled system relaxes to theattractor.
+    // double m_LastPhiN = 0;
+    // double m_LastPhiNHat = 0;
+    // double m_LastExpectedPhase = 0;
+    // double m_LastObservedPhase = 0;
+    double m_LastR = 0;
+    double m_TimeInThisEvent = 0;
+    double m_Tn = 0;
+    double m_TnMinus1 = 0;
+
+    double m_PsiK = 0;
+    double m_PsiNMinus1 = 0;
+    double m_PsiN = 0;
+    double m_PsiN1 = 0;
+    double m_BPM = 0;
 
     // Helpers
     double InverseA2(double r);
-    float ModPhases(float value);
-    float VonMises(float Phi, float PhiMu, float Kappa);
+    double ModPhases(double value);
+    double VonMises(double Phi, double PhiMu, double Kappa);
 
     // Pitch
-    float m_PitchTemplateSigma = 0.3;
-    float m_Z = 0.5; // TODO: How should I call this?
-    std::unordered_map<float, PitchTemplateArray> m_PitchTemplates;
+    double m_PitchTemplateSigma = 0.3;
+    double m_Z = 0.5; // TODO: How should I call this?
+    std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
 
     // MDP
-    float GetBestEvent(FollowerMIR::m_Description *Desc);
-    float GetReward(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
-    float GetPitchSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
-    float GetTimeSimilarity(m_State NextPossibleState, FollowerMIR::m_Description *Desc);
+    double GetBestEvent(FollowerMIR::m_Description *Desc);
+    double GetReward(State NextPossibleState, FollowerMIR::m_Description *Desc);
+    double GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc);
+    double GetTimeSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc);
 };
 
 // ╭─────────────────────────────────────╮
@@ -212,22 +227,31 @@ class FollowerScore {
 
     int Name2Midi(std::string note);
     void Parse(FollowerMDP *MDP, const char *score);
-    float GetTimePhase(float t_n0, float t_n1, float phase0, float pulse);
+    double GetTimePhase(double t_n0, double t_n1, double phase0, double pulse);
     bool ScoreLoaded() {
         return m_ScoreLoaded;
     }
-    float m_Tunning = 440;
-    float m_K = 1;
+    States GetStates() {
+        return m_States;
+    };
+    void AddState(State State) {
+        m_States.push_back(State);
+    }
+    void ClearStates() {
+        m_States.clear();
+    }
 
   private:
-    FollowerMDP::m_State AddNote(FollowerMDP::m_State State, std::vector<std::string> tokens,
-                                 float bpm, int lineCount);
-    float FollowBpm(std::vector<std::string> tokens, int lineCount);
+    State AddNote(State State, std::vector<std::string> tokens, double bpm, int lineCount);
+    double FollowBpm(std::vector<std::string> tokens, int lineCount);
 
     Follower *m_x;
-    float m_lastOnset = 0;
-    float m_lastPhase = 0;
+    double m_lastOnset = 0;
+    double m_lastPhase = 0;
     bool m_ScoreLoaded = false;
+    double m_Tunning = 440;
+    double m_K = 1;
+    States m_States;
 };
 
 // ╭─────────────────────────────────────╮
@@ -237,7 +261,7 @@ class Follower {
   public:
     t_object xObj;
     t_sample Sample;
-    std::vector<float> inBuffer;
+    std::vector<double> inBuffer;
     t_clock *Clock;
 
     //
@@ -258,11 +282,11 @@ class Follower {
     std::vector<double> PitchTemplate;
 
     // Audio
-    float BlockIndex;
-    float BlockSize;
-    float HopSize;
-    float WindowSize;
-    float Sr;
+    double BlockIndex;
+    double BlockSize;
+    double HopSize;
+    double WindowSize;
+    double Sr;
 
     t_outlet *EventIndex;
     t_outlet *Tempo;
@@ -277,12 +301,12 @@ class LogStream {
     }
 
     ~LogStream() {
-#ifdef DEBUG
+#if DEBUG
         // Convert the log message to a C string
         std::string message = buffer.str();
         const char *c_message = message.c_str();
 
-        printf("%s >> ", c_message);
+        printf("%s\n", c_message);
         std::cout.flush();
 #endif
     }
