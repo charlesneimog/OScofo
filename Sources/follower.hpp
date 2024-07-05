@@ -31,13 +31,13 @@ struct State {
     // Time
     double BPMExpected;
     double BPMObserved;
-
     double OnsetExpected;
     double OnsetObserved;
-
     double PhaseExpected;
     double PhaseObserved;
 
+    double IOIPhaseExpected;
+    double IOIPhaseObserved;
     double Duration;
 };
 using States = std::vector<State>;
@@ -195,6 +195,9 @@ class FollowerMDP {
     double InverseA2(double r);
     double ModPhases(double value);
     double VonMises(double Phi, double PhiMu, double Kappa);
+
+    // Time
+    double GetAttentionalEnergy();
 
     // Pitch
     double m_PitchTemplateSigma = 0.3;
