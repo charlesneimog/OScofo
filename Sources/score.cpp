@@ -82,6 +82,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
     int LineCount = 0;
     double LastOnset = 0;
     double Event = 0;
+    double PreviousDuration = 0;
 
     while (std::getline(File, Line)) {
         LineCount++;
@@ -112,12 +113,13 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
                 return;
             }
             if (Event != 0){
-                State.OnsetExpected = LastOnset + State.Duration * (60 / BPM); // in Seconds
+                State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
             } else{
                 State.OnsetExpected = 0;
             }
             Event++;
             AddState(State);
+            PreviousDuration = State.Duration;
             LastOnset = State.OnsetExpected;
                     
 

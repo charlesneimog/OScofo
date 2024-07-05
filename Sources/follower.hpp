@@ -38,6 +38,8 @@ struct State {
 
     double IOIPhaseExpected;
     double IOIPhaseObserved;
+    double IOIPhiN;
+    double IOIHatPhiN;
     double Duration;
 };
 using States = std::vector<State>;
@@ -176,17 +178,16 @@ class FollowerMDP {
         0.5; // Coupling strength captures the amount of force exerted on the
              // attentional rhythm and determines, among other factors, the
              // speed with which the coupled system relaxes to theattractor.
-    // double m_LastPhiN = 0;
-    // double m_LastPhiNHat = 0;
-    // double m_LastExpectedPhase = 0;
-    // double m_LastObservedPhase = 0;
     double m_LastR = 0;
     double m_TimeInThisEvent = 0;
-    double m_Tn = 0;
-    double m_TnMinus1 = 0;
 
-    double m_PsiK = 0;
-    double m_PsiNMinus1 = 0;
+    double m_LastTn = 0;
+    double m_Tn = 0;
+
+    // double m_LastHatPhiN = 0;
+    // double m_LastPhiN = 0;
+
+    double m_LastPsiN = 0;
     double m_PsiN = 0;
     double m_PsiN1 = 0;
     double m_BPM = 0;
@@ -194,7 +195,7 @@ class FollowerMDP {
     // Helpers
     double InverseA2(double r);
     double ModPhases(double value);
-    double VonMises(double Phi, double PhiMu, double Kappa);
+    double CouplingFunction(double Phi, double PhiMu, double Kappa);
 
     // Time
     double GetAttentionalEnergy();

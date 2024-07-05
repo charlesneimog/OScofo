@@ -67,7 +67,7 @@
 #X obj 362 537 tabwrite antescofo-time;
 #X obj -186 463 tabwrite follower-time;
 #X msg 232 344 \; pd quit;
-#X obj -176 -109 loadbang;
+#X obj -186 -101 loadbang;
 #X msg 525 272 \; pd dsp 1;
 #X obj 525 203 loadbang;
 #X obj -186 314 follower~, f 50;
@@ -85,6 +85,7 @@
 #X connect 7 0 10 1;
 #X connect 7 0 17 0;
 #X connect 7 0 41 0;
+#X connect 7 1 37 0;
 #X connect 11 0 3 0;
 #X connect 11 1 12 0;
 #X connect 12 0 13 0;

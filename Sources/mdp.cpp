@@ -18,7 +18,7 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
     if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
         m_PitchTemplate.resize(Obj->WindowSize / 2);
     }
-    m_AccumulationFactor = 0.3;
+    m_AccumulationFactor = 0.5;
     m_CouplingStrength = 0.5;
 
     SetTunning(440);
@@ -73,7 +73,8 @@ void FollowerMDP::UpdatePhaseValues() {
         PhiN1 = ModPhases(PhiN1);
         m_States[i + 1].PhaseExpected = PhiN1;
         m_States[i + 1].PhaseObserved = PhiN1;
-        m_States[i + 1].IOIPhaseExpected = (Tn1 - Tn) / PsiK;
+        m_States[i + 1].IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        m_States[i + 1].IOIPhiN = (Tn1 - Tn) / PsiK;
     }
 }
 
@@ -206,7 +207,7 @@ double FollowerMDP::InverseA2(double r) {
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::VonMises(double Phi, double PhiMu, double Kappa) {
+double FollowerMDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
     double ExpKappa = exp(Kappa);
     double CosTerm = cos(TWO_PI * (Phi - PhiMu));
     double SinTerm = sin(TWO_PI * (Phi - PhiMu));
@@ -216,57 +217,66 @@ double FollowerMDP::VonMises(double Phi, double PhiMu, double Kappa) {
 
 // ─────────────────────────────────────
 double FollowerMDP::ModPhases(double Phase) {
-    // make a modules between -pi and pi
-    while (Phase < -M_PI) {
-        Phase += TWO_PI;
+    // Normalize phase to be within -pi to pi
+    Phase = fmod(Phase + M_PI, TWO_PI); // adjust range to 0 to 2*pi
+    if (Phase < 0) {
+        Phase += TWO_PI; // handle negative result from fmod
     }
-
-    while (Phase > M_PI) {
-        Phase -= TWO_PI;
-    }
-
-    return Phase;
+    return Phase - M_PI; // shift range to -pi to pi
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::GetBPM() {
+    int LastEvent = m_CurrentEvent - 1;
+    int CurrentEvent = m_CurrentEvent;
+    int NextEvent = m_CurrentEvent + 1;
+    int here = 0;
 
-    double IOISeconds = m_Tn - m_TnMinus1;
-    double HatPhiN = m_States[m_CurrentEvent].IOIPhaseExpected;
-    double PhiNMinus1 = m_States[m_CurrentEvent - 1].PhaseObserved;
+    printf("I am here 1\n");
+    double IOISeconds = m_Tn - m_LastTn;
 
+    double LastPhiN = m_States[LastEvent].IOIPhiN;
+    double LastHatPhiN = m_States[LastEvent].IOIHatPhiN;
+
+    double HatPhiN = m_States[CurrentEvent].IOIHatPhiN;
+
+    double PhiNExpected = LastPhiN + ((m_Tn - m_LastTn) / m_PsiN);
+    m_States[CurrentEvent].IOIHatPhiN = PhiNExpected;
+    printf("I am here 2\n");
+
+    // Começa o algoritmo 1
     // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
-    double Term = TWO_PI * ((IOISeconds / m_PsiN) - HatPhiN);
-    double R = m_LastR - m_AccumulationFactor * (m_LastR - cos(Term));
+    double Term = (IOISeconds / m_PsiN) - HatPhiN;
+    double R = m_LastR - m_AccumulationFactor * (m_LastR - cos(TWO_PI * Term));
+    printf("I am here 3\n");
     double Kappa = InverseA2(R);
-
-    if (Kappa < 1) { // Valor de Kappa é 1 quando o ritmo não é estável
-        Kappa = 1;
-    }
-
+    printf("I am here 4\n");
     m_LastR = R;
 
     // Update and Correct PhiN
-    double HatLastPhiN = m_States[m_CurrentEvent - 1].IOIPhaseExpected;
-    double LastPhiN = m_States[m_CurrentEvent - 1].PhaseObserved;
-    double FValueUpdate = VonMises(LastPhiN, HatLastPhiN, Kappa);
-    double PhiN = LastPhiN + (IOISeconds / m_PsiNMinus1) + (m_CouplingStrength * FValueUpdate);
-    PhiN = ModPhases(PhiN);
-    m_States[m_CurrentEvent].IOIPhaseObserved = PhiN;
+    double FValueUpdate = CouplingFunction(LastPhiN, LastHatPhiN, Kappa);
+    double PhiN = LastPhiN + (IOISeconds / m_LastPsiN) + (m_CouplingStrength * FValueUpdate);
+    PhiN = ModPhases(PhiN); // Atual
+    printf("I am here 5\n");
 
-    // Prediction
-    double FValuePrediction = VonMises(PhiN, HatPhiN, Kappa); // TODO: Change to coupling function
+    // Prediction for next PsiN+1
+    double FValuePrediction = CouplingFunction(PhiN, HatPhiN, Kappa);
     double PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValuePrediction);
+    printf("I am here 6\n");
+
+    // Prediction for next PhiN
+    // State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
+    double Duration = m_States[CurrentEvent].Duration;
+    double Tn1 = m_Tn + Duration * PsiN1;
+    double PhiN1 = ModPhases((Tn1 - m_Tn) / PsiN1);
+    m_States[CurrentEvent + 1].IOIHatPhiN = PhiN1;
 
     // Update Previous Values
     m_BPM = 60.0f / m_PsiN1;
-    m_PsiNMinus1 = m_PsiN;
+    m_LastPsiN = m_PsiN;
     m_PsiN = PsiN1;
     m_PsiN1 = PsiN1;
-
-    // printf("Attentional Energy %f\n", GetAttentionalEnergy());
-    // printf("Kappa %f\n", Kappa);
-    printf("BPM %f\n", m_BPM);
+    printf("BPM: %f\n", m_BPM);
 }
 
 // ╭─────────────────────────────────────╮
@@ -373,19 +383,20 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     if (Event != m_CurrentEvent && Event == 0) {
         printf("\n");
         m_CurrentEvent = Event;
-        m_PsiK = 60 / m_States[0].BPMExpected;
-        m_PsiNMinus1 = m_PsiK;
-        m_PsiN = m_PsiK;
-        m_PsiN1 = m_PsiK;
+        double PsiK = 60 / m_States[0].BPMExpected;
+
+        m_LastPsiN = PsiK;
+        m_PsiN = PsiK;
+        m_PsiN1 = PsiK;
         m_States[0].OnsetObserved = 0;
         m_BPM = m_States[0].BPMExpected;
         m_Tn = 0;
-        m_TnMinus1 = 0;
+        m_LastTn = 0;
         m_TimeInThisEvent = 0;
     } else if (Event != m_CurrentEvent && Event != 0) {
         LOGE() << "\n\n========= Event: " << Event << " ===============";
         m_CurrentEvent = Event;
-        m_TnMinus1 = m_Tn;
+        m_LastTn = m_Tn;
         m_Tn += m_TimeInThisEvent;
         GetBPM();
         m_TimeInThisEvent = 0;
