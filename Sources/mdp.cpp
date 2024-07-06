@@ -270,8 +270,6 @@ double OScofoMDP::GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Descr
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        pd_error(NULL, "[follower~] Pitch Template not found, "
-                       "it should not happen, please report it");
         return 0;
     }
 

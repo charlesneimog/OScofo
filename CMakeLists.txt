@@ -5,18 +5,14 @@ set(PDCMAKE_DIR
     CACHE PATH "Path to pd.cmake")
 include(${PDCMAKE_DIR}/pd.cmake)
 
-project(follower~)
+project(o.scofo~)
 
 # ╭──────────────────────────────────────╮
 # │                FFTW3                 │
 # ╰──────────────────────────────────────╯
-
 cmake_policy(SET CMP0135 NEW)
 option(BUILD_SHARED_LIBS OFF)
 option(BUILD_TESTS OFF)
-# option(DISABLE_FORTRAN ON)
-
-# check if fftw-3.3.10.tar.gz has been downloaded
 set(FFTW3_FILE ${CMAKE_BINARY_DIR}/fftw-3.3.10.tar.gz)
 if(NOT EXISTS ${FFTW3_FILE})
   message(STATUS "Downloading FFTW3")
@@ -34,20 +30,14 @@ set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # ╭──────────────────────────────────────╮
 # │               Library                │
 # ╰──────────────────────────────────────╯
-file(GLOB FOLLOWER "${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp")
+file(GLOB SCOFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp")
+pd_add_external(o.scofo~ "${SCOFO_SRC}" TARGET oscofo)
+target_include_directories(
+  oscofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
+target_link_libraries(oscofo PUBLIC fftw3)
 
-if(NEIMOG_LIBRARY)
-  add_library(pd-follower STATIC ${FOLLOWER})
-  target_include_directories(
-    pd-follower PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-else()
-  pd_add_external(follower~ "${FOLLOWER}" TARGET follower_tilde)
-  target_include_directories(
-    follower_tilde
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-  target_link_libraries(follower_tilde PRIVATE fftw3)
-
-  # Ensure proper compilation definitions
-  # target_compile_definitions(follower_tilde PRIVATE FFTW3)
-
-endif()
+# ╭──────────────────────────────────────╮
+# │              Data Files              │
+# ╰──────────────────────────────────────╯
+pd_add_datafile(oscofo "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+pd_add_datafile(oscofo "${CMAKE_CURRENT_SOURCE_DIR}/o.scofo~-help.pd")

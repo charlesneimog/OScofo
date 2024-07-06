@@ -1,6 +1,6 @@
-#include "o.scofo~.hpp"
-
 #include <math.h>
+
+#include "OScofo.hpp"
 
 // ╭─────────────────────────────────────╮
 // │              MIR Utils              │
@@ -51,7 +51,8 @@ int OScofoScore::Name2Midi(std::string note) {
         classNote = 11;
         break;
     default:
-        pd_error(NULL, "Invalid note name for %s", note.c_str());
+        // TODO: Need to implement pd_error
+        // pd_error(NULL, "Invalid note name for %s", note.c_str());
         break;
         return -1;
     }
@@ -68,7 +69,7 @@ int OScofoScore::Name2Midi(std::string note) {
             int midi = classNote + 12 + (12 * octave);
             return midi;
         } else {
-            pd_error(NULL, "Invalid note name for %s", note.c_str());
+            // pd_error(NULL, "Invalid note name for %s", note.c_str());
             return -1;
         }
     } else {
@@ -76,7 +77,7 @@ int OScofoScore::Name2Midi(std::string note) {
             int octave = std::stoi(note.substr(1));
             int midi = classNote + 12 + (12 * octave);
         } else {
-            pd_error(NULL, "Invalid note name for %s", note.c_str());
+            // pd_error(NULL, "Invalid note name for %s", note.c_str());
             return -1;
         }
     }

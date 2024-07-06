@@ -1,10 +1,10 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 struct State {
     int Id;
-    bool Valid;
     int Type; // NOTE, CHORD, PIZZ, SILENCE
     double Freq;
 
@@ -21,6 +21,10 @@ struct State {
     double IOIPhiN;
     double IOIHatPhiN;
     double Duration;
+
+    // Error Handling
+    bool Valid;
+    std::string Error;
 };
 using States = std::vector<State>;
 

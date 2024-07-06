@@ -1,10 +1,10 @@
-#include "o.scofo~.hpp"
-
 #include <algorithm>
 #include <fstream>
 #include <math.h>
 
-#include <boost/math/special_functions/bessel.hpp>
+#include "OScofo.hpp"
+
+#include <m_pd.h>
 
 static t_class *OScofoObj;
 
@@ -16,10 +16,10 @@ class OScofo {
     std::vector<double> inBuffer;
     t_clock *Clock;
 
-    //
     OScofoScore *Score;
     OScofoMDP *MDP;
     OScofoMIR *MIR;
+    States ScoreStates;
 
     int Event;
     t_symbol *PatchDir;
@@ -146,11 +146,10 @@ static void Start(OScofo *x) {
 
     x->CurrentEvent = -1;
     x->MDP->SetEvent(x->CurrentEvent);
-    States ScoreStates = x->Score->GetStates();
-    x->MDP->SetScoreStates(ScoreStates);
+    x->MDP->SetScoreStates(x->ScoreStates);
     x->MDP->UpdatePhaseValues();
 
-    outlet_float(x->Tempo, ScoreStates[0].BPMExpected);
+    outlet_float(x->Tempo, x->ScoreStates[0].BPMExpected);
     outlet_float(x->EventIndex, 0);
     LOGE() << "PureData end Start Method";
 }
@@ -159,17 +158,17 @@ static void Start(OScofo *x) {
 static void Score(OScofo *x, t_symbol *s) {
     LOGE() << "PureData Score Method";
     x->ScoreLoaded = false;
-    std::string completePath = x->PatchDir->s_name;
-    completePath += "/";
-    completePath += s->s_name;
-    std::ifstream file(completePath);
+    std::string CompletePath = x->PatchDir->s_name;
+    CompletePath += "/";
+    CompletePath += s->s_name;
+    std::ifstream file(CompletePath);
     if (!file) {
         pd_error(nullptr, "[follower~] Score file not found");
         return;
     }
-    x->Score->Parse(x->MDP, completePath.c_str());
-    States ScoreStates = x->Score->GetStates();
-    x->MDP->SetScoreStates(ScoreStates);
+
+    x->Score->Parse(x->ScoreStates, CompletePath.c_str());
+    x->MDP->SetScoreStates(x->ScoreStates);
     x->MDP->UpdatePitchTemplate();
     x->MDP->UpdatePhaseValues();
 
@@ -211,7 +210,7 @@ static t_int *DspPerform(t_int *w) {
     }
 
     x->BlockIndex = 0;
-    int Event = x->MDP->GetEvent(x, x->MIR) + 1;
+    int Event = x->MDP->GetEvent(x->inBuffer, x->MIR) + 1;
     if (Event == 0) {
         return (w + 4);
     }
@@ -260,6 +259,7 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
                 }
             }
             if (argument == "-ss") {
+                // TODO: Output value of SyncStrengh
             }
         }
     }
@@ -272,9 +272,9 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->Score = new OScofoScore(x);
-    x->MIR = new OScofoMIR(x);
-    x->MDP = new OScofoMDP(x);
+    x->Score = new OScofoScore();
+    x->MIR = new OScofoMIR(x->Sr, x->WindowSize, x->HopSize);
+    x->MDP = new OScofoMDP(x->Sr, x->WindowSize, x->HopSize);
 
     LOGE() << "Returning NewOScofo";
     return x;

@@ -1,4 +1,4 @@
-#N canvas 6 554 951 486 10;
+#N canvas 963 28 951 1012 10;
 #X obj -49 -9 tabplay~ synrix;
 #X obj -49 -84 bng 60 250 50 0 empty empty empty 17 7 0 10 #e4e4e4 #000000 #373737;
 #X obj -19 32 dac~;
@@ -20,15 +20,15 @@
 #X obj -49 124 nbx 8 26 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
 #X obj 86 -9 nbx 4 18 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #e4e4e4 #373737 #373737 0 256;
 #X msg 86 21 set harmonics \$1;
-#X obj -49 94 follower~, f 29;
 #X msg -260 -9 score Tests/syrinx.txt;
+#X obj -49 94 o.scofo~, f 29;
 #X connect 0 0 2 0;
 #X connect 0 0 2 1;
-#X connect 0 0 9 0;
+#X connect 0 0 10 0;
 #X connect 1 0 0 0;
-#X connect 4 0 9 0;
+#X connect 4 0 10 0;
 #X connect 7 0 8 0;
-#X connect 8 0 9 0;
-#X connect 9 0 6 0;
-#X connect 9 1 5 0;
-#X connect 10 0 9 0;
+#X connect 8 0 10 0;
+#X connect 9 0 10 0;
+#X connect 10 0 6 0;
+#X connect 10 1 5 0;

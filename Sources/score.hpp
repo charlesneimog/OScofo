@@ -3,7 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "mdp.hpp"
+#include "log.hpp"
+#include "states.hpp"
 
 // ╭─────────────────────────────────────╮
 // │                Score                │
@@ -12,18 +13,9 @@
 class OScofoScore {
   public:
     int Name2Midi(std::string note);
-    void Parse(OScofoMDP *MDP, const char *Score);
+    void Parse(States &States, const char *ScoreFile);
     bool ScoreLoaded() {
         return m_ScoreLoaded;
-    }
-    States GetStates() {
-        return m_States;
-    };
-    void AddState(State State) {
-        m_States.push_back(State);
-    }
-    void ClearStates() {
-        m_States.clear();
     }
 
   private:
@@ -34,5 +26,4 @@ class OScofoScore {
     bool m_ScoreLoaded = false;
     double m_Tunning = 440;
     double m_K = 1;
-    States m_States;
 };

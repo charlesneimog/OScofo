@@ -13,29 +13,30 @@
 // TODO: Add EVENT (This must get a duration) and output one timer with it, for example, in 10000ms, a timer from 0 to 10000ms
 // TODO: ADD CHORD, MULTI, etc.
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
-
 // clang-format on
 
 // ─────────────────────────────────────
-State OScofoScore::AddNote(State State, std::vector<std::string> tokens, double BPM,
+State OScofoScore::AddNote(State State, std::vector<std::string> Tokens, double BPM,
                            int lineCount) {
     double Midi;
     if (BPM == -1) {
-        pd_error(NULL, "BPM not defined");
+        State.Valid = false;
+        State.Error = "BPM not defined";
         return State;
     }
-    if (tokens.size() < 3) {
-        pd_error(NULL, "Invalid note on line");
+    if (Tokens.size() < 3) {
+        State.Valid = false;
+        State.Error = "Invalid note on line " + std::to_string(lineCount);
         return State;
     }
 
     // check if pitch is a number os a string
-    if (!std::isdigit(tokens[1][0])) {
-        std::string noteName = tokens[1];
+    if (!std::isdigit(Tokens[1][0])) {
+        std::string noteName = Tokens[1];
         int midi = Name2Midi(noteName);
         Midi = midi;
     } else {
-        Midi = std::stof(tokens[1]);
+        Midi = std::stof(Tokens[1]);
         if (Midi > 127) {
             Midi = Midi * 0.01;
         }
@@ -43,9 +44,9 @@ State OScofoScore::AddNote(State State, std::vector<std::string> tokens, double 
     State.Freq = m_Tunning * std::pow(2, (Midi - 69) / 12);
 
     // check if there is / in the string
-    bool isRatio = tokens[2].find('/') != std::string::npos;
+    bool isRatio = Tokens[2].find('/') != std::string::npos;
     if (isRatio) {
-        std::string ratio = tokens[2];
+        std::string ratio = Tokens[2];
         std::replace(ratio.begin(), ratio.end(), '/', ' ');
         std::istringstream iss(ratio);
         std::vector<std::string> ratioTokens;
@@ -57,9 +58,8 @@ State OScofoScore::AddNote(State State, std::vector<std::string> tokens, double 
         double denominator = std::stof(ratioTokens[1]);
         State.Duration = numerator / denominator;
     } else {
-        State.Duration = std::stof(tokens[2]);
+        State.Duration = std::stof(Tokens[2]);
     }
-
     // time phase
     State.BPMExpected = BPM;
     State.Valid = true;
@@ -69,17 +69,21 @@ State OScofoScore::AddNote(State State, std::vector<std::string> tokens, double 
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-int OScofoScore::Parse(OScofoMDP *MDP, const char *ScoreFile) {
+void OScofoScore::Parse(States &States, const char *ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
-    m_States.clear();
+
+    States.clear();
+
     m_ScoreLoaded = false;
     std::ifstream File(ScoreFile);
-    MDP->ClearStates();
 
     if (!File) {
-        pd_error(NULL, "File not found");
+        State State;
+        State.Valid = false;
+        State.Error = "File not found";
         return;
     }
+
     double BPM = -1;
     std::string Line;
     int LineCount = 0;
@@ -103,16 +107,9 @@ int OScofoScore::Parse(OScofoMDP *MDP, const char *ScoreFile) {
         if (Tokens[0] == "NOTE") {
             State State;
             State.Type = NOTE;
-            State.Id = MDP->GetStatesSize();
+            State.Id = States.size();
             State = AddNote(State, Tokens, BPM, LineCount);
-            // TODO: Rethink
-
             if (!State.Valid) {
-                pd_error(NULL, "Error adding note on line %d", LineCount);
-                return;
-            }
-            if (BPM == -1) {
-                pd_error(NULL, "BPM not defined");
                 return;
             }
             if (Event != 0) {
@@ -121,7 +118,8 @@ int OScofoScore::Parse(OScofoMDP *MDP, const char *ScoreFile) {
                 State.OnsetExpected = 0;
             }
             Event++;
-            AddState(State);
+            States.push_back(State);
+
             PreviousDuration = State.Duration;
             LastOnset = State.OnsetExpected;
 
@@ -130,6 +128,7 @@ int OScofoScore::Parse(OScofoMDP *MDP, const char *ScoreFile) {
         }
     }
     m_ScoreLoaded = true;
-    LOGE() << "end OScofoScore::Parse";
+
+    LOGE() << "end OScofoScore::Parse | There is " << States.size() << " events";
     return;
 }
