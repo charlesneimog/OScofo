@@ -41,3 +41,4 @@ libfftw3.so.3.6.9
 Resources/Research/__pycache__
 Tests/.mscbackup
 Tests/__pycache__
+.cmake-format.yaml
