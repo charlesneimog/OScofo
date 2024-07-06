@@ -1,9 +1,9 @@
-#include "follower.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <sstream>
+
+#include "score.hpp"
 
 #define ACCUMULATION_FACTOR 1 // TODO: define by user
 
@@ -14,11 +14,13 @@
 // TODO: ADD CHORD, MULTI, etc.
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 
+// clang-format on
+
 // ─────────────────────────────────────
-State FollowerScore::AddNote(State State, std::vector<std::string> tokens,
-                                          double BPM, int lineCount) {
+State OScofoScore::AddNote(State State, std::vector<std::string> tokens, double BPM,
+                           int lineCount) {
     double Midi;
-    if (BPM== -1) {
+    if (BPM == -1) {
         pd_error(NULL, "BPM not defined");
         return State;
     }
@@ -67,8 +69,8 @@ State FollowerScore::AddNote(State State, std::vector<std::string> tokens,
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-void FollowerScore::Parse(FollowerMDP *MDP, const char *ScoreFile) {
-    LOGE() << "start FollowerScore::Parse";
+int OScofoScore::Parse(OScofoMDP *MDP, const char *ScoreFile) {
+    LOGE() << "start OScofoScore::Parse";
     m_States.clear();
     m_ScoreLoaded = false;
     std::ifstream File(ScoreFile);
@@ -78,7 +80,7 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *ScoreFile) {
         pd_error(NULL, "File not found");
         return;
     }
-    double BPM= -1;
+    double BPM = -1;
     std::string Line;
     int LineCount = 0;
     double LastOnset = 0;
@@ -109,26 +111,25 @@ void FollowerScore::Parse(FollowerMDP *MDP, const char *ScoreFile) {
                 pd_error(NULL, "Error adding note on line %d", LineCount);
                 return;
             }
-            if (BPM== -1) {
+            if (BPM == -1) {
                 pd_error(NULL, "BPM not defined");
                 return;
             }
-            if (Event != 0){
+            if (Event != 0) {
                 State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
-            } else{
+            } else {
                 State.OnsetExpected = 0;
             }
             Event++;
             AddState(State);
             PreviousDuration = State.Duration;
             LastOnset = State.OnsetExpected;
-                    
 
         } else if (Tokens[0] == "BPM") {
             BPM = std::stof(Tokens[1]);
         }
     }
     m_ScoreLoaded = true;
-    LOGE() << "end FollowerScore::Parse";
+    LOGE() << "end OScofoScore::Parse";
     return;
 }

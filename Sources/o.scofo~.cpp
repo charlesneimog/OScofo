@@ -1,4 +1,4 @@
-#include "follower.hpp"
+#include "o.scofo~.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -6,10 +6,47 @@
 
 #include <boost/math/special_functions/bessel.hpp>
 
-static t_class *FollowerObj;
+static t_class *OScofoObj;
 
 // ─────────────────────────────────────
-static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
+class OScofo {
+  public:
+    t_object xObj;
+    t_sample Sample;
+    std::vector<double> inBuffer;
+    t_clock *Clock;
+
+    //
+    OScofoScore *Score;
+    OScofoMDP *MDP;
+    OScofoMIR *MIR;
+
+    int Event;
+    t_symbol *PatchDir;
+
+    // Testing
+    bool Testing = false;
+
+    // Score
+    bool ScoreLoaded = false;
+    bool Following = false;
+    int CurrentEvent = 0;
+    std::vector<double> PitchTemplate;
+
+    // Audio
+    double BlockIndex;
+    double BlockSize;
+    double HopSize;
+    double WindowSize;
+    double Sr;
+
+    t_outlet *EventIndex;
+    t_outlet *Tempo;
+    t_outlet *Debug;
+};
+
+// ─────────────────────────────────────
+static void GerenateAnalTemplate(OScofo *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
     LOGE() << "PureData GerenateAnalTemplate";
 
     double *FFTIn;
@@ -60,7 +97,7 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
 }
 
 // ─────────────────────────────────────
-static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
+static void Set(OScofo *x, t_symbol *s, int argc, t_atom *argv) {
     LOGE() << "PureData Set Methoda";
     if (argv[0].a_type != A_SYMBOL) {
         pd_error(x, "[follower~] First argument of set method must be a symbol");
@@ -101,7 +138,7 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
 }
 
 // ─────────────────────────────────────
-static void Start(Follower *x) {
+static void Start(OScofo *x) {
     LOGE() << "PureData Start Method";
     if (!x->ScoreLoaded) {
         pd_error(nullptr, "[follower~] Score not loaded");
@@ -119,10 +156,10 @@ static void Start(Follower *x) {
 }
 
 // ─────────────────────────────────────
-static void Score(Follower *x, t_symbol *s) {
+static void Score(OScofo *x, t_symbol *s) {
     LOGE() << "PureData Score Method";
     x->ScoreLoaded = false;
-    std::string completePath = x->patchDir->s_name;
+    std::string completePath = x->PatchDir->s_name;
     completePath += "/";
     completePath += s->s_name;
     std::ifstream file(completePath);
@@ -142,7 +179,7 @@ static void Score(Follower *x, t_symbol *s) {
 }
 
 // ─────────────────────────────────────
-static void ClockTick(Follower *x) {
+static void ClockTick(OScofo *x) {
     LOGE() << "PureData ClockTick";
     if (x->Event != 0) {
         outlet_float(x->Tempo, x->MDP->GetLiveBPM());
@@ -153,7 +190,7 @@ static void ClockTick(Follower *x) {
 
 // ─────────────────────────────────────
 static t_int *DspPerform(t_int *w) {
-    Follower *x = (Follower *)(w[1]);
+    OScofo *x = (OScofo *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
 
@@ -187,7 +224,7 @@ static t_int *DspPerform(t_int *w) {
 }
 
 // ─────────────────────────────────────
-static void AddDsp(Follower *x, t_signal **sp) {
+static void AddDsp(OScofo *x, t_signal **sp) {
     LOGE() << "AddDsp";
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
@@ -197,10 +234,10 @@ static void AddDsp(Follower *x, t_signal **sp) {
 }
 
 // ─────────────────────────────────────
-static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
-    LOGE() << "NewFollower";
+static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
+    LOGE() << "NewOScofo";
 
-    Follower *x = (Follower *)pd_new(FollowerObj);
+    OScofo *x = (OScofo *)pd_new(OScofoObj);
     x->EventIndex = outlet_new(&x->xObj, &s_float);
     x->Tempo = outlet_new(&x->xObj, &s_float);
     x->WindowSize = 4096.0f;
@@ -219,9 +256,10 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
             if (argument == "-o") {
                 if (argv[i + 1].a_type == A_FLOAT) {
                     overlap = atom_getfloat(&argv[i + 1]);
-                    post("overlap %f", overlap);
                     i++;
                 }
+            }
+            if (argument == "-ss") {
             }
         }
     }
@@ -229,43 +267,43 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
         x->HopSize = x->WindowSize / overlap;
     }
     t_canvas *canvas = canvas_getcurrent();
-    x->patchDir = canvas_getdir(canvas);
+    x->PatchDir = canvas_getdir(canvas);
 
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->Score = new FollowerScore(x);
-    x->MIR = new FollowerMIR(x);
-    x->MDP = new FollowerMDP(x);
+    x->Score = new OScofoScore(x);
+    x->MIR = new OScofoMIR(x);
+    x->MDP = new OScofoMDP(x);
 
-    LOGE() << "Returning NewFollower";
+    LOGE() << "Returning NewOScofo";
     return x;
 }
 
 // ─────────────────────────────────────
-static void *FreeFollower(Follower *x) {
-    LOGE() << "Start Free of NewFollower";
+static void *FreeOScofo(OScofo *x) {
+    LOGE() << "Start Free of NewOScofo";
     delete x->Score;
     delete x->MIR;
     delete x->MDP;
-    LOGE() << "End Free of NewFollower";
+    LOGE() << "End Free of NewOScofo";
     return nullptr;
 }
 
 // ─────────────────────────────────────
-extern "C" void follower_tilde_setup(void) {
-    FollowerObj = class_new(gensym("follower~"), (t_newmethod)NewFollower, (t_method)FreeFollower,
-                            sizeof(Follower), CLASS_DEFAULT, A_GIMME, 0);
+extern "C" void setup_o0x2escofo_tilde(void) {
+    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo,
+                          sizeof(OScofo), CLASS_DEFAULT, A_GIMME, 0);
 
-    CLASS_MAINSIGNALIN(FollowerObj, Follower, Sample);
-    class_addmethod(FollowerObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
-    class_addmethod(FollowerObj, (t_method)Score, gensym("score"), A_SYMBOL, 0);
-    class_addmethod(FollowerObj, (t_method)Start, gensym("start"), A_NULL, 0);
+    CLASS_MAINSIGNALIN(OScofoObj, OScofo, Sample);
+    class_addmethod(OScofoObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
+    class_addmethod(OScofoObj, (t_method)Score, gensym("score"), A_SYMBOL, 0);
+    class_addmethod(OScofoObj, (t_method)Start, gensym("start"), A_NULL, 0);
 
     // Set Configurations
-    class_addmethod(FollowerObj, (t_method)Set, gensym("set"), A_GIMME, 0);
+    class_addmethod(OScofoObj, (t_method)Set, gensym("set"), A_GIMME, 0);
 
     // template
-    class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,
+    class_addmethod(OScofoObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,
                     A_FLOAT, A_FLOAT, A_FLOAT, 0);
 }

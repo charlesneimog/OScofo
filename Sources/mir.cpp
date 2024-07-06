@@ -1,4 +1,4 @@
-#include "follower.hpp"
+#include "mir.hpp"
 
 #include <cmath>
 #include <vector>
@@ -6,32 +6,31 @@
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
-FollowerMIR::FollowerMIR(Follower *Obj) {
-    LOGE() << "FollowerMIR::FollowerMIR";
+OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
+    LOGE() << "OScofoMIR::OScofoMIR";
 
-    m_HopSize = Obj->HopSize;
-    m_WindowSize = Obj->WindowSize;
-    m_Sr = Obj->Sr;
-    m_x = Obj;
+    m_HopSize = HopSize;
+    m_WindowSize = WindowSize;
+    m_Sr = Sr;
 
     m_FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (m_WindowSize / 2 + 1));
     m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
 
-    LOGE() << "FollowerMIR::FollowerMIR end";
+    LOGE() << "OScofoMIR::OScofoMIR end";
 }
 
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::SetTreshold(double dB) {
+void OScofoMIR::SetTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetFFTDescriptions(std::vector<double> in, m_Description *Desc) {
-    LOGE() << "FollowerMIR::GetFFTDescriptions";
+void OScofoMIR::GetFFTDescriptions(std::vector<double> in, m_Description *Desc) {
+    LOGE() << "OScofoMIR::GetFFTDescriptions";
 
     int N = in.size();
     int NHalf = N / 2;
@@ -63,28 +62,27 @@ void FollowerMIR::GetFFTDescriptions(std::vector<double> in, m_Description *Desc
         if (Desc->SpectralPower[i] > Desc->MaxAmp) {
             Desc->MaxAmp = Desc->SpectralPower[i];
         }
-        // GeometricMeanProduct *= pow(Desc->SpectralPower[i], WindowHalfPlusOneRecip);
+        GeometricMeanProduct *= pow(Desc->SpectralPower[i], WindowHalfPlusOneRecip);
     }
 
-    //
-    // for (int i = 0; i < NHalf; i++) {
-    //     ArithmeticMeanSum += Desc->SpectralPower[i];
-    // }
-    // ArithmeticMeanSum *= WindowHalfPlusOneRecip;
-    //
-    // if (ArithmeticMeanSum <= 0) {
-    //     Desc->SpectralFlatness = -1;
-    // } else {
-    //     Desc->SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
-    // }
-    LOGE() << "end FollowerMIR::GetFFTDescriptions";
+    for (int i = 0; i < NHalf; i++) {
+        ArithmeticMeanSum += Desc->SpectralPower[i];
+    }
+    ArithmeticMeanSum *= WindowHalfPlusOneRecip;
+
+    if (ArithmeticMeanSum <= 0) {
+        Desc->SpectralFlatness = -1;
+    } else {
+        Desc->SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
+    }
+    LOGE() << "end OScofoMIR::GetFFTDescriptions";
 }
 
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
-    LOGE() << "FollowerMIR::GetRMS";
+void OScofoMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
+    LOGE() << "OScofoMIR::GetRMS";
     double sumOfSquares = 0.0;
     for (double sample : in) {
         sumOfSquares += sample * sample;
@@ -94,15 +92,15 @@ void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
     if (std::isinf(dB)) {
         dB = -100;
     }
-    LOGE() << "End FollowerMIR::GetRMS";
+    LOGE() << "End OScofoMIR::GetRMS";
     Desc->dB = dB;
 }
 
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetDescription(std::vector<double> in, m_Description *Desc, double Tunning) {
-    LOGE() << "FollowerMIR::GetDescription";
+void OScofoMIR::GetDescription(std::vector<double> in, m_Description *Desc, double Tunning) {
+    LOGE() << "OScofoMIR::GetDescription";
     Desc->WindowSize = m_WindowSize;
     Desc->Sr = m_Sr;
 
@@ -116,5 +114,5 @@ void FollowerMIR::GetDescription(std::vector<double> in, m_Description *Desc, do
     }
 
     GetFFTDescriptions(in, Desc);
-    LOGE() << "end FollowerMIR::GetDescription";
+    LOGE() << "end OScofoMIR::GetDescription";
 }

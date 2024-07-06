@@ -1,22 +1,19 @@
-#include "follower.hpp"
+#include "mdp.hpp"
+#include "log.hpp"
 
 #include <boost/math/special_functions/bessel.hpp>
-
-#define MAX_FREQUENCY_DIFFERENCE 10.0
-#define MAX_QUALITY_DIFFERENCE 0.5
 
 // ╭─────────────────────────────────────╮
 // │           Init Functions            │
 // ╰─────────────────────────────────────╯
-FollowerMDP::FollowerMDP(Follower *Obj) {
-    m_x = Obj;
-    m_HopSize = Obj->HopSize;
-    m_WindowSize = Obj->WindowSize;
-    m_Sr = Obj->Sr;
+OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
+    m_HopSize = HopSize;
+    m_WindowSize = WindowSize;
+    m_Sr = Sr;
 
-    m_Desc = new FollowerMIR::m_Description();
-    if (Obj->WindowSize / 2 != m_PitchTemplate.size()) {
-        m_PitchTemplate.resize(Obj->WindowSize / 2);
+    m_Desc = new OScofoMIR::m_Description();
+    if (m_WindowSize / 2 != m_PitchTemplate.size()) {
+        m_PitchTemplate.resize(m_WindowSize / 2);
     }
     m_AccumulationFactor = 0.5;
     m_CouplingStrength = 0.5;
@@ -25,13 +22,13 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetScoreStates(States States) {
+void OScofoMDP::SetScoreStates(States States) {
     m_States.clear();
     m_States = States;
 }
 // ─────────────────────────────────────
-void FollowerMDP::UpdatePitchTemplate() {
-    LOGE() << "start FollowerMDP::UpdatePitchTemplate";
+void OScofoMDP::UpdatePitchTemplate() {
+    LOGE() << "start OScofoMDP::UpdatePitchTemplate";
     m_PitchTemplates.clear();
     m_PitchTemplateHigherBin = 0;
 
@@ -58,11 +55,11 @@ void FollowerMDP::UpdatePitchTemplate() {
             }
         }
     }
-    LOGE() << "end FollowerMDP::UpdatePitchTemplate";
+    LOGE() << "end OScofoMDP::UpdatePitchTemplate";
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::UpdatePhaseValues() {
+void OScofoMDP::UpdatePhaseValues() {
     m_SyncStr = 0;
 
     if (m_States.size() == 0) {
@@ -88,76 +85,76 @@ void FollowerMDP::UpdatePhaseValues() {
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void FollowerMDP::ClearStates() {
+void OScofoMDP::ClearStates() {
     m_States.clear();
 }
 // ─────────────────────────────────────
-double FollowerMDP::GetLiveBPM() {
+double OScofoMDP::GetLiveBPM() {
     return m_BPM;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetBPM(double BPM) {
+void OScofoMDP::SetBPM(double BPM) {
     m_BPM = BPM;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTreshold(double dB) {
+void OScofoMDP::SetTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTunning(double Tunning) {
+void OScofoMDP::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetHarmonics(int Harmonics) {
+void OScofoMDP::SetHarmonics(int Harmonics) {
     m_Harmonics = Harmonics;
 }
 
 // ─────────────────────────────────────
-int FollowerMDP::GetTunning() {
+int OScofoMDP::GetTunning() {
     return m_Tunning;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetEvent(int Event) {
+void OScofoMDP::SetEvent(int Event) {
     m_CurrentEvent = Event;
 }
 
 // ─────────────────────────────────────
-int FollowerMDP::GetStatesSize() {
+int OScofoMDP::GetStatesSize() {
     return m_States.size();
 }
 // ─────────────────────────────────────
-void FollowerMDP::AddState(State State) {
+void OScofoMDP::AddState(State State) {
     m_States.push_back(State);
 }
 // ─────────────────────────────────────
-State FollowerMDP::GetState(int Index) {
+State OScofoMDP::GetState(int Index) {
     return m_States[Index];
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetPitchTemplateSigma(double f) {
+void OScofoMDP::SetPitchTemplateSigma(double f) {
     m_PitchTemplateSigma = f;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTimeAccumFactor(double f) {
+void OScofoMDP::SetTimeAccumFactor(double f) {
     m_AccumulationFactor = f;
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::SetTimeCouplingStrength(double f) {
+void OScofoMDP::SetTimeCouplingStrength(double f) {
     m_CouplingStrength = f;
 }
 
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-double FollowerMDP::InverseA2(double SyncStrength) {
+double OScofoMDP::InverseA2(double SyncStrength) {
     // SyncStrength must be between 0 and 1
     if (SyncStrength < 0) {
         return 0;
@@ -193,7 +190,7 @@ double FollowerMDP::InverseA2(double SyncStrength) {
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
+double OScofoMDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
     // Equation 2b from Large and Palmer (2002)
     double ExpKappa = exp(Kappa);
     double PhiNDiff = Phi - PhiMu;
@@ -204,7 +201,7 @@ double FollowerMDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::ModPhases(double Phase) {
+double OScofoMDP::ModPhases(double Phase) {
     // Following Cont (2010) conventions
     Phase = fmod(Phase + M_PI, TWO_PI);
     if (Phase < 0) {
@@ -214,7 +211,7 @@ double FollowerMDP::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-void FollowerMDP::GetBPM() {
+void OScofoMDP::GetBPM() {
     // Cont (2010), Large and Palmer (1999) and Large and Jones (2002)
 
     State &LastState = m_States[m_CurrentEvent - 1];
@@ -265,7 +262,7 @@ void FollowerMDP::GetBPM() {
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-double FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+double OScofoMDP::GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc) {
     double KLDiv = 0.0;
     double RootBinFreq = round(NextPossibleState.Freq / (m_Sr / m_WindowSize));
 
@@ -296,14 +293,14 @@ double FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_D
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+double OScofoMDP::GetTimeSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc) {
     // m_SyncStr = 0;
 
     return 0;
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+double OScofoMDP::GetReward(State NextPossibleState, OScofoMIR::m_Description *Desc) {
     double PitchWeight;
     double TimeWeight;
     if (NextPossibleState.Type == NOTE) {
@@ -322,8 +319,8 @@ double FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::m_Descriptio
 }
 
 // ─────────────────────────────────────
-double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
-    LOGE() << "FollowerMDP::GetBestEvent";
+double OScofoMDP::GetBestEvent(OScofoMIR::m_Description *Desc) {
+    LOGE() << "OScofoMDP::GetBestEvent";
     if (m_CurrentEvent == -1) {
         m_BPM = m_States[0].BPMExpected;
     }
@@ -345,31 +342,26 @@ double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
             i = 0;
         }
         EventLookAhead += m_States[i].Duration * m_PsiN;
-        State NextPossibleState = m_States[i];
-        // printf("i value is %d\n", i);
-        if (m_Desc->SpectralFlatness < 0.15 && NextPossibleState.Type == NOTE) {
-            i++;
-        } else {
-            double Reward = GetReward(NextPossibleState, Desc);
-            if (Reward > BestReward) {
-                BestReward = Reward;
-                BestGuess = i;
-            }
-            i++;
+        State State = m_States[i];
+        double Reward = GetReward(State, Desc);
+        if (Reward > BestReward) {
+            BestReward = Reward;
+            BestGuess = i;
         }
+        i++;
     }
-    LOGE() << "end FollowerMDP::GetBestEvent";
+    LOGE() << "end OScofoMDP::GetBestEvent";
     return BestGuess;
 }
 
 // ─────────────────────────────────────
-int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
-    double BlockDur = 1 / m_x->Sr;
-    m_TimeInThisEvent += BlockDur * m_x->HopSize;
-    MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
+int OScofoMDP::GetEvent(std::vector<double> AudioIn, OScofoMIR *MIR) {
+    double BlockDur = 1 / m_Sr;
+    m_TimeInThisEvent += BlockDur * m_HopSize;
+    MIR->GetDescription(AudioIn, m_Desc, m_Tunning);
 
     if (m_Desc->dB < m_dBTreshold) {
-        double BlockDur = 1 / m_x->Sr;
+        double BlockDur = 1 / m_Sr;
         LOGE() << "End GetEvent";
         return m_CurrentEvent;
     }
