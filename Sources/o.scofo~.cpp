@@ -141,7 +141,7 @@ static void Set(OScofo *x, t_symbol *s, int argc, t_atom *argv) {
 static void Start(OScofo *x) {
     LOGE() << "PureData Start Method";
     if (!x->ScoreLoaded) {
-        pd_error(nullptr, "[follower~] Score not loaded");
+        pd_error(nullptr, "[o.scofo~] Score not loaded");
     }
 
     x->CurrentEvent = -1;
@@ -163,7 +163,7 @@ static void Score(OScofo *x, t_symbol *s) {
     CompletePath += s->s_name;
     std::ifstream file(CompletePath);
     if (!file) {
-        pd_error(nullptr, "[follower~] Score file not found");
+        pd_error(nullptr, "[o.scofo~] Score file not found");
         return;
     }
 
@@ -173,7 +173,7 @@ static void Score(OScofo *x, t_symbol *s) {
     x->MDP->UpdatePhaseValues();
 
     x->ScoreLoaded = true;
-    post("[follower~] Score loaded");
+    post("[o.scofo~] Score loaded");
     LOGE() << "PureData end Score Method";
 }
 
