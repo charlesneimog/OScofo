@@ -30,16 +30,18 @@ void FollowerMIR::SetTreshold(double dB) {
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
-void FollowerMIR::GetFFT(std::vector<double> in, m_Description *Desc) {
+void FollowerMIR::GetFFTDescriptions(std::vector<double> in, m_Description *Desc) {
+    LOGE() << "FollowerMIR::GetFFTDescriptions";
 
-    int n = in.size();
+    int N = in.size();
+    int NHalf = N / 2;
 
-    if (n / 2 + 1 != Desc->SpectralPower.size()) {
-        Desc->SpectralPower.resize(n / 2 + 1);
+    if (NHalf != Desc->SpectralPower.size()) {
+        Desc->SpectralPower.resize(NHalf);
     }
 
-    if (n / 2 + 1 != Desc->NormSpectralPower.size()) {
-        Desc->NormSpectralPower.resize(n / 2 + 1);
+    if (NHalf != Desc->NormSpectralPower.size()) {
+        Desc->NormSpectralPower.resize(NHalf);
     }
 
     std::vector<double> inCopy = in;
@@ -47,25 +49,42 @@ void FollowerMIR::GetFFT(std::vector<double> in, m_Description *Desc) {
 
     double Real, Imag;
     Desc->MaxAmp = 0;
-    for (int i = 0; i < n / 2 + 1; i++) {
+    Desc->TotalPower = 0;
+    std::vector<double> nthRoots(NHalf);
+    double GeometricMeanProduct = 1.0;
+    double ArithmeticMeanSum = 0.0;
+    double WindowHalfPlusOneRecip = 1.0 / NHalf;
+
+    for (int i = 0; i < NHalf; i++) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
-        Desc->SpectralPower[i] = (Real * Real + Imag * Imag) / n;
+        Desc->SpectralPower[i] = (Real * Real + Imag * Imag) / N;
+        Desc->TotalPower += Desc->SpectralPower[i];
         if (Desc->SpectralPower[i] > Desc->MaxAmp) {
             Desc->MaxAmp = Desc->SpectralPower[i];
         }
+        // GeometricMeanProduct *= pow(Desc->SpectralPower[i], WindowHalfPlusOneRecip);
     }
 
-    // normalize using the maximum value
-    for (int i = 0; i < n / 2 + 1; i++) {
-        Desc->NormSpectralPower[i] = Desc->SpectralPower[i] / Desc->MaxAmp;
-    }
+    //
+    // for (int i = 0; i < NHalf; i++) {
+    //     ArithmeticMeanSum += Desc->SpectralPower[i];
+    // }
+    // ArithmeticMeanSum *= WindowHalfPlusOneRecip;
+    //
+    // if (ArithmeticMeanSum <= 0) {
+    //     Desc->SpectralFlatness = -1;
+    // } else {
+    //     Desc->SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
+    // }
+    LOGE() << "end FollowerMIR::GetFFTDescriptions";
 }
 
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
+    LOGE() << "FollowerMIR::GetRMS";
     double sumOfSquares = 0.0;
     for (double sample : in) {
         sumOfSquares += sample * sample;
@@ -75,6 +94,7 @@ void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
     if (std::isinf(dB)) {
         dB = -100;
     }
+    LOGE() << "End FollowerMIR::GetRMS";
     Desc->dB = dB;
 }
 
@@ -82,6 +102,7 @@ void FollowerMIR::GetRMS(std::vector<double> in, m_Description *Desc) {
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
 void FollowerMIR::GetDescription(std::vector<double> in, m_Description *Desc, double Tunning) {
+    LOGE() << "FollowerMIR::GetDescription";
     Desc->WindowSize = m_WindowSize;
     Desc->Sr = m_Sr;
 
@@ -94,5 +115,6 @@ void FollowerMIR::GetDescription(std::vector<double> in, m_Description *Desc, do
         in[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (m_WindowSize - 1)));
     }
 
-    GetFFT(in, Desc);
+    GetFFTDescriptions(in, Desc);
+    LOGE() << "end FollowerMIR::GetDescription";
 }

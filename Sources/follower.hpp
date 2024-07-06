@@ -14,7 +14,9 @@
 #ifndef TWO_PI
 #define TWO_PI (2 * M_PI)
 #endif
+
 #define DEBUG true
+#define DEBUGDSP false
 
 class Follower;
 using PitchTemplateArray = std::vector<double>;
@@ -44,6 +46,13 @@ struct State {
 };
 using States = std::vector<State>;
 
+// ─────────────────────────────────────
+enum EventType {
+    SILENCE = 0,
+    NOTE,
+    // TODO: Add more events
+};
+
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
 // ╰─────────────────────────────────────╯
@@ -62,12 +71,11 @@ class FollowerMIR {
         double Midi;
         double Quality;
         double dB;
-        // double TimeElapsed;
-        // std::vector<double> SpectralImag;
-        // std::vector<double> SpectralReal;
         std::vector<double> SpectralPower;
         std::vector<double> NormSpectralPower;
+        double TotalPower;
         double MaxAmp;
+        double SpectralFlatness;
 
         // Pitch
         // std::vector<double> SpectralChroma;
@@ -96,7 +104,7 @@ class FollowerMIR {
     // double *m_FFTIn;
     fftw_complex *m_FFTOut;
     fftw_plan m_FFTPlan;
-    void GetFFT(std::vector<double> in, m_Description *Desc);
+    void GetFFTDescriptions(std::vector<double> in, m_Description *Desc);
 
     // Env
     double m_dBTreshold = -80;
@@ -161,7 +169,7 @@ class FollowerMDP {
     double m_HopSize;
     double m_Harmonics = 10;
     double m_PitchTemplateHigherBin = 0;
-    double m_dBTreshold = -80;
+    double m_dBTreshold = -70;
     FollowerMIR::m_Description *m_Desc;
 
     // Events
@@ -178,27 +186,21 @@ class FollowerMDP {
         0.5; // Coupling strength captures the amount of force exerted on the
              // attentional rhythm and determines, among other factors, the
              // speed with which the coupled system relaxes to theattractor.
-    double m_LastR = 0;
+    double m_SyncStr = 0;
     double m_TimeInThisEvent = 0;
 
     double m_LastTn = 0;
     double m_Tn = 0;
-
-    // double m_LastHatPhiN = 0;
-    // double m_LastPhiN = 0;
 
     double m_LastPsiN = 0;
     double m_PsiN = 0;
     double m_PsiN1 = 0;
     double m_BPM = 0;
 
-    // Helpers
+    // Time
     double InverseA2(double r);
     double ModPhases(double value);
     double CouplingFunction(double Phi, double PhiMu, double Kappa);
-
-    // Time
-    double GetAttentionalEnergy();
 
     // Pitch
     double m_PitchTemplateSigma = 0.3;
@@ -222,12 +224,6 @@ class FollowerScore {
     FollowerScore(Follower *x) {
         this->m_x = x;
     }
-
-    enum EventType {
-        SILENCE = 0,
-        NOTE,
-        // TODO: Add more events
-    };
 
     int Name2Midi(std::string note);
     void Parse(FollowerMDP *MDP, const char *score);
@@ -306,10 +302,8 @@ class LogStream {
 
     ~LogStream() {
 #if DEBUG
-        // Convert the log message to a C string
         std::string message = buffer.str();
         const char *c_message = message.c_str();
-
         printf("%s\n", c_message);
         std::cout.flush();
 #endif

@@ -9,14 +9,9 @@
 static t_class *FollowerObj;
 
 // ─────────────────────────────────────
-static void TimeValues(Follower *x) {
-    if (!x->Score->ScoreLoaded()) {
-        return;
-    }
-}
-
-// ─────────────────────────────────────
 static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
+    LOGE() << "PureData GerenateAnalTemplate";
+
     double *FFTIn;
     fftw_complex *FFTOut;
     fftw_plan FFTPlan;
@@ -61,10 +56,12 @@ static void GerenateAnalTemplate(Follower *x, t_symbol *s, t_float sr, t_float f
         x->MDP->m_PitchTemplate.push_back(SpectralPower[bin + 1]);
     }
     post("[follower~] Template loaded");
+    LOGE() << "PureData end GerenateAnalTemplate";
 }
 
 // ─────────────────────────────────────
 static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
+    LOGE() << "PureData Set Methoda";
     if (argv[0].a_type != A_SYMBOL) {
         pd_error(x, "[follower~] First argument of set method must be a symbol");
         return;
@@ -90,45 +87,41 @@ static void Set(Follower *x, t_symbol *s, int argc, t_atom *argv) {
             x->MDP->SetTimeCouplingStrength(atom_getfloat(argv + 2));
             printf("[follower~] Time coupling set to %.4f\n", atom_getfloat(argv + 2));
         }
+    } else if (method == "tunning") {
+        x->MDP->SetTunning(atom_getfloat(argv + 1));
 
+    } else if (method == "event") {
+        int f = atom_getint(argv + 1);
+        x->CurrentEvent = f;
+        x->MDP->SetEvent(f);
     } else {
         pd_error(x, "[follower~] Unknown method");
     }
-}
-
-// ─────────────────────────────────────
-static void SetEvent(Follower *x, t_floatarg f) {
-    x->CurrentEvent = f;
-    x->MDP->SetEvent(f);
+    LOGE() << "PureData End Set Methoda";
 }
 
 // ─────────────────────────────────────
 static void Start(Follower *x) {
+    LOGE() << "PureData Start Method";
+    if (!x->ScoreLoaded) {
+        pd_error(nullptr, "[follower~] Score not loaded");
+    }
+
     x->CurrentEvent = -1;
-    x->MDP->SetEvent(-1);
+    x->MDP->SetEvent(x->CurrentEvent);
     States ScoreStates = x->Score->GetStates();
     x->MDP->SetScoreStates(ScoreStates);
-    x->MDP->UpdatePitchTemplate();
     x->MDP->UpdatePhaseValues();
 
     outlet_float(x->Tempo, ScoreStates[0].BPMExpected);
     outlet_float(x->EventIndex, 0);
-}
-
-// ─────────────────────────────────────
-static void Follow(Follower *x, t_floatarg f) {
-    x->Following = f;
-}
-
-// ─────────────────────────────────────
-static void Tunning(Follower *x, t_floatarg f) {
-    post("[follower~] A4 set to %f Hz", f);
-    x->MDP->SetTunning(f);
+    LOGE() << "PureData end Start Method";
 }
 
 // ─────────────────────────────────────
 static void Score(Follower *x, t_symbol *s) {
     LOGE() << "PureData Score Method";
+    x->ScoreLoaded = false;
     std::string completePath = x->patchDir->s_name;
     completePath += "/";
     completePath += s->s_name;
@@ -145,21 +138,24 @@ static void Score(Follower *x, t_symbol *s) {
 
     x->ScoreLoaded = true;
     post("[follower~] Score loaded");
+    LOGE() << "PureData end Score Method";
 }
 
 // ─────────────────────────────────────
 static void ClockTick(Follower *x) {
+    LOGE() << "PureData ClockTick";
     if (x->Event != 0) {
         outlet_float(x->Tempo, x->MDP->GetLiveBPM());
         outlet_float(x->EventIndex, x->Event);
     }
+    LOGE() << "PureData ClockTick end";
 }
 
 // ─────────────────────────────────────
 static t_int *DspPerform(t_int *w) {
     Follower *x = (Follower *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
-    int n = static_cast<int>(w[3]); // Assuming n is an integer
+    int n = static_cast<int>(w[3]);
 
     if (!x->Score->ScoreLoaded()) {
         return (w + 4);
@@ -179,7 +175,7 @@ static t_int *DspPerform(t_int *w) {
 
     x->BlockIndex = 0;
     int Event = x->MDP->GetEvent(x, x->MIR) + 1;
-    if (Event == -1) {
+    if (Event == 0) {
         return (w + 4);
     }
     if (Event != x->Event) {
@@ -193,7 +189,6 @@ static t_int *DspPerform(t_int *w) {
 // ─────────────────────────────────────
 static void AddDsp(Follower *x, t_signal **sp) {
     LOGE() << "AddDsp";
-
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
     x->inBuffer.resize(x->WindowSize, 0.0f);
@@ -211,9 +206,7 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
     x->WindowSize = 4096.0f;
     x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
-
     double overlap = 4;
-
     for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
             std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
@@ -230,23 +223,18 @@ static void *NewFollower(t_symbol *s, int argc, t_atom *argv) {
                     i++;
                 }
             }
-            if (argument == "-test") {
-                x->Testing = true;
-                x->Debug = outlet_new(&x->xObj, &s_anything);
-            }
         }
     }
     if (overlap != 4) {
         x->HopSize = x->WindowSize / overlap;
     }
-
     t_canvas *canvas = canvas_getcurrent();
     x->patchDir = canvas_getdir(canvas);
 
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->Score = new FollowerScore(x); // TODO: rethink about use new
+    x->Score = new FollowerScore(x);
     x->MIR = new FollowerMIR(x);
     x->MDP = new FollowerMDP(x);
 
@@ -271,22 +259,13 @@ extern "C" void follower_tilde_setup(void) {
 
     CLASS_MAINSIGNALIN(FollowerObj, Follower, Sample);
     class_addmethod(FollowerObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
-
-    class_addmethod(FollowerObj, (t_method)SetEvent, gensym("event"), A_FLOAT, 0);
-
     class_addmethod(FollowerObj, (t_method)Score, gensym("score"), A_SYMBOL, 0);
-    class_addmethod(FollowerObj, (t_method)Follow, gensym("follow"), A_FLOAT, 0);
     class_addmethod(FollowerObj, (t_method)Start, gensym("start"), A_NULL, 0);
 
-    // config
-    class_addmethod(FollowerObj, (t_method)Tunning, gensym("tunning"), A_FLOAT, 0);
-
-    // pitch template
+    // Set Configurations
     class_addmethod(FollowerObj, (t_method)Set, gensym("set"), A_GIMME, 0);
 
     // template
     class_addmethod(FollowerObj, (t_method)GerenateAnalTemplate, gensym("template"), A_SYMBOL,
                     A_FLOAT, A_FLOAT, A_FLOAT, 0);
-
-    class_addbang(FollowerObj, (t_method)TimeValues);
 }

@@ -67,10 +67,11 @@ State FollowerScore::AddNote(State State, std::vector<std::string> tokens,
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-void FollowerScore::Parse(FollowerMDP *MDP, const char *score) {
+void FollowerScore::Parse(FollowerMDP *MDP, const char *ScoreFile) {
     LOGE() << "start FollowerScore::Parse";
+    m_States.clear();
     m_ScoreLoaded = false;
-    std::ifstream File(score);
+    std::ifstream File(ScoreFile);
     MDP->ClearStates();
 
     if (!File) {

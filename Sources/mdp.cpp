@@ -26,6 +26,7 @@ FollowerMDP::FollowerMDP(Follower *Obj) {
 
 // ─────────────────────────────────────
 void FollowerMDP::SetScoreStates(States States) {
+    m_States.clear();
     m_States = States;
 }
 // ─────────────────────────────────────
@@ -62,7 +63,13 @@ void FollowerMDP::UpdatePitchTemplate() {
 
 // ─────────────────────────────────────
 void FollowerMDP::UpdatePhaseValues() {
-    m_LastR = 0;
+    m_SyncStr = 0;
+
+    if (m_States.size() == 0) {
+        return;
+    }
+
+    m_PsiN = 60.0f / m_States[0].BPMExpected;
     m_States[0].PhaseExpected = 0;
     for (int i = 0; i < m_States.size() - 1; i++) {
         double PsiK = 60.0f / m_States[i].BPMExpected;
@@ -150,133 +157,109 @@ void FollowerMDP::SetTimeCouplingStrength(double f) {
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
-double FollowerMDP::GetAttentionalEnergy() {
-    double SumSin = 0, SumCos = 0;
-    for (int i = 0; i < m_CurrentEvent; i++) {
-        SumSin += sin(m_States[i].PhaseObserved);
-        SumCos += cos(m_States[i].PhaseObserved);
+double FollowerMDP::InverseA2(double SyncStrength) {
+    // SyncStrength must be between 0 and 1
+    if (SyncStrength < 0) {
+        return 0;
     }
 
-    // Calculate mean direction (phi_mu)
-    double PhiMu = atan2(SumSin, SumCos);
-
-    // Calculate R and kappa (as you did before)
-    double R = sqrt(pow(SumSin, 2) + pow(SumCos, 2)) / m_CurrentEvent;
-    float Kappa;
-    if (R < 0.53) {
-        Kappa = 2 * R + pow(R, 3) + 5 * pow(R, 5) / 6;
-    } else if (R < 0.85) {
-        Kappa = -0.4 + 1.39 * R + 0.43 / (1 - R);
-    } else {
-        Kappa = 1 / (pow(R, 3) - 4 * pow(R, 2) + 3 * R);
-    }
-
-    // Correct normalization
-    double Norm = 1 / boost::math::cyl_bessel_i(0, Kappa);
-    double PhiN = m_States[m_CurrentEvent].PhaseObserved;
-    double AttentionalEnergy = exp(Kappa * cos(TWO_PI * (PhiN - PhiMu)));
-
-    return Norm * AttentionalEnergy;
-}
-
-// ─────────────────────────────────────
-double FollowerMDP::InverseA2(double r) {
-    if (r > 0.95) {
+    // Following Large and Jones (1999, p. 157).
+    if (SyncStrength > 0.95) {
         return 10.0f;
     }
 
     double Low = 0.0;
-    double Tol = 1e-5;
-    double High = std::max(r, 10.0);
+    double Tol = 1e-8;
+    double High = std::max(SyncStrength, 10.0);
     double Mid;
 
-    for (int i = 0; i < 10000; ++i) {
+    // In my tests I never reached more than 100 iterations.
+    int i;
+    for (i = 0; i < 100; ++i) {
         Mid = (Low + High) / 2.0;
         double I1 = boost::math::cyl_bessel_i(1, Mid);
         double I0 = boost::math::cyl_bessel_i(0, Mid);
         double A2Mid = I1 / I0;
-        if (std::fabs(A2Mid - r) < Tol) {
+        if (std::fabs(A2Mid - SyncStrength) < Tol) {
             return Mid;
-        } else if (A2Mid < r) {
+        } else if (A2Mid < SyncStrength) {
             Low = Mid;
         } else {
             High = Mid;
         }
     }
+    LOGE() << "InverseA2 not converged after " << i << " iterations.";
     return Mid;
 }
 
 // ─────────────────────────────────────
 double FollowerMDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
+    // Equation 2b from Large and Palmer (2002)
     double ExpKappa = exp(Kappa);
-    double CosTerm = cos(TWO_PI * (Phi - PhiMu));
-    double SinTerm = sin(TWO_PI * (Phi - PhiMu));
+    double PhiNDiff = Phi - PhiMu;
+    double CosTerm = cos(TWO_PI * PhiNDiff);
+    double SinTerm = sin(TWO_PI * PhiNDiff);
     double PhiN = (1 / (TWO_PI * ExpKappa)) * exp(Kappa * CosTerm) * SinTerm;
     return PhiN;
 }
 
 // ─────────────────────────────────────
 double FollowerMDP::ModPhases(double Phase) {
-    // Normalize phase to be within -pi to pi
-    Phase = fmod(Phase + M_PI, TWO_PI); // adjust range to 0 to 2*pi
+    // Following Cont (2010) conventions
+    Phase = fmod(Phase + M_PI, TWO_PI);
     if (Phase < 0) {
-        Phase += TWO_PI; // handle negative result from fmod
+        Phase += TWO_PI;
     }
-    return Phase - M_PI; // shift range to -pi to pi
+    return Phase - M_PI;
 }
 
 // ─────────────────────────────────────
 void FollowerMDP::GetBPM() {
-    int LastEvent = m_CurrentEvent - 1;
-    int CurrentEvent = m_CurrentEvent;
-    int NextEvent = m_CurrentEvent + 1;
-    int here = 0;
+    // Cont (2010), Large and Palmer (1999) and Large and Jones (2002)
 
-    printf("I am here 1\n");
+    State &LastState = m_States[m_CurrentEvent - 1];
+    State &CurrentState = m_States[m_CurrentEvent];
+    State &NextState = m_States[m_CurrentEvent + 1];
+
     double IOISeconds = m_Tn - m_LastTn;
-
-    double LastPhiN = m_States[LastEvent].IOIPhiN;
-    double LastHatPhiN = m_States[LastEvent].IOIHatPhiN;
-
-    double HatPhiN = m_States[CurrentEvent].IOIHatPhiN;
-
+    double LastPhiN = LastState.IOIPhiN;
+    double LastHatPhiN = LastState.IOIHatPhiN;
+    double HatPhiN = CurrentState.IOIHatPhiN;
+    LOGE() << "PsiN: " << m_PsiN;
     double PhiNExpected = LastPhiN + ((m_Tn - m_LastTn) / m_PsiN);
-    m_States[CurrentEvent].IOIHatPhiN = PhiNExpected;
-    printf("I am here 2\n");
+    CurrentState.IOIHatPhiN = PhiNExpected;
 
-    // Começa o algoritmo 1
     // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
-    double Term = (IOISeconds / m_PsiN) - HatPhiN;
-    double R = m_LastR - m_AccumulationFactor * (m_LastR - cos(TWO_PI * Term));
-    printf("I am here 3\n");
-    double Kappa = InverseA2(R);
-    printf("I am here 4\n");
-    m_LastR = R;
+    double PhaseDiff = (IOISeconds / m_PsiN) - HatPhiN;
+    double SyncStrength = m_SyncStr - m_AccumulationFactor * (m_SyncStr - cos(TWO_PI * PhaseDiff));
+    LOGE() << "SyncStrength: " << SyncStrength;
+    double Kappa = InverseA2(SyncStrength);
+    m_SyncStr = SyncStrength;
 
     // Update and Correct PhiN
     double FValueUpdate = CouplingFunction(LastPhiN, LastHatPhiN, Kappa);
     double PhiN = LastPhiN + (IOISeconds / m_LastPsiN) + (m_CouplingStrength * FValueUpdate);
-    PhiN = ModPhases(PhiN); // Atual
-    printf("I am here 5\n");
+    PhiN = ModPhases(PhiN);
+    CurrentState.PhaseObserved = PhiN;
 
     // Prediction for next PsiN+1
     double FValuePrediction = CouplingFunction(PhiN, HatPhiN, Kappa);
     double PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValuePrediction);
-    printf("I am here 6\n");
 
-    // Prediction for next PhiN
-    // State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
-    double Duration = m_States[CurrentEvent].Duration;
+    // Prediction for Next HatPhiN
+    double Duration = CurrentState.Duration;
     double Tn1 = m_Tn + Duration * PsiN1;
     double PhiN1 = ModPhases((Tn1 - m_Tn) / PsiN1);
-    m_States[CurrentEvent + 1].IOIHatPhiN = PhiN1;
+    NextState.IOIHatPhiN = PhiN1;
 
     // Update Previous Values
     m_BPM = 60.0f / m_PsiN1;
     m_LastPsiN = m_PsiN;
     m_PsiN = PsiN1;
     m_PsiN1 = PsiN1;
-    printf("BPM: %f\n", m_BPM);
+
+    LOGE() << "Attencional Energy: " << m_SyncStr;
+    LOGE() << "BPM: " << m_BPM;
 }
 
 // ╭─────────────────────────────────────╮
@@ -290,8 +273,8 @@ double FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_D
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        pd_error(NULL,
-                 "[follower~] Pitch Template not found, it should not happen, please report it");
+        pd_error(NULL, "[follower~] Pitch Template not found, "
+                       "it should not happen, please report it");
         return 0;
     }
 
@@ -314,25 +297,33 @@ double FollowerMDP::GetPitchSimilarity(State NextPossibleState, FollowerMIR::m_D
 
 // ─────────────────────────────────────
 double FollowerMDP::GetTimeSimilarity(State NextPossibleState, FollowerMIR::m_Description *Desc) {
+    // m_SyncStr = 0;
+
     return 0;
 }
 
 // ─────────────────────────────────────
 double FollowerMDP::GetReward(State NextPossibleState, FollowerMIR::m_Description *Desc) {
-    double PitchWeight = 0.5;
-    double TimeWeight = 0.5;
-    // FUTURE: Add Attack Envelope
+    double PitchWeight;
+    double TimeWeight;
+    if (NextPossibleState.Type == NOTE) {
+        PitchWeight = 0.5;
+        TimeWeight = 0.5;
+    }
+
+    // TODO: Add Attack Envelope
 
     double PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
     double TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
 
-    double Reward = (PitchSimilarity * PitchWeight) + (TimeSimilarity * TimeWeight);
+    double Reward = (PitchSimilarity * PitchWeight); //+ (TimeSimilarity * (m_SyncStr / 2));
 
     return Reward;
 }
 
 // ─────────────────────────────────────
 double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
+    LOGE() << "FollowerMDP::GetBestEvent";
     if (m_CurrentEvent == -1) {
         m_BPM = m_States[0].BPMExpected;
     }
@@ -344,8 +335,8 @@ double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
     double BestReward = -1;
     double EventLookAhead = 0;
     int StatesSize = m_States.size();
-    int lastLook = 0;
 
+    // Core Function
     while (EventLookAhead < LookAhead) {
         if (i >= StatesSize) {
             break;
@@ -353,16 +344,21 @@ double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
         if (i < 0) {
             i = 0;
         }
-        EventLookAhead += m_States[i].Duration * m_PsiN; // TODO: Realtime bpm
+        EventLookAhead += m_States[i].Duration * m_PsiN;
         State NextPossibleState = m_States[i];
-        double Reward = GetReward(NextPossibleState, Desc);
-        if (Reward > BestReward) {
-            BestReward = Reward;
-            BestGuess = i;
+        // printf("i value is %d\n", i);
+        if (m_Desc->SpectralFlatness < 0.15 && NextPossibleState.Type == NOTE) {
+            i++;
+        } else {
+            double Reward = GetReward(NextPossibleState, Desc);
+            if (Reward > BestReward) {
+                BestReward = Reward;
+                BestGuess = i;
+            }
+            i++;
         }
-        lastLook = i;
-        i++;
     }
+    LOGE() << "end FollowerMDP::GetBestEvent";
     return BestGuess;
 }
 
@@ -370,21 +366,20 @@ double FollowerMDP::GetBestEvent(FollowerMIR::m_Description *Desc) {
 int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
     double BlockDur = 1 / m_x->Sr;
     m_TimeInThisEvent += BlockDur * m_x->HopSize;
-
     MIR->GetDescription(x->inBuffer, m_Desc, m_Tunning);
 
     if (m_Desc->dB < m_dBTreshold) {
         double BlockDur = 1 / m_x->Sr;
+        LOGE() << "End GetEvent";
         return m_CurrentEvent;
     }
 
     // Get the best event to describe the current state
     double Event = GetBestEvent(m_Desc);
     if (Event != m_CurrentEvent && Event == 0) {
-        printf("\n");
+        LOGE();
         m_CurrentEvent = Event;
         double PsiK = 60 / m_States[0].BPMExpected;
-
         m_LastPsiN = PsiK;
         m_PsiN = PsiK;
         m_PsiN1 = PsiK;
@@ -394,13 +389,15 @@ int FollowerMDP::GetEvent(Follower *x, FollowerMIR *MIR) {
         m_LastTn = 0;
         m_TimeInThisEvent = 0;
     } else if (Event != m_CurrentEvent && Event != 0) {
-        LOGE() << "\n\n========= Event: " << Event << " ===============";
+        LOGE() << "<== Event: " << Event << " ==>";
         m_CurrentEvent = Event;
         m_LastTn = m_Tn;
         m_Tn += m_TimeInThisEvent;
         GetBPM();
         m_TimeInThisEvent = 0;
+        LOGE();
     }
 
+    LOGE() << "Get Event Finish";
     return m_CurrentEvent;
 }
