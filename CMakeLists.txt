@@ -34,7 +34,9 @@ file(GLOB SCOFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/*.cpp")
 pd_add_external(o.scofo~ "${SCOFO_SRC}" TARGET oscofo)
 target_include_directories(oscofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_link_libraries(oscofo PUBLIC fftw3)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libstdc++")
+target_compile_options(oscofo PRIVATE -static-libstdc++ -static-libgcc -Wl,-allow-multiple-definition)
+target_link_options(oscofo PRIVATE -static-libstdc++ -static-libgcc -Wl,-allow-multiple-definition)
+
 
 # ╭──────────────────────────────────────╮
 # │              Data Files              │
