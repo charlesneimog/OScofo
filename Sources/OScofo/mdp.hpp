@@ -9,15 +9,12 @@
 using PitchTemplateArray = std::vector<double>;
 
 // ╭─────────────────────────────────────╮
-// │            States of MDP            │
-// ╰─────────────────────────────────────╯
-
-// ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
 class OScofoMDP {
   public:
     OScofoMDP(float Sr, float WindowSize, float HopSize);
+    ~OScofoMDP();
 
     // Init Functions
     void SetScoreStates(States States);
@@ -44,7 +41,7 @@ class OScofoMDP {
     void ClearStates();
 
     int GetStatesSize();
-    int GetEvent(std::vector<double> AudioIn, OScofoMIR *MIR);
+    int GetEvent(std::vector<double> AudioIn, Description &Desc);
 
     // Set Variables
     void SetTunning(double Tunning);
@@ -60,7 +57,6 @@ class OScofoMDP {
     double m_Harmonics = 10;
     double m_PitchTemplateHigherBin = 0;
     double m_dBTreshold = -70;
-    OScofoMIR::m_Description *m_Desc;
 
     // Events
     double m_Tunning = 440;
@@ -98,8 +94,8 @@ class OScofoMDP {
     std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
 
     // MDP
-    double GetBestEvent(OScofoMIR::m_Description *Desc);
-    double GetReward(State NextPossibleState, OScofoMIR::m_Description *Desc);
-    double GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc);
-    double GetTimeSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc);
+    double GetBestEvent(Description &Desc);
+    double GetReward(State &NextPossibleState, Description &Desc);
+    double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
+    double GetTimeSimilarity(State &NextPossibleState, Description &Desc);
 };

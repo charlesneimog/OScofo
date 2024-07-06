@@ -2,7 +2,7 @@
 #include <fstream>
 #include <math.h>
 
-#include "OScofo.hpp"
+#include "../OScofo.hpp"
 
 #include <m_pd.h>
 
@@ -16,13 +16,16 @@ class OScofo {
     std::vector<double> inBuffer;
     t_clock *Clock;
 
-    OScofoScore *Score;
-    OScofoMDP *MDP;
-    OScofoMIR *MIR;
-    States ScoreStates;
+    OScofoScore &Score;
+    OScofoMDP &MDP;
+    OScofoMIR &MIR;
+
+    //
+    States &ScoreStates;
+    Description &Desc;
 
     int Event;
-    t_symbol *PatchDir;
+    std::string PatchDir;
 
     // Testing
     bool Testing = false;
@@ -46,13 +49,13 @@ class OScofo {
 };
 
 // ─────────────────────────────────────
-static void GerenateAnalTemplate(OScofo *x, t_symbol *s, t_float sr, t_float fund, t_float h) {
+static void GerenateAnalTemplate(OScofo *x, t_symbol *s, t_float Sr, t_float Fund, t_float H) {
     LOGE() << "PureData GerenateAnalTemplate";
 
     double *FFTIn;
     fftw_complex *FFTOut;
     fftw_plan FFTPlan;
-    x->MDP->m_PitchTemplate.clear();
+    x->MDP.m_PitchTemplate.clear();
 
     FFTIn = (double *)fftw_malloc(sizeof(double) * x->WindowSize);
     FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (x->WindowSize / 2 + 1));
@@ -85,12 +88,12 @@ static void GerenateAnalTemplate(OScofo *x, t_symbol *s, t_float sr, t_float fun
         SpectralPower[i] = ((real * real + imag * imag) / x->WindowSize) / x->WindowSize;
     }
 
-    for (int i = 0; i < h; i++) {
-        double pitchHz = fund * (i + 1);
-        int bin = round(pitchHz / (sr / x->WindowSize));
-        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin - 1]);
-        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin]);
-        x->MDP->m_PitchTemplate.push_back(SpectralPower[bin + 1]);
+    for (int i = 0; i < H; i++) {
+        double pitchHz = Fund * (i + 1);
+        int bin = round(pitchHz / (Sr / x->WindowSize));
+        x->MDP.m_PitchTemplate.push_back(SpectralPower[bin - 1]);
+        x->MDP.m_PitchTemplate.push_back(SpectralPower[bin]);
+        x->MDP.m_PitchTemplate.push_back(SpectralPower[bin + 1]);
     }
     post("[follower~] Template loaded");
     LOGE() << "PureData end GerenateAnalTemplate";
@@ -105,32 +108,32 @@ static void Set(OScofo *x, t_symbol *s, int argc, t_atom *argv) {
     }
     std::string method = atom_getsymbol(argv)->s_name;
     if (method == "sigma") {
-        x->MDP->SetPitchTemplateSigma(atom_getfloat(argv + 1));
+        x->MDP.SetPitchTemplateSigma(atom_getfloat(argv + 1));
         post("[follower~] Sigma set to %f", atom_getfloat(argv + 1));
     } else if (method == "harmonics") {
-        x->MDP->SetHarmonics(atom_getint(argv + 1));
-        x->MDP->UpdatePitchTemplate();
+        x->MDP.SetHarmonics(atom_getint(argv + 1));
+        x->MDP.UpdatePitchTemplate();
         post("[follower~] Using pitch template with %d harmonics", atom_getint(argv + 1));
     } else if (method == "threshold") {
-        x->MIR->SetTreshold(atom_getfloat(argv + 1));
-        x->MDP->SetTreshold(atom_getfloat(argv + 1));
+        double dB = atom_getfloat(argv + 1);
+        x->MIR.SetTreshold(dB);
         post("[follower~] Treshold set to %f", atom_getfloat(argv + 1));
     } else if (method == "time") {
         std::string submethod = atom_getsymbol(argv + 1)->s_name;
         if (submethod == "accum") {
-            x->MDP->SetTimeAccumFactor(atom_getfloat(argv + 2));
+            x->MDP.SetTimeAccumFactor(atom_getfloat(argv + 2));
             printf("[follower~] Time accumulation set to %.4f\n", atom_getfloat(argv + 2));
         } else if (submethod == "coupling") {
-            x->MDP->SetTimeCouplingStrength(atom_getfloat(argv + 2));
+            x->MDP.SetTimeCouplingStrength(atom_getfloat(argv + 2));
             printf("[follower~] Time coupling set to %.4f\n", atom_getfloat(argv + 2));
         }
     } else if (method == "tunning") {
-        x->MDP->SetTunning(atom_getfloat(argv + 1));
+        x->MDP.SetTunning(atom_getfloat(argv + 1));
 
     } else if (method == "event") {
         int f = atom_getint(argv + 1);
         x->CurrentEvent = f;
-        x->MDP->SetEvent(f);
+        x->MDP.SetEvent(f);
     } else {
         pd_error(x, "[follower~] Unknown method");
     }
@@ -145,9 +148,9 @@ static void Start(OScofo *x) {
     }
 
     x->CurrentEvent = -1;
-    x->MDP->SetEvent(x->CurrentEvent);
-    x->MDP->SetScoreStates(x->ScoreStates);
-    x->MDP->UpdatePhaseValues();
+    x->MDP.SetEvent(x->CurrentEvent);
+    x->MDP.SetScoreStates(x->ScoreStates);
+    x->MDP.UpdatePhaseValues();
 
     outlet_float(x->Tempo, x->ScoreStates[0].BPMExpected);
     outlet_float(x->EventIndex, 0);
@@ -158,7 +161,7 @@ static void Start(OScofo *x) {
 static void Score(OScofo *x, t_symbol *s) {
     LOGE() << "PureData Score Method";
     x->ScoreLoaded = false;
-    std::string CompletePath = x->PatchDir->s_name;
+    std::string CompletePath = x->PatchDir;
     CompletePath += "/";
     CompletePath += s->s_name;
     std::ifstream file(CompletePath);
@@ -167,10 +170,10 @@ static void Score(OScofo *x, t_symbol *s) {
         return;
     }
 
-    x->Score->Parse(x->ScoreStates, CompletePath.c_str());
-    x->MDP->SetScoreStates(x->ScoreStates);
-    x->MDP->UpdatePitchTemplate();
-    x->MDP->UpdatePhaseValues();
+    x->Score.Parse(x->ScoreStates, CompletePath.c_str());
+    x->MDP.SetScoreStates(x->ScoreStates);
+    x->MDP.UpdatePitchTemplate();
+    x->MDP.UpdatePhaseValues();
 
     x->ScoreLoaded = true;
     post("[o.scofo~] Score loaded");
@@ -181,7 +184,7 @@ static void Score(OScofo *x, t_symbol *s) {
 static void ClockTick(OScofo *x) {
     LOGE() << "PureData ClockTick";
     if (x->Event != 0) {
-        outlet_float(x->Tempo, x->MDP->GetLiveBPM());
+        outlet_float(x->Tempo, x->MDP.GetLiveBPM());
         outlet_float(x->EventIndex, x->Event);
     }
     LOGE() << "PureData ClockTick end";
@@ -193,7 +196,7 @@ static t_int *DspPerform(t_int *w) {
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
 
-    if (!x->Score->ScoreLoaded()) {
+    if (!x->Score.ScoreLoaded()) {
         return (w + 4);
     }
 
@@ -209,8 +212,13 @@ static t_int *DspPerform(t_int *w) {
         return (w + 4);
     }
 
+    for (int i = 0; i < x->WindowSize; i++) {
+        x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->WindowSize - 1)));
+    }
+
     x->BlockIndex = 0;
-    int Event = x->MDP->GetEvent(x->inBuffer, x->MIR) + 1;
+    x->MIR.GetDescription(x->inBuffer, x->Desc);
+    int Event = x->MDP.GetEvent(x->inBuffer, x->Desc) + 1;
     if (Event == 0) {
         return (w + 4);
     }
@@ -267,14 +275,15 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
         x->HopSize = x->WindowSize / overlap;
     }
     t_canvas *canvas = canvas_getcurrent();
-    x->PatchDir = canvas_getdir(canvas);
+    x->PatchDir = canvas_getdir(canvas)->s_name;
 
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = -1;
 
-    x->Score = new OScofoScore();
-    x->MIR = new OScofoMIR(x->Sr, x->WindowSize, x->HopSize);
-    x->MDP = new OScofoMDP(x->Sr, x->WindowSize, x->HopSize);
+    x->Score = OScofoScore();
+    x->MIR = OScofoMIR(x->Sr, x->WindowSize, x->HopSize);
+    x->MDP = OScofoMDP(x->Sr, x->WindowSize, x->HopSize);
+    x->Desc = Description();
 
     LOGE() << "Returning NewOScofo";
     return x;
@@ -283,9 +292,10 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
 // ─────────────────────────────────────
 static void *FreeOScofo(OScofo *x) {
     LOGE() << "Start Free of NewOScofo";
-    delete x->Score;
-    delete x->MIR;
-    delete x->MDP;
+    // delete x->Score;
+    // delete x->MIR;
+    // delete x->MDP;
+    // delete x->Desc;
     LOGE() << "End Free of NewOScofo";
     return nullptr;
 }

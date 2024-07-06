@@ -4,14 +4,13 @@
 #include <boost/math/special_functions/bessel.hpp>
 
 // ╭─────────────────────────────────────╮
-// │           Init Functions            │
+// │Constructor and Destructor Functions │
 // ╰─────────────────────────────────────╯
 OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
     m_HopSize = HopSize;
     m_WindowSize = WindowSize;
     m_Sr = Sr;
 
-    m_Desc = new OScofoMIR::m_Description();
     if (m_WindowSize / 2 != m_PitchTemplate.size()) {
         m_PitchTemplate.resize(m_WindowSize / 2);
     }
@@ -19,6 +18,10 @@ OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
     m_CouplingStrength = 0.5;
 
     SetTunning(440);
+}
+
+// ─────────────────────────────────────
+OScofoMDP::~OScofoMDP() {
 }
 
 // ─────────────────────────────────────
@@ -262,9 +265,9 @@ void OScofoMDP::GetBPM() {
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-double OScofoMDP::GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc) {
+double OScofoMDP::GetPitchSimilarity(State &PossibleState, Description &Desc) {
     double KLDiv = 0.0;
-    double RootBinFreq = round(NextPossibleState.Freq / (m_Sr / m_WindowSize));
+    double RootBinFreq = round(PossibleState.Freq / (m_Sr / m_WindowSize));
 
     PitchTemplateArray PitchTemplate;
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
@@ -277,8 +280,8 @@ double OScofoMDP::GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Descr
         if (i > m_PitchTemplateHigherBin) {
             break;
         }
-        double P = PitchTemplate[i] * Desc->MaxAmp;
-        double Q = Desc->NormSpectralPower[i];
+        double P = PitchTemplate[i] * Desc.MaxAmp;
+        double Q = Desc.NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
         } else if (P == 0 && Q >= 0) {
@@ -291,25 +294,25 @@ double OScofoMDP::GetPitchSimilarity(State NextPossibleState, OScofoMIR::m_Descr
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetTimeSimilarity(State NextPossibleState, OScofoMIR::m_Description *Desc) {
+double OScofoMDP::GetTimeSimilarity(State &PossibleState, Description &Desc) {
     // m_SyncStr = 0;
 
     return 0;
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetReward(State NextPossibleState, OScofoMIR::m_Description *Desc) {
+double OScofoMDP::GetReward(State &PossibleState, Description &Desc) {
     double PitchWeight;
     double TimeWeight;
-    if (NextPossibleState.Type == NOTE) {
+    if (PossibleState.Type == NOTE) {
         PitchWeight = 0.5;
         TimeWeight = 0.5;
     }
 
     // TODO: Add Attack Envelope
 
-    double PitchSimilarity = GetPitchSimilarity(NextPossibleState, Desc);
-    double TimeSimilarity = GetTimeSimilarity(NextPossibleState, Desc) * TimeWeight;
+    double PitchSimilarity = GetPitchSimilarity(PossibleState, Desc);
+    double TimeSimilarity = GetTimeSimilarity(PossibleState, Desc) * TimeWeight;
 
     double Reward = (PitchSimilarity * PitchWeight); //+ (TimeSimilarity * (m_SyncStr / 2));
 
@@ -317,7 +320,7 @@ double OScofoMDP::GetReward(State NextPossibleState, OScofoMIR::m_Description *D
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetBestEvent(OScofoMIR::m_Description *Desc) {
+double OScofoMDP::GetBestEvent(Description &Desc) {
     LOGE() << "OScofoMDP::GetBestEvent";
     if (m_CurrentEvent == -1) {
         m_BPM = m_States[0].BPMExpected;
@@ -353,19 +356,18 @@ double OScofoMDP::GetBestEvent(OScofoMIR::m_Description *Desc) {
 }
 
 // ─────────────────────────────────────
-int OScofoMDP::GetEvent(std::vector<double> AudioIn, OScofoMIR *MIR) {
+int OScofoMDP::GetEvent(std::vector<double> AudioIn, Description &Desc) {
     double BlockDur = 1 / m_Sr;
     m_TimeInThisEvent += BlockDur * m_HopSize;
-    MIR->GetDescription(AudioIn, m_Desc, m_Tunning);
 
-    if (m_Desc->dB < m_dBTreshold) {
+    if (Desc.PassTreshold) {
         double BlockDur = 1 / m_Sr;
         LOGE() << "End GetEvent";
         return m_CurrentEvent;
     }
 
     // Get the best event to describe the current state
-    double Event = GetBestEvent(m_Desc);
+    double Event = GetBestEvent(Desc);
     if (Event != m_CurrentEvent && Event == 0) {
         LOGE();
         m_CurrentEvent = Event;

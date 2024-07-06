@@ -34,3 +34,20 @@ enum EventType {
     NOTE,
     // TODO: Add more events
 };
+
+// ─────────────────────────────────────
+struct Description {
+    bool PassTreshold;
+
+    double WindowSize;
+    double Sr;
+    double Freq;
+    double Midi;
+    double Quality;
+    double dB;
+    std::vector<double> SpectralPower;
+    std::vector<double> NormSpectralPower;
+    double TotalPower;
+    double MaxAmp;
+    double SpectralFlatness;
+};
