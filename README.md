@@ -14,9 +14,9 @@ We invite researchers and developers to contribute to the *o.scofo~* project. By
 
 o.scofo~ uses several concepts developed by many researches:
 
-* Score Language: It is very based on the `scofo` (by Miller Puckette) and `antescofo~` (by Arshia Cont) language.
-* Pitch Comparison: Utilizes the Kullback-Leibler (KL) Divergence method for pitch comparison as presented by Arshia Cont in 2008 and 2010.
-* Rhythm Synchronization: Integrates theories of rhythm synchronization developed by Edward Large and Mari Riess Jones (1999) and Edward Large and Caroline Palmer (2002).
-* Descriptors: 
+* **Score Language**: It is very based on the `scofo` (by Miller Puckette) and `antescofo~` (by Arshia Cont) language.
+* **Pitch Comparison**: Utilizes the Kullback-Leibler (KL) Divergence method for pitch comparison as presented by Arshia Cont in 2008 and 2010.
+* **Rhythm Synchronization**: Integrates theories of rhythm synchronization developed by Edward Large and Mari Riess Jones (1999) and Edward Large and Caroline Palmer (2002).
+* **Descriptors**: 
     - Employs descriptors from Willian Brent's timbreIDLib project for analyzing and identifying timbral characteristics.
     - Also we use the FFTW for FFT routines.
