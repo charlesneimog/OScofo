@@ -4,11 +4,11 @@
 
 # Goal
 
-The goal of `o.scofo~` is to provide a simple, accessible tool for real-time score following. By keeping the software lightweight and user-friendly, it can be easily run on the web using the [pd4web](https://charlesneimog.github.io/pd4web/) platform. So finally we have something that can be run for rehearsals one click distance (without externals, OSs incompatibility, etc).
+The goal of *o.scofo~* is to provide a simple, accessible tool for real-time score following. By keeping the software lightweight and user-friendly, it can be easily run on the web using the [pd4web](https://charlesneimog.github.io/pd4web/) platform. So finally we have something that can be run for rehearsals one click distance (without externals, OSs incompatibility, etc).
 
 # Collaboration and Contribution
 
-We invite researchers and developers to contribute to the o.scofo~ project. By sharing the source code, we provide access to the underlying theories and mathematical formulas that drive the software. This transparency is inspired by the amazing tools like IEM, SPARTA, and of course, PureData.
+We invite researchers and developers to contribute to the *o.scofo~* project. By sharing the source code, we provide access to the underlying theories and mathematical formulas that drive the software. This transparency is inspired by the amazing tools like IEM, SPARTA, and of course, PureData.
 
 # Technical Foundations
 
