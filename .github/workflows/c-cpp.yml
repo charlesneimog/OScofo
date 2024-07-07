@@ -26,17 +26,19 @@ jobs:
           arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           arch -x86_64 /usr/local/bin/brew install pd
           arch -x86_64 /usr/local/bin/brew install boost
+          arch -x86_64 /usr/local/bin/brew install pybind11
       - name: Install PureData and Deps arm64 Mac
         if: ${{ matrix.arch == 'arm64' }}
         run: |
           brew install pd
           brew install boost
+          brew install pybind11
       - name: Build Object for Arm
         if: ${{ matrix.arch == 'arm64' }}
         run: |
           export CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH:/opt/homebrew/include/"
           export LDFLAGS="-L/opt/homebrew/lib"
-          cmake . -B build -DCMAKE_OSX_ARCHITECTURES=arm64 -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./
+          cmake . -B build -DCMAKE_OSX_ARCHITECTURES=arm64 -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           make install -C build
       - name: Build Object for x86_64
@@ -44,7 +46,7 @@ jobs:
         run: |
           export CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH:/usr/local/include/"
           export LDFLAGS="-L/usr/local/lib"
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           make install -C build
       - name: Upload Object
@@ -71,7 +73,7 @@ jobs:
         with:
           msystem: mingw64
           update: false
-          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-pybind11
       - name: Install winget
         uses: Cyberboss/install-winget@v1
       - name: Install PureData Float 32
@@ -85,14 +87,14 @@ jobs:
       - name: Configure and build Visual Studio
         if: matrix.compiler == 'msvc'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build
           cmake --install build
       - name: Configure and build Mingw
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build
           cmake --install build
       - name: Upload
@@ -117,6 +119,7 @@ jobs:
           sudo add-apt-repository ppa:pure-data/pure-data -y
           sudo apt install puredata -y
           sudo apt install libboost-all-dev
+          sudo apt install python3-pybind11 -y
       - name: Install aarch64 gcc
         if: matrix.arch == 'aarch64'
         run: |
@@ -130,19 +133,19 @@ jobs:
       - name: Build Object
         if: matrix.arch == 'amd64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Build Object
         if: matrix.arch == 'aarch64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Build Object
         if: matrix.arch == 'arm'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Upload Object

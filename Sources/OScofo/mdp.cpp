@@ -21,13 +21,10 @@ OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
 }
 
 // ─────────────────────────────────────
-OScofoMDP::~OScofoMDP() {
-}
-
-// ─────────────────────────────────────
 void OScofoMDP::SetScoreStates(States States) {
     m_States.clear();
     m_States = States;
+    UpdatePitchTemplate();
 }
 // ─────────────────────────────────────
 void OScofoMDP::UpdatePitchTemplate() {
@@ -97,12 +94,17 @@ double OScofoMDP::GetLiveBPM() {
 }
 
 // ─────────────────────────────────────
+double OScofoMDP::GetKappa() {
+    return m_Kappa;
+}
+
+// ─────────────────────────────────────
 void OScofoMDP::SetBPM(double BPM) {
     m_BPM = BPM;
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::SetTreshold(double dB) {
+void OScofoMDP::SetdBTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
@@ -122,7 +124,7 @@ int OScofoMDP::GetTunning() {
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::SetEvent(int Event) {
+void OScofoMDP::SetCurrentEvent(int Event) {
     m_CurrentEvent = Event;
 }
 
@@ -235,6 +237,7 @@ void OScofoMDP::GetBPM() {
     LOGE() << "SyncStrength: " << SyncStrength;
     double Kappa = InverseA2(SyncStrength);
     m_SyncStr = SyncStrength;
+    m_Kappa = Kappa;
 
     // Update and Correct PhiN
     double FValueUpdate = CouplingFunction(LastPhiN, LastHatPhiN, Kappa);
@@ -273,6 +276,7 @@ double OScofoMDP::GetPitchSimilarity(State &PossibleState, Description &Desc) {
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
+        printf("PitchTemplate not found\n");
         return 0;
     }
 
@@ -312,7 +316,8 @@ double OScofoMDP::GetReward(State &PossibleState, Description &Desc) {
     // TODO: Add Attack Envelope
 
     double PitchSimilarity = GetPitchSimilarity(PossibleState, Desc);
-    double TimeSimilarity = GetTimeSimilarity(PossibleState, Desc) * TimeWeight;
+
+    // double TimeSimilarity = GetTimeSimilarity(PossibleState, Desc) * TimeWeight;
 
     double Reward = (PitchSimilarity * PitchWeight); //+ (TimeSimilarity * (m_SyncStr / 2));
 
@@ -321,14 +326,11 @@ double OScofoMDP::GetReward(State &PossibleState, Description &Desc) {
 
 // ─────────────────────────────────────
 double OScofoMDP::GetBestEvent(Description &Desc) {
-    LOGE() << "OScofoMDP::GetBestEvent";
     if (m_CurrentEvent == -1) {
         m_BPM = m_States[0].BPMExpected;
     }
 
-    // TODO: Make this user defined
-    double LookAhead = 2; // Look 5 seconds in future
-
+    double LookAhead = 2; // TODO: Look 5 seconds in future
     int BestGuess, i = m_CurrentEvent;
     double BestReward = -1;
     double EventLookAhead = 0;
@@ -356,18 +358,17 @@ double OScofoMDP::GetBestEvent(Description &Desc) {
 }
 
 // ─────────────────────────────────────
-int OScofoMDP::GetEvent(std::vector<double> AudioIn, Description &Desc) {
+int OScofoMDP::GetEvent(Description &Desc) {
     double BlockDur = 1 / m_Sr;
     m_TimeInThisEvent += BlockDur * m_HopSize;
 
-    if (Desc.PassTreshold) {
-        double BlockDur = 1 / m_Sr;
-        LOGE() << "End GetEvent";
+    if (!Desc.PassTreshold) {
         return m_CurrentEvent;
     }
 
     // Get the best event to describe the current state
     double Event = GetBestEvent(Desc);
+
     if (Event != m_CurrentEvent && Event == 0) {
         LOGE();
         m_CurrentEvent = Event;
@@ -391,5 +392,7 @@ int OScofoMDP::GetEvent(std::vector<double> AudioIn, Description &Desc) {
     }
 
     LOGE() << "Get Event Finish";
+    m_CurrentEvent = Event;
+    // printf("Event: %d\n", m_CurrentEvent);
     return m_CurrentEvent;
 }

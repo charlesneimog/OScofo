@@ -13,14 +13,13 @@
 class OScofoScore {
   public:
     int Name2Midi(std::string note);
-    void Parse(States &States, const char *ScoreFile);
-    bool ScoreLoaded() {
-        return m_ScoreLoaded;
-    }
+    void Parse(States &States, std::string ScoreFile);
+    void SetTunning(double Tunning);
+    bool ScoreIsLoaded();
 
   private:
-    State AddNote(State State, std::vector<std::string> tokens, double bpm, int lineCount);
-    double FollowBpm(std::vector<std::string> tokens, int lineCount);
+    State AddNote(State &State, std::vector<std::string> Tokens, double BPM, int LineCount);
+    double FollowBpm(std::vector<std::string> Tokens, int LineCount);
     double m_LastOnset = 0;
     double m_LastPhase = 0;
     bool m_ScoreLoaded = false;

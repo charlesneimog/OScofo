@@ -5,7 +5,6 @@
 
 #define SCOFO_DEBUG true
 
-#if SCOFO_DEBUG
 class LogStream {
   public:
     template <typename T> LogStream &operator<<(const T &value) {
@@ -24,6 +23,7 @@ class LogStream {
     std::ostringstream buffer;
 };
 
+#if SCOFO_DEBUG
 #define LOGE() LogStream()
 #else
 #define LOGE()                                                                                     \

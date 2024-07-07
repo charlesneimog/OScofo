@@ -3,8 +3,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "mir.hpp"
 #include "states.hpp"
+
+#ifndef TWO_PI
+#define TWO_PI (2 * M_PI)
+#endif
 
 using PitchTemplateArray = std::vector<double>;
 
@@ -14,7 +17,7 @@ using PitchTemplateArray = std::vector<double>;
 class OScofoMDP {
   public:
     OScofoMDP(float Sr, float WindowSize, float HopSize);
-    ~OScofoMDP();
+    // ~OScofoMDP();
 
     // Init Functions
     void SetScoreStates(States States);
@@ -27,7 +30,7 @@ class OScofoMDP {
     void SetBPM(double Bpm);
     double GetLiveBPM();
     void ResetLiveBpm();
-    void SetTreshold(double dB);
+    void SetdBTreshold(double dB);
 
     // Get Functions
     int GetTunning();
@@ -37,15 +40,16 @@ class OScofoMDP {
 
     std::vector<State> GetStates();
     State GetState(int Index);
+    double GetKappa();
     void AddState(State state);
     void ClearStates();
 
     int GetStatesSize();
-    int GetEvent(std::vector<double> AudioIn, Description &Desc);
+    int GetEvent(Description &Desc);
 
     // Set Variables
     void SetTunning(double Tunning);
-    void SetEvent(int Event);
+    void SetCurrentEvent(int Event);
     void SetTimeAccumFactor(double f);
     void SetTimeCouplingStrength(double f);
 
@@ -56,7 +60,7 @@ class OScofoMDP {
     double m_HopSize;
     double m_Harmonics = 10;
     double m_PitchTemplateHigherBin = 0;
-    double m_dBTreshold = -70;
+    double m_dBTreshold = -55;
 
     // Events
     double m_Tunning = 440;
@@ -82,6 +86,7 @@ class OScofoMDP {
     double m_PsiN = 0;
     double m_PsiN1 = 0;
     double m_BPM = 0;
+    double m_Kappa = 0;
 
     // Time
     double InverseA2(double r);

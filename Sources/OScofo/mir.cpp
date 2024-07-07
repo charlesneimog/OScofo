@@ -1,6 +1,6 @@
 #include "mir.hpp"
 
-#include <cmath>
+#include <math.h>
 #include <vector>
 
 // ╭─────────────────────────────────────╮
@@ -14,8 +14,10 @@ OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
     m_Sr = Sr;
 
     int WindowHalf = WindowSize / 2;
-    m_FFTOut = new fftw_complex[WindowHalf];
-    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+    m_FFTIn = (double *)fftw_alloc_real(WindowSize);
+    m_FFTOut = (fftw_complex *)fftw_alloc_complex(WindowHalf + 1);
+    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
+
     if (m_FFTPlan == nullptr) {
         LOGE() << "OScofoMIR::OScofoMIR fftw_plan_dft_r2c_1d failed";
     }
@@ -25,8 +27,9 @@ OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
 
 // ─────────────────────────────────────
 OScofoMIR::~OScofoMIR() {
-    delete[] m_FFTOut;
     fftw_destroy_plan(m_FFTPlan);
+    fftw_free(m_FFTIn);
+    fftw_free(m_FFTOut);
 }
 
 // ╭─────────────────────────────────────╮
@@ -34,7 +37,7 @@ OScofoMIR::~OScofoMIR() {
 // ╰─────────────────────────────────────╯
 //  ─────────────────────────────────────
 double OScofoMIR::Mtof(double note, double tunning) {
-    return tunning * pow(2.0, (note - 69) / 12.0);
+    return tunning * std::pow(2.0, (note - 69) / 12.0);
 }
 
 // ─────────────────────────────────────
@@ -80,8 +83,8 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
         Desc.NormSpectralPower.resize(NHalf);
     }
 
-    std::vector<double> inCopy = In;
-    fftw_execute_dft_r2c(m_FFTPlan, inCopy.data(), m_FFTOut);
+    std::copy(In.begin(), In.end(), m_FFTIn);
+    fftw_execute(m_FFTPlan);
 
     double Real, Imag;
     Desc.MaxAmp = 0;
@@ -104,6 +107,7 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
 
     for (int i = 0; i < NHalf; i++) {
         ArithmeticMeanSum += Desc.SpectralPower[i];
+        Desc.NormSpectralPower[i] = Desc.SpectralPower[i] / Desc.MaxAmp;
     }
     ArithmeticMeanSum *= WindowHalfPlusOneRecip;
 
@@ -145,7 +149,7 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
 void OScofoMIR::GetDescription(const std::vector<double> &In, Description &Desc) {
     LOGE() << "OScofoMIR::GetDescription";
     GetRMS(In, Desc);
-    if (Desc.dB < m_dBTreshold) {
+    if (!Desc.PassTreshold) {
         return;
     }
     GetFFTDescriptions(In, Desc);

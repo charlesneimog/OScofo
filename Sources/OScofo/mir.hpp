@@ -36,6 +36,7 @@ class OScofoMIR {
     double Freq2Bin(double freq, double n, double Sr);
 
     // FFT
+    double *m_FFTIn;
     fftw_complex *m_FFTOut;
     fftw_plan m_FFTPlan;
     void GetFFTDescriptions(const std::vector<double> &In, Description &Desc);

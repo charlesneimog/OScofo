@@ -3,6 +3,13 @@
 #include <string>
 #include <vector>
 
+enum EventType {
+    SILENCE = 0,
+    NOTE,
+    // TODO: Add more events
+};
+
+// ─────────────────────────────────────
 struct State {
     int Id;
     int Type; // NOTE, CHORD, PIZZ, SILENCE
@@ -16,24 +23,18 @@ struct State {
     double PhaseExpected;
     double PhaseObserved;
 
-    double IOIPhaseExpected;
-    double IOIPhaseObserved;
+    // double IOIPhaseExpected;
+    // double IOIPhaseObserved;
     double IOIPhiN;
     double IOIHatPhiN;
     double Duration;
 
     // Error Handling
     bool Valid;
+    int Line;
     std::string Error;
 };
 using States = std::vector<State>;
-
-// ─────────────────────────────────────
-enum EventType {
-    SILENCE = 0,
-    NOTE,
-    // TODO: Add more events
-};
 
 // ─────────────────────────────────────
 struct Description {

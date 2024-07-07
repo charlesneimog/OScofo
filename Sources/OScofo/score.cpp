@@ -15,6 +15,13 @@
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 // clang-format on
 
+void OScofoScore::SetTunning(double Tunning) {
+    m_Tunning = Tunning;
+}
+bool OScofoScore::ScoreIsLoaded() {
+    return m_ScoreLoaded;
+}
+
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
@@ -78,8 +85,8 @@ int OScofoScore::Name2Midi(std::string note) {
 }
 
 // ─────────────────────────────────────
-State OScofoScore::AddNote(State State, std::vector<std::string> Tokens, double BPM,
-                           int lineCount) {
+State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double BPM,
+                           int LineCount) {
     double Midi;
     if (BPM == -1) {
         State.Valid = false;
@@ -88,7 +95,7 @@ State OScofoScore::AddNote(State State, std::vector<std::string> Tokens, double 
     }
     if (Tokens.size() < 3) {
         State.Valid = false;
-        State.Error = "Invalid note on line " + std::to_string(lineCount);
+        State.Error = "Invalid note on line " + std::to_string(LineCount);
         return State;
     }
 
@@ -131,14 +138,13 @@ State OScofoScore::AddNote(State State, std::vector<std::string> Tokens, double 
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-void OScofoScore::Parse(States &States, const char *ScoreFile) {
+void OScofoScore::Parse(States &States, std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
 
-    States.clear();
+    States.clear(); // Clear the vector before parsing
 
-    m_ScoreLoaded = false;
+    // Open the score file for reading
     std::ifstream File(ScoreFile);
-
     if (!File) {
         State State;
         State.Valid = false;
@@ -170,9 +176,12 @@ void OScofoScore::Parse(States &States, const char *ScoreFile) {
             State State;
             State.Type = NOTE;
             State.Id = States.size();
+            State.Line = LineCount;
             State = AddNote(State, Tokens, BPM, LineCount);
             if (!State.Valid) {
-                return;
+                State.Error = "Error on line " + std::to_string(LineCount) + ": " + State.Error;
+                States.push_back(State);
+                continue;
             }
             if (Event != 0) {
                 State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
@@ -181,7 +190,6 @@ void OScofoScore::Parse(States &States, const char *ScoreFile) {
             }
             Event++;
             States.push_back(State);
-
             PreviousDuration = State.Duration;
             LastOnset = State.OnsetExpected;
 
@@ -189,8 +197,8 @@ void OScofoScore::Parse(States &States, const char *ScoreFile) {
             BPM = std::stof(Tokens[1]);
         }
     }
+    // Optionally, set m_ScoreLoaded to true if necessary
     m_ScoreLoaded = true;
 
-    LOGE() << "end OScofoScore::Parse | There is " << States.size() << " events";
-    return;
+    LOGE() << "end OScofoScore::Parse | There are " << States.size() << " events";
 }
