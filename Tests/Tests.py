@@ -13,30 +13,34 @@ class ProcessBlock(unittest.TestCase):
         cls.sr = 48000
         cls.windowSize = 4096
         cls.blockSize = 1024
-        cls.OScofo = OScofo(48000, 4096, 1024)
         cls.root = os.path.dirname(os.path.abspath(__file__))
-        cls.data, cls.fs = sf.read(cls.root + "/Test1.wav")
-        if len(cls.data.shape) > 1:
-            cls.data = cls.data[:, 0]
 
-    def test_LoadScore(self):
-        print("Loading file {}".format(self.root + "/Test1.txt"))
+    def test_ProcessScore1(self):
+        # Load Audio
+        self.data, self.fs = sf.read(self.root + "/Test1.wav")
+        if len(self.data.shape) > 1:
+            self.data = self.data[:, 0]
+
+        # Initialize OScofo
+        self.OScofo = OScofo(48000, 4096, 1024)
         self.OScofo.ParseScore(self.root + "/Test1.txt")
-        print("Score loaded")
 
-    def test_ProcessBlock(self):
-        print("Processing Event Index")
+        # Process Audio
         event = -1
         onset = 0
-        self.OScofo.SetdBTreshold(-55)
+        print("There is {} Samples".format(len(self.data)))
         for i in range(0, len(self.data), self.blockSize):
-            audioBlock = self.data[i:i + self.blockSize]
-            self.OScofo.ProcessBlock(audioBlock)
-            currentEvent = self.OScofo.GetEventIndex()
-            if currentEvent != event:
-                event = currentEvent
-            input("Press Enter to continue...")
-            onset += 1 / (self.sr / self.blockSize)
+            audioBlock = self.data[i:i + self.windowSize ]
+            if len(audioBlock) != self.windowSize:
+                break
+            if self.OScofo.ProcessBlock(audioBlock):
+                currentEvent = self.OScofo.GetEventIndex()
+                if currentEvent != event:
+                    event = currentEvent
+                    print("Event: ", event, " at ", onset)
+                onset += 1 / (self.sr / self.blockSize)
+            else:
+                raise Exception("Error in processing block")
         print("Processing done")
 
 

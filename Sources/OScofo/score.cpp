@@ -174,20 +174,23 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
 
         if (Tokens[0] == "NOTE") {
             State State;
+            State.Index = States.size();
             State.Type = NOTE;
-            State.Id = States.size();
             State.Line = LineCount;
+
             State = AddNote(State, Tokens, BPM, LineCount);
             if (!State.Valid) {
                 State.Error = "Error on line " + std::to_string(LineCount) + ": " + State.Error;
                 States.push_back(State);
                 continue;
             }
+
             if (Event != 0) {
                 State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
             } else {
                 State.OnsetExpected = 0;
             }
+
             Event++;
             States.push_back(State);
             PreviousDuration = State.Duration;
@@ -197,8 +200,6 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
             BPM = std::stof(Tokens[1]);
         }
     }
-    // Optionally, set m_ScoreLoaded to true if necessary
     m_ScoreLoaded = true;
-
     LOGE() << "end OScofoScore::Parse | There are " << States.size() << " events";
 }

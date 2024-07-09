@@ -95,6 +95,8 @@ bool OScofo::ParseScore(std::string ScorePath) {
     }
     m_MDP.SetScoreStates(m_States);
     m_MDP.UpdatePhaseValues();
+    m_MDP.SetCurrentEvent(-1);
+
     return true;
 }
 

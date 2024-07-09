@@ -75,6 +75,7 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     int N = In.size();
     int NHalf = N / 2;
 
+    // Resize vectors if necessary
     if (NHalf != Desc.SpectralPower.size()) {
         Desc.SpectralPower.resize(NHalf);
     }
@@ -83,13 +84,13 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
         Desc.NormSpectralPower.resize(NHalf);
     }
 
+    // Copy input data and execute FFT
     std::copy(In.begin(), In.end(), m_FFTIn);
     fftw_execute(m_FFTPlan);
 
     double Real, Imag;
     Desc.MaxAmp = 0;
     Desc.TotalPower = 0;
-    std::vector<double> nthRoots(NHalf);
     double GeometricMeanProduct = 1.0;
     double ArithmeticMeanSum = 0.0;
     double WindowHalfPlusOneRecip = 1.0 / NHalf;
@@ -97,12 +98,15 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     for (int i = 0; i < NHalf; i++) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
-        Desc.SpectralPower[i] = (Real * Real + Imag * Imag) / N;
-        Desc.TotalPower += Desc.SpectralPower[i];
-        if (Desc.SpectralPower[i] > Desc.MaxAmp) {
-            Desc.MaxAmp = Desc.SpectralPower[i];
+
+        double power = (Real * Real + Imag * Imag) / N;
+        Desc.SpectralPower[i] = power;
+        Desc.TotalPower += power;
+
+        if (power > Desc.MaxAmp) {
+            Desc.MaxAmp = power;
         }
-        GeometricMeanProduct *= pow(Desc.SpectralPower[i], WindowHalfPlusOneRecip);
+        GeometricMeanProduct *= power;
     }
 
     for (int i = 0; i < NHalf; i++) {
@@ -111,11 +115,14 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     }
     ArithmeticMeanSum *= WindowHalfPlusOneRecip;
 
+    // Calculate Spectral Flatness
     if (ArithmeticMeanSum <= 0) {
         Desc.SpectralFlatness = -1;
     } else {
+        GeometricMeanProduct = pow(GeometricMeanProduct, WindowHalfPlusOneRecip);
         Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
     }
+
     LOGE() << "end OScofoMIR::GetFFTDescriptions";
 }
 
@@ -140,6 +147,7 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
         Desc.PassTreshold = true;
     }
 
+    // LogStream() << "m_dbTreshold: " << m_dBTreshold;
     LOGE() << "End OScofoMIR::GetRMS";
 }
 
