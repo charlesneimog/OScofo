@@ -40,16 +40,22 @@ class OScofoMIR {
     fftw_complex *m_FFTOut;
     fftw_plan m_FFTPlan;
     void GetFFTDescriptions(const std::vector<double> &In, Description &Desc);
+    std::vector<double> m_LastPhase1;
+    std::vector<double> m_LastPhase2;
 
     // Env
     double m_dBTreshold = -80;
     void GetRMS(const std::vector<double> &In, Description &Desc);
+
+    // Onset Detection
+    void GetOnsetDetection(Description &Desc);
 
     // Audio
     double m_WindowSize;
     double m_BlockSize;
     double m_HopSize;
     double m_Sr;
+    bool m_Silence;
 
     // Time
     double m_EventTimeElapsed = 0.0; // ms

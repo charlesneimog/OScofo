@@ -83,9 +83,8 @@ bool OScofo::ScoreIsLoaded() {
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
     LOGE() << "OScofo::ParseScore";
+    m_States.clear();
     m_Score.Parse(m_States, ScorePath);
-    LOGE() << "Score has " << m_States.size() << " states";
-
     for (int i = 0; i < m_States.size(); i++) {
         if (!m_States[i].Valid) {
             m_Error = std::string("Error on line ") + std::to_string(m_States[i].Line) + ": " +
@@ -94,8 +93,7 @@ bool OScofo::ParseScore(std::string ScorePath) {
         }
     }
     m_MDP.SetScoreStates(m_States);
-    m_MDP.UpdatePhaseValues();
-    m_MDP.SetCurrentEvent(-1);
+    LOGE() << "OScofo::ParseScore";
 
     return true;
 }

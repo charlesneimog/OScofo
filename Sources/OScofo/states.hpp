@@ -1,19 +1,21 @@
 #pragma once
 
+#include <complex>
 #include <string>
 #include <vector>
 
 enum EventType {
     SILENCE = 0,
     NOTE,
+    ONSET,
     // TODO: Add more events
 };
 
 // ─────────────────────────────────────
 struct State {
     int Index;
-    int Type; // NOTE, CHORD, PIZZ, SILENCE
-    double Freq;
+    EventType Type; // NOTE, CHORD, PIZZ, SILENCE
+    std::vector<double> Freqs;
 
     // Time
     double BPMExpected;
@@ -38,17 +40,26 @@ using States = std::vector<State>;
 
 // ─────────────────────────────────────
 struct Description {
-    bool PassTreshold;
-
+    double HalfWindowSize;
     double WindowSize;
     double Sr;
-    double Freq;
-    double Midi;
-    double Quality;
     double dB;
-    std::vector<double> SpectralPower;
+
+    // Silence
+    bool PassTreshold; // what we consider silence
+    bool Silence;
+    bool SilenceLast;
+
+    // FFT
+    std::vector<std::complex<double>> FFTOut;
+    // Mag
     std::vector<double> NormSpectralPower;
     double TotalPower;
     double MaxAmp;
-    double SpectralFlatness;
+    std::vector<double> SpectralMag;
+    // Phase
+    std::vector<double> SpectralPhase;
+    std::vector<double> SpectralPhaseMinus2;
+
+    // double SpectralFlatness;
 };

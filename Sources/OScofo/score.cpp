@@ -99,7 +99,7 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
         return State;
     }
 
-    // check if pitch is a number os a string
+    // TODO: Implement chords
     if (!std::isdigit(Tokens[1][0])) {
         std::string noteName = Tokens[1];
         int midi = Name2Midi(noteName);
@@ -110,7 +110,7 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
             Midi = Midi * 0.01;
         }
     }
-    State.Freq = m_Tunning * std::pow(2, (Midi - 69) / 12);
+    State.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
 
     // check if there is / in the string
     bool isRatio = Tokens[2].find('/') != std::string::npos;
@@ -140,8 +140,7 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
 // ╰─────────────────────────────────────╯
 void OScofoScore::Parse(States &States, std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
-
-    States.clear(); // Clear the vector before parsing
+    m_ScoreLoaded = false;
 
     // Open the score file for reading
     std::ifstream File(ScoreFile);
@@ -177,7 +176,6 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
             State.Index = States.size();
             State.Type = NOTE;
             State.Line = LineCount;
-
             State = AddNote(State, Tokens, BPM, LineCount);
             if (!State.Valid) {
                 State.Error = "Error on line " + std::to_string(LineCount) + ": " + State.Error;
