@@ -120,7 +120,7 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
         Desc.SpectralPhase[i] = Phase;
     }
 
-    printf("SpectralFlux: %f\n", SpectralFlux);
+    // printf("SpectralFlux: %f\n", SpectralFlux);
 
     m_LastPhase2 = m_LastPhase1;
     m_LastPhase1 = Desc.SpectralPhase;

@@ -10,16 +10,19 @@ enum EventType {
     ONSET,
     // TODO: Add more events
 };
+enum HMMType { SEMIMARKOV = 0, MARKOV };
 
 // ─────────────────────────────────────
 struct State {
     int Index;
-    EventType Type; // NOTE, CHORD, PIZZ, SILENCE
+    EventType Type;     // NOTE, CHORD, PIZZ, SILENCE
+    HMMType MarkovType; // NOTE, CHORD, PIZZ, SILENCE
     std::vector<double> Freqs;
 
     // Time
     double BPMExpected;
     double BPMObserved;
+    double PsiN;
 
     //
     double OnsetExpected;

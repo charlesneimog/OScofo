@@ -10,6 +10,7 @@
 #endif
 
 using PitchTemplateArray = std::vector<double>;
+using MatrixMap = std::unordered_map<unsigned int, std::unordered_map<unsigned int, double>>;
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
@@ -63,6 +64,20 @@ class OScofoMDP {
     // speed with which the coupled system relaxes to theattractor.
     double m_SyncStr = 0;
 
+    // Markov
+    void CreateMarkovMatrix();
+    double ComputeStateTransition(Description &Desc);
+    double ForwardRecursion(Description &Desc);
+
+    int m_StateWindow = 0;
+    int m_T = 0;
+    int m_BlocksInThisEvent = 0;
+    int m_NewCurrentEvent = 0;
+    MatrixMap m_Believes;
+    MatrixMap m_PitchKL;
+    MatrixMap m_TransitionsProb;
+    MatrixMap m_Observed;
+
     double m_BeatsAhead = 8;
     double m_TimeInThisEvent = 0;
     double m_LastTn = 0;
@@ -70,6 +85,7 @@ class OScofoMDP {
     double m_Tn1 = 0;
     double m_OnsetN1 = 0;
     double m_Mu = 0;
+    int m_LastEvent = 0;
 
     double m_LastPsiN = 0;
     double m_PsiN = 0;
@@ -99,4 +115,7 @@ class OScofoMDP {
     double GetReward(States &NextPossibleStates, Description &Desc);
     double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
     double SojournTime(State &PossibleState, Description &Desc);
+
+    // Viterbi | SemiMarkov
+    double ComputeViterbiRecursion(State &JState, Description &Desc);
 };
