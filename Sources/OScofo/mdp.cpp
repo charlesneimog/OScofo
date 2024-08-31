@@ -34,7 +34,7 @@ void OScofoMDP::SetScoreStates(States States) {
     m_PsiN = 60.0f / m_States[0].BPMExpected;
     m_PsiN1 = 60.0f / m_States[0].BPMExpected;
     m_LastPsiN = 60.0f / m_States[0].BPMExpected;
-    m_BeatsAhead = m_States[0].BPMExpected / 60 * 4;
+    m_BeatsAhead = m_States[0].BPMExpected / 60 * 2;
 
     CreateMarkovMatrix();
 }
@@ -47,20 +47,14 @@ void OScofoMDP::CreateMarkovMatrix() {
     for (int i = -1; i < size; i++) {
         double Dur = 0;
         for (int j = i + 1; j < m_States.size(); j++) {
-            Dur += m_States[j].Duration;
-            double DurProb = std::exp(-(5 * Dur / m_BeatsAhead));
+            double DurProb = 1 - m_States[j].Duration / m_BeatsAhead;
             double LastDur = Dur / m_BeatsAhead;
-            if (LastDur > 1 && i < j + 3) {
-                break;
-            } else if (LastDur > 1 && i >= j + 3) {
-                for (int k = i; k < i + 3; k++) {
-                    double BigDurProb = std::exp(k);
-                    m_TransitionsProb[i][k] = BigDurProb;
-                }
-                break;
+            if (i == j - 1) {
+                m_TransitionsProb[i][j] = 1;
             } else {
-                m_TransitionsProb[i][j] = DurProb;
+                m_TransitionsProb[i][j] = 0;
             }
+            // printf("%d -> %d: %f\n", i, j, m_TransitionsProb[i][j]);
         }
         double Sum = 0;
         int innerSize = m_TransitionsProb[i].size();
@@ -70,7 +64,6 @@ void OScofoMDP::CreateMarkovMatrix() {
         }
         for (int j = i + 1; j <= i + innerSize; j++) {
             m_TransitionsProb[i][j] /= Sum;
-            // printf("Trans %d -> %d = %f\n", i, j, m_TransitionsProb[i][j]);
         }
     }
 
@@ -106,7 +99,6 @@ void OScofoMDP::UpdatePitchTemplate() {
             }
         }
     }
-    printf("Pitch Template Updated\n");
 }
 
 // ─────────────────────────────────────
@@ -165,7 +157,7 @@ void OScofoMDP::SetHarmonics(int Harmonics) {
 // ─────────────────────────────────────
 void OScofoMDP::SetCurrentEvent(int Event) {
     m_CurrentEvent = Event;
-    m_NewCurrentEvent = Event;
+    m_LastDecodedPosition = Event;
 }
 
 // ─────────────────────────────────────
@@ -380,121 +372,97 @@ double OScofoMDP::GetPitchSimilarity(State &State, Description &Desc) {
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::SojournTime(State &State, Description &Desc) {
+double OScofoMDP::GetSojournTime(State &State, Description &Desc) {
     double T = m_Tn + m_TimeInThisEvent;
     double Duration = State.Duration;
     double Sojourn = std::exp(-((T - m_Tn) / (m_PsiN1 * Duration)));
-
     return Sojourn;
 }
 
 // ─────────────────────────────────────
-// Guédon (2004)
-double OScofoMDP::ForwardRecursion(Description &Desc) {
-
-    double BestProb = 0;
-    for (int j = m_NewCurrentEvent; j < m_StateWindow; j++) {
+double OScofoMDP::SemiMarkovState(Description &Desc, int j) {
+    if (m_T == 0) {
+        return m_LastDecodedPosition;
     }
+
+    unsigned int t = m_T;
+    if (t > 20) {
+        t = 20;
+    }
+
+    // Observation probability b_j(x_t)
+    double KLDiv = GetPitchSimilarity(m_States[j], Desc);
+    m_PitchKL[j][m_T] = KLDiv;
+
+    // Maximum value initialization
+    double maxAlphaJ = -INFINITY;
+
+    // Loop over possible time steps u
+    for (int u = 1; u <= t; u++) {
+        // Product term ∏_{v=1}^{u-1} b_j(x_{t-v})
+        double ProdTerm = 1;
+        for (int v = 1; v < u; v++) {
+            ProdTerm *= m_PitchKL[j][m_T - v];
+        }
+
+        // Survival function d_j(u) (this should be defined based on your model)
+        double SojournTime = GetSojournTime(m_States[j], Desc);
+
+        // Transition probabilities max_{i ≠ j} (p_{ij} a_i(t-u))
+        double MaxProb = -INFINITY;
+        for (int i = m_CurrentEvent; i < m_StateWindow; i++) {
+            if (i != j) {
+                double EventProb = m_TransitionsProb[i][j] * m_PrevObserved[i][m_T - u];
+                if (MaxProb < EventProb) {
+                    MaxProb = EventProb;
+                }
+            }
+        }
+        double AlphaJ = ProdTerm * SojournTime; //* MaxProb;
+        if (AlphaJ > maxAlphaJ) {
+            maxAlphaJ = AlphaJ;
+        }
+    }
+    return KLDiv * maxAlphaJ;
+}
+
+// ─────────────────────────────────────
+double OScofoMDP::MarkovState(Description &Desc, int j) {
+    m_PitchKL[j][m_T] = GetPitchSimilarity(m_States[j], Desc);
 
     return 0;
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::ComputeStateTransition(Description &Desc) {
-    int t = m_T;
-
-    int BestEvent = -1;
+double OScofoMDP::GetBestEventIndex(Description &Desc) {
+    int BestEvent = m_LastDecodedPosition;
     bool BestEventFound = false;
 
     double BestAlphaJ = 0;
-    for (int j = m_NewCurrentEvent; j < m_StateWindow; j++) {
+    for (int j = m_LastDecodedPosition; j < m_StateWindow + 1; j++) {
         if (j < 0) {
             j++;
-            t = 1;
         }
-        m_PitchKL[j][t] = GetPitchSimilarity(m_States[j], Desc);
-        double maxAlphaJ = 0;
-        for (int u = 1; u <= t; u++) {
-
-            // term 1
-            double MulKlDiv = m_PitchKL[j][t];
-            for (int v = 1; v < u; v++) {
-                MulKlDiv *= m_PitchKL[j][t - v];
-            }
-
-            // term 2
-            double Sojourn = SojournTime(m_States[j], Desc);
-
-            // term 3
-            double MaxProb = 0;
-            for (int i = m_NewCurrentEvent; i < m_NewCurrentEvent + 1; i++) {
-                if (i == j) {
-                    continue;
-                }
-                double PrevObserved;
-                if (m_Observed.find(i) != m_Observed.end()) {
-                    if (m_Observed[i].find(u) != m_Observed[i].end()) {
-                        PrevObserved = m_Observed[i][u];
-                    } else {
-                        PrevObserved = 1;
-                    }
-                } else {
-                    PrevObserved = 1;
-                }
-                double Prob = m_TransitionsProb[i][j] * PrevObserved;
-
-                if (Prob > MaxProb) {
-                    MaxProb = Prob;
-                }
-            }
-
-            double AlphaJT = MulKlDiv * Sojourn * MaxProb;
-            m_Observed[j][u] = AlphaJT;
-            if (AlphaJT > maxAlphaJ) {
-                maxAlphaJ = AlphaJT;
-            }
+        double AlphaJ;
+        if (m_States[j].MarkovType == SEMIMARKOV) {
+            AlphaJ = SemiMarkovState(Desc, j);
+        } else if (m_States[j].MarkovType == MARKOV) {
+            AlphaJ = MarkovState(Desc, j);
         }
+        m_PrevObserved[j][m_T] = AlphaJ;
 
-        printf("Alpha %f for event %d\n", maxAlphaJ, j);
-        double AlphaJT = m_PitchKL[j][t] * maxAlphaJ;
-        if (AlphaJT > BestAlphaJ) {
-            BestAlphaJ = AlphaJT;
+        if (AlphaJ > BestAlphaJ) {
+            BestAlphaJ = AlphaJ;
             BestEvent = j;
             BestEventFound = true;
         }
     }
 
-    if (BestEventFound && BestEvent != m_NewCurrentEvent) {
-        m_NewCurrentEvent = BestEvent;
-        printf("Best Event: %d\n", BestEvent);
+    if (BestEventFound && BestEvent != m_LastDecodedPosition) {
+        m_LastDecodedPosition = BestEvent;
     }
 
-    return m_NewCurrentEvent;
-}
-
-// ─────────────────────────────────────
-double OScofoMDP::GetReward(States &PossibleStates, Description &Desc) {
-    double PitchWeight;
-    double TimeWeight;
-    double Event = m_CurrentEvent;
-    State CurrentState = PossibleStates[0];
-
-    EventType Type = CurrentState.Type;
-    double PreviousKlDiv = 0;
-
-    for (int i = 0; i < PossibleStates.size(); i++) {
-        if (PossibleStates[i].Type == NOTE) {
-            double Sojourn = SojournTime(PossibleStates[i], Desc);
-            double P = GetPitchSimilarity(PossibleStates[i], Desc);
-            if (P > PreviousKlDiv) {
-                PreviousKlDiv = P;
-                Event = PossibleStates[i].Index;
-            }
-        } else if (PossibleStates[i].Type == ONSET) {
-        }
-    }
-
-    return Event;
+    return m_LastDecodedPosition;
 }
 
 // ─────────────────────────────────────
@@ -513,13 +481,7 @@ int OScofoMDP::GetEvent(Description &Desc) {
         m_Kappa = 1;
     }
 
-    // Get the best event to describe the current state
-    int Event, UpperBound = m_CurrentEvent;
-    double BestReward = -1;
-    double EventLookAhead = 0;
     int StatesSize = m_States.size();
-    States PossibleNextStates;
-
     int NewUpperBound = m_CurrentEvent;
     double NewEventLookAhead = 0;
 
@@ -530,26 +492,13 @@ int OScofoMDP::GetEvent(Description &Desc) {
         if (NewUpperBound < 0) {
             NewUpperBound = 0;
         }
-        State &CurrentState = m_States[NewUpperBound];
-        NewEventLookAhead += CurrentState.Duration * m_PsiN;
         m_StateWindow = NewUpperBound;
         NewUpperBound++;
+        State &State = m_States[NewUpperBound];
+        NewEventLookAhead += State.Duration * m_PsiN;
     }
 
-    while ((EventLookAhead - m_TimeInThisEvent) < (m_BeatsAhead * m_PsiN)) {
-        if (UpperBound >= StatesSize) {
-            break;
-        }
-        if (UpperBound < 0) {
-            UpperBound = 0;
-        }
-        State &CurrentState = m_States[UpperBound];
-        EventLookAhead += CurrentState.Duration * m_PsiN;
-        PossibleNextStates.push_back(CurrentState);
-        UpperBound++;
-    }
-    Event = GetReward(PossibleNextStates, Desc);
-    ComputeStateTransition(Desc);
+    int Event = GetBestEventIndex(Desc);
 
     if (Event == m_CurrentEvent) {
         return m_CurrentEvent;
@@ -576,7 +525,6 @@ int OScofoMDP::GetEvent(Description &Desc) {
         m_TimeInThisEvent = 0;
         m_T = 0;
         LOGE();
-        printf("Current Event: %d\n", m_CurrentEvent);
     }
 
     m_CurrentEvent = Event;

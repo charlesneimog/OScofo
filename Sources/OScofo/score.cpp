@@ -172,27 +172,32 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
         }
 
         if (Tokens[0] == "NOTE") {
-            State State;
-            State.Index = States.size();
-            State.Type = NOTE;
-            State.Line = LineCount;
-            State = AddNote(State, Tokens, BPM, LineCount);
-            if (!State.Valid) {
-                State.Error = "Error on line " + std::to_string(LineCount) + ": " + State.Error;
-                States.push_back(State);
+            State Note;
+            Note.Index = States.size();
+            Note.Type = NOTE;
+            Note.MarkovType = SEMIMARKOV;
+            Note.Line = LineCount;
+            Note = AddNote(Note, Tokens, BPM, LineCount);
+            if (!Note.Valid) {
+                Note.Error = "Error on line " + std::to_string(LineCount) + ": " + Note.Error;
+                States.push_back(Note);
                 continue;
             }
 
             if (Event != 0) {
-                State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
+                Note.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
             } else {
-                State.OnsetExpected = 0;
+                Note.OnsetExpected = 0;
             }
 
             Event++;
-            States.push_back(State);
-            PreviousDuration = State.Duration;
-            LastOnset = State.OnsetExpected;
+            States.push_back(Note);
+            PreviousDuration = Note.Duration;
+            LastOnset = Note.OnsetExpected;
+
+            // State DummySilence;
+            // DummySilence.MarkovType = MARKOV;
+            // States.push_back(Note);
 
         } else if (Tokens[0] == "BPM") {
             BPM = std::stof(Tokens[1]);

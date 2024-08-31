@@ -66,17 +66,20 @@ class OScofoMDP {
 
     // Markov
     void CreateMarkovMatrix();
-    double ComputeStateTransition(Description &Desc);
+    double GetBestEventIndex(Description &Desc);
     double ForwardRecursion(Description &Desc);
+    double SemiMarkovState(Description &Desc, int j);
+    double MarkovState(Description &Desc, int j);
 
     int m_StateWindow = 0;
     int m_T = 0;
     int m_BlocksInThisEvent = 0;
-    int m_NewCurrentEvent = 0;
+    int m_LastDecodedPosition = -1;
     MatrixMap m_Believes;
     MatrixMap m_PitchKL;
     MatrixMap m_TransitionsProb;
     MatrixMap m_Observed;
+    MatrixMap m_PrevObserved;
 
     double m_BeatsAhead = 8;
     double m_TimeInThisEvent = 0;
@@ -114,7 +117,7 @@ class OScofoMDP {
     std::vector<State> m_States;
     double GetReward(States &NextPossibleStates, Description &Desc);
     double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
-    double SojournTime(State &PossibleState, Description &Desc);
+    double GetSojournTime(State &PossibleState, Description &Desc);
 
     // Viterbi | SemiMarkov
     double ComputeViterbiRecursion(State &JState, Description &Desc);
