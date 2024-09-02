@@ -44,7 +44,7 @@ class OScofoMIR {
     std::vector<double> m_LastPhase2;
 
     // Env
-    double m_dBTreshold = -80;
+    double m_dBTreshold = -60;
     void GetRMS(const std::vector<double> &In, Description &Desc);
 
     // Onset Detection

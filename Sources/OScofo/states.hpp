@@ -15,6 +15,7 @@ enum HMMType { SEMIMARKOV = 0, MARKOV };
 // ─────────────────────────────────────
 struct State {
     int Index;
+    int ScoreEventNumber;
     EventType Type;     // NOTE, CHORD, PIZZ, SILENCE
     HMMType MarkovType; // NOTE, CHORD, PIZZ, SILENCE
     std::vector<double> Freqs;
