@@ -20,7 +20,7 @@ class OScofo {
     void SetTimeCouplingStrength(double TimeCouplingStrength);
     void SetdBTreshold(double dB);
     void SetTunning(double Tunning);
-    void SetCurrentEvent(int Event);
+    void SetCurrentState(int Event);
 
     // Get Functions
     double GetLiveBPM();
@@ -42,7 +42,7 @@ class OScofo {
 
     States m_States;
     Description m_Desc;
-    int m_CurrentEvent = -1;
+    int m_CurrentState = 0;
 
     std::string m_Error;
 };
