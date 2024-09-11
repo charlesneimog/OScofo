@@ -29,7 +29,7 @@ class ProcessBlock(unittest.TestCase):
         event = -1
         onset = 0
         for i in range(0, len(self.data), self.blockSize):
-            audioBlock = self.data[i : i + self.windowSize]
+            audioBlock = self.data[i:i + self.windowSize ]
             if len(audioBlock) != self.windowSize:
                 break
 
@@ -44,5 +44,5 @@ class ProcessBlock(unittest.TestCase):
         print("Processing done")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
