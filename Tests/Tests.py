@@ -28,11 +28,11 @@ class ProcessBlock(unittest.TestCase):
         # Process Audio
         event = -1
         onset = 0
+        print("There is {} Samples".format(len(self.data)))
         for i in range(0, len(self.data), self.blockSize):
             audioBlock = self.data[i:i + self.windowSize ]
             if len(audioBlock) != self.windowSize:
                 break
-
             if self.OScofo.ProcessBlock(audioBlock):
                 currentEvent = self.OScofo.GetEventIndex()
                 if currentEvent != event:

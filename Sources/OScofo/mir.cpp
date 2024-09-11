@@ -52,6 +52,13 @@ double OScofoMIR::Freq2Bin(double freq, double n, double sr) {
     return round(bin);
 }
 
+// ─────────────────────────────────────
+// double OScofoMIR::IsSilence() {
+//     if (m_Desc < m_dBTreshold) {
+//         return false;
+//     }
+// }
+
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
@@ -60,7 +67,7 @@ void OScofoMIR::SetTreshold(double dB) {
 }
 
 // ╭─────────────────────────────────────╮
-// │           FFT Descriptors           │
+// │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &Desc) {
     LOGE() << "OScofoMIR::GetFFTDescriptions";
@@ -69,20 +76,12 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     int NHalf = N / 2;
 
     // Resize vectors if necessary
-    if (NHalf != Desc.SpectralMag.size()) {
-        m_LastPhase1.resize(NHalf);
-        m_LastPhase2.resize(NHalf);
-        Desc.FFTOut.resize(NHalf);
-        Desc.SpectralMag.resize(NHalf);
-        Desc.SpectralPhase.resize(NHalf);
-        Desc.NormSpectralPower.resize(NHalf);
+    if (NHalf != Desc.SpectralPower.size()) {
+        Desc.SpectralPower.resize(NHalf);
+    }
 
-        std::fill(Desc.FFTOut.begin(), Desc.FFTOut.end(), std::complex<double>(0.0, 0.0));
-        std::fill(Desc.SpectralMag.begin(), Desc.SpectralMag.end(), 0);
-        std::fill(Desc.SpectralPhase.begin(), Desc.SpectralPhase.end(), 0);
-        std::fill(Desc.NormSpectralPower.begin(), Desc.NormSpectralPower.end(), 0);
-        std::fill(m_LastPhase1.begin(), m_LastPhase1.end(), 0);
-        std::fill(m_LastPhase2.begin(), m_LastPhase2.end(), 0);
+    if (NHalf != Desc.NormSpectralPower.size()) {
+        Desc.NormSpectralPower.resize(NHalf);
     }
 
     // Copy input data and execute FFT
@@ -90,43 +89,38 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     fftw_execute(m_FFTPlan);
 
     double Real, Imag;
-    double Mag, Phase;
-    double SpectralFlux = 0.0;
-
     Desc.MaxAmp = 0;
     Desc.TotalPower = 0;
-
-    for (int i = 1; i < NHalf; i++) {
-        double Real = m_FFTOut[i][0];
-        double Imag = m_FFTOut[i][1];
-        std::complex<double> Spectro(Real, Imag);
-
-        // Phase e Magnitude
-        Mag = (Real * Real + Imag * Imag) / N;
-        Phase = atan2(Imag, Real);
-        Desc.TotalPower += Mag;
-        if (Mag > Desc.MaxAmp) {
-            Desc.MaxAmp = Mag;
-        }
-
-        if (i > 0) {
-            double magDifference = Mag - Desc.SpectralMag[i];
-            SpectralFlux += std::max(0.0, magDifference);
-        }
-
-        // Salvar valores para a próxima chamada
-        Desc.FFTOut[i] = Spectro;
-        Desc.SpectralMag[i] = Mag; // <== Last Magnitude
-        Desc.SpectralPhase[i] = Phase;
-    }
-
-    printf("SpectralFlux: %f\n", SpectralFlux);
-
-    m_LastPhase2 = m_LastPhase1;
-    m_LastPhase1 = Desc.SpectralPhase;
+    double GeometricMeanProduct = 1.0;
+    double ArithmeticMeanSum = 0.0;
+    double WindowHalfPlusOneRecip = 1.0 / NHalf;
 
     for (int i = 0; i < NHalf; i++) {
-        Desc.NormSpectralPower[i] = Desc.SpectralMag[i] / Desc.MaxAmp;
+        Real = m_FFTOut[i][0];
+        Imag = m_FFTOut[i][1];
+
+        double power = (Real * Real + Imag * Imag) / N;
+        Desc.SpectralPower[i] = power;
+        Desc.TotalPower += power;
+
+        if (power > Desc.MaxAmp) {
+            Desc.MaxAmp = power;
+        }
+        GeometricMeanProduct *= power;
+    }
+
+    for (int i = 0; i < NHalf; i++) {
+        ArithmeticMeanSum += Desc.SpectralPower[i];
+        Desc.NormSpectralPower[i] = Desc.SpectralPower[i] / Desc.MaxAmp;
+    }
+    ArithmeticMeanSum *= WindowHalfPlusOneRecip;
+
+    // Calculate Spectral Flatness
+    if (ArithmeticMeanSum <= 0) {
+        Desc.SpectralFlatness = -1;
+    } else {
+        GeometricMeanProduct = pow(GeometricMeanProduct, WindowHalfPlusOneRecip);
+        Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
     }
 
     LOGE() << "end OScofoMIR::GetFFTDescriptions";
@@ -161,12 +155,11 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetDescription(const std::vector<double> &In, Description &Desc) {
+    LOGE() << "OScofoMIR::GetDescription";
     GetRMS(In, Desc);
-
     if (!Desc.PassTreshold) {
-        Desc.Silence = true;
-    } else {
-        Desc.Silence = false;
-        GetFFTDescriptions(In, Desc);
+        return;
     }
+    GetFFTDescriptions(In, Desc);
+    LOGE() << "end OScofoMIR::GetDescription";
 }

@@ -69,7 +69,6 @@ class OScofoMDP {
     double m_Tn = 0;
     double m_Tn1 = 0;
     double m_OnsetN1 = 0;
-    double m_Mu = 0;
 
     double m_LastPsiN = 0;
     double m_PsiN = 0;
@@ -93,10 +92,11 @@ class OScofoMDP {
     // Scaling Factor that controls how fast an increase in
     // distance translates to decrease in probability
     std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
+    std::vector<double> m_PitchTemplate;
 
     // MDP
     std::vector<State> m_States;
-    double GetReward(States &NextPossibleStates, Description &Desc);
+    double GetReward(State &NextPossibleState, Description &Desc);
     double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
-    double SojournTime(State &PossibleState, Description &Desc);
+    double GetTimeSimilarity(State &NextPossibleState, Description &Desc);
 };

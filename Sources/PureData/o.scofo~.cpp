@@ -145,13 +145,9 @@ static void Score(PdOScofo *x, t_symbol *s) {
         pd_error(nullptr, "[o.scofo~] Score file not found");
         return;
     }
-    bool ok = x->OpenScofo->ParseScore(CompletePath.c_str());
-    if (ok) {
-        x->ScoreLoaded = true;
-        post("[o.scofo~] Score loaded");
-    } else {
-        pd_error(nullptr, "[o.scofo~] Error loading score");
-    }
+    x->OpenScofo->ParseScore(CompletePath.c_str());
+    x->ScoreLoaded = true;
+    post("[o.scofo~] Score loaded");
     LOGE() << "PureData end Score Method";
 }
 
