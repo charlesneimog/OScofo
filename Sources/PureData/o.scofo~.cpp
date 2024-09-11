@@ -159,7 +159,7 @@ static void Start(PdOScofo *x) {
         return;
     }
     x->CurrentEvent = -1;
-    x->OpenScofo->SetCurrentEvent(-1);
+    x->OpenScofo->SetCurrentEvent(x->CurrentEvent);
     outlet_float(x->Tempo, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventIndex, 0);
     LOGE() << "PureData end Start Method";
@@ -198,28 +198,29 @@ static t_int *DspPerform(t_int *w) {
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
 
-    if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
+    if (!x->Following) {
         return (w + 4);
     }
-    x->BlockIndex += n;
+
+    if (!x->OpenScofo->ScoreIsLoaded()) {
+        return (w + 4);
+    }
+
     std::copy(x->inBuffer.begin() + n, x->inBuffer.end(), x->inBuffer.begin());
     std::copy(in, in + n, x->inBuffer.end() - n);
+
+    x->BlockIndex += n;
+    if (!x->ScoreLoaded) {
+        return (w + 4);
+    }
 
     if (x->BlockIndex != x->HopSize) {
         return (w + 4);
     }
-    // process block
+
     x->BlockIndex = 0;
 
-    // TODO: Implement precomputed window
-    // std::vector<double> windowTable(x->WindowSize);
-    // double factor = 2.0 * M_PI / (x->WindowSize - 1);
-    //
-    // for (int i = 0; i < x->WindowSize; i++) {
-    //     windowTable[i] = 0.5 * (1.0 - cos(factor * i));
-    // }
-    //
-
+    // Windowing
     for (int i = 0; i < x->WindowSize; i++) {
         x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->WindowSize - 1)));
     }

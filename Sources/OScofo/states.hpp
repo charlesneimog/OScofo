@@ -11,20 +11,20 @@ enum EventType {
 
 // ─────────────────────────────────────
 struct State {
-    int Index;
+    int Id;
     int Type; // NOTE, CHORD, PIZZ, SILENCE
     double Freq;
 
     // Time
     double BPMExpected;
     double BPMObserved;
-
-    //
     double OnsetExpected;
     double OnsetObserved;
     double PhaseExpected;
     double PhaseObserved;
 
+    // double IOIPhaseExpected;
+    // double IOIPhaseObserved;
     double IOIPhiN;
     double IOIHatPhiN;
     double Duration;
