@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -136,37 +135,28 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
     return State;
 }
 
-void OScofoScore::AddTransState(States &States, int ScoreEvent, int BPM) {
-    State TransState;
-    TransState.Position = ScoreEvent;
-    TransState.Duration = 0;
-    TransState.BPMExpected = BPM;
-    TransState.MarkovType = MARKOV;
-    TransState.Type = TRANSITION;
-    TransState.Valid = true;
-    TransState.Index = States.size();
-    States.push_back(TransState);
-}
-
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-States OScofoScore::Parse(std::string ScoreFile) {
+void OScofoScore::Parse(States &States, std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
     m_ScoreLoaded = false;
-    States ScoreStates;
 
     // Open the score file for reading
     std::ifstream File(ScoreFile);
     if (!File) {
-        // TODO: fix this
-        return ScoreStates;
+        State State;
+        State.Valid = false;
+        State.Error = "File not found";
+        return;
     }
 
+    double BPM = -1;
     std::string Line;
-    double BPM = -1, FirstBPM = -1;
-    int LineCount = 0, Event = 0, ScoreEvent = 1;
-    double PreviousDuration = 0, LastOnset = 0;
+    int LineCount = 0;
+    double LastOnset = 0;
+    double Event = 0;
+    double PreviousDuration = 0;
 
     while (std::getline(File, Line)) {
         LineCount++;
@@ -183,42 +173,36 @@ States OScofoScore::Parse(std::string ScoreFile) {
 
         if (Tokens[0] == "NOTE") {
             State Note;
-            Note.Index = ScoreStates.size();
+            Note.Index = States.size();
             Note.Type = NOTE;
             Note.MarkovType = SEMIMARKOV;
             Note.Line = LineCount;
-            Note.Position = ScoreEvent;
             Note = AddNote(Note, Tokens, BPM, LineCount);
             if (!Note.Valid) {
                 Note.Error = "Error on line " + std::to_string(LineCount) + ": " + Note.Error;
-                ScoreStates.push_back(Note);
+                States.push_back(Note);
                 continue;
             }
+
             if (Event != 0) {
                 Note.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
             } else {
                 Note.OnsetExpected = 0;
             }
+
             Event++;
+            States.push_back(Note);
             PreviousDuration = Note.Duration;
             LastOnset = Note.OnsetExpected;
-            ScoreStates.push_back(Note);
 
-            // Add trans state
-            // AddTransState(ScoreStates, ScoreEvent, BPM);
-            ScoreEvent++;
+            // State DummySilence;
+            // DummySilence.MarkovType = MARKOV;
+            // States.push_back(Note);
+
         } else if (Tokens[0] == "BPM") {
             BPM = std::stof(Tokens[1]);
-            if (FirstBPM == -1) {
-                FirstBPM = BPM;
-            }
         }
     }
-
-    // TODO: Rethink about this
-    ScoreStates[0].BPMExpected = FirstBPM;
     m_ScoreLoaded = true;
-
-    LOGE() << "end OScofoScore::Parse | There are " << ScoreStates.size() << " events";
-    return ScoreStates;
+    LOGE() << "end OScofoScore::Parse | There are " << States.size() << " events";
 }

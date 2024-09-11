@@ -17,7 +17,7 @@ PYBIND11_MODULE(_OScofo, m) {
         .def("SetTimeCouplingStrength", &OScofo::SetTimeCouplingStrength)
         .def("SetdBTreshold", &OScofo::SetdBTreshold)
         .def("SetTunning", &OScofo::SetTunning)
-        .def("SetCurrentState", &OScofo::SetCurrentState)
+        .def("SetCurrentEvent", &OScofo::SetCurrentEvent)
         .def("ScoreIsLoaded", &OScofo::ScoreIsLoaded)
         .def("GetEventIndex", &OScofo::GetEventIndex)
         .def("GetError", &OScofo::GetError)

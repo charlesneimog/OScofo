@@ -42,6 +42,57 @@ class PdOScofo {
     t_outlet *Debug;
 };
 
+// // ─────────────────────────────────────
+// static void GerenateAnalTemplate(PdOScofo *x, t_symbol *s, t_float Sr, t_float Fund, t_float H) {
+//     LOGE() << "PureData GerenateAnalTemplate";
+//
+//     double *FFTIn;
+//     fftw_complex *FFTOut;
+//     fftw_plan FFTPlan;
+//     x->OpenScofo.m_PitchTemplate.clear();
+//
+//     FFTIn = (double *)fftw_malloc(sizeof(double) * x->WindowSize);
+//     FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (x->WindowSize / 2 + 1));
+//     FFTPlan = fftw_plan_dft_r2c_1d(x->WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
+//
+//     t_garray *Array;
+//     int VecSize;
+//     t_word *Vec;
+//
+//     if (!(Array = (t_garray *)pd_findbyclass(s, garray_class))) {
+//         pd_error(x, "[follower~] Array %s not found.", s->s_name);
+//         return;
+//     } else if (!garray_getfloatwords(Array, &VecSize, &Vec)) {
+//         pd_error(x, "[follower~] Bad template for tabwrite '%s'.", s->s_name);
+//         return;
+//     }
+//
+//     // get middle of the array
+//     int middle = VecSize / 2;
+//     std::vector<double> AudioChunk(x->WindowSize, 0);
+//     for (int i = 0; i < x->WindowSize; i++) {
+//         AudioChunk[i] = Vec[middle + i].w_float;
+//     }
+//     fftw_execute_dft_r2c(FFTPlan, AudioChunk.data(), FFTOut);
+//
+//     std::vector<double> SpectralPower(x->WindowSize / 2 + 1, 0);
+//     for (int i = 0; i < x->WindowSize / 2 + 1; i++) {
+//         double real = FFTOut[i][0];
+//         double imag = FFTOut[i][1];
+//         SpectralPower[i] = ((real * real + imag * imag) / x->WindowSize) / x->WindowSize;
+//     }
+//
+//     for (int i = 0; i < H; i++) {
+//         double pitchHz = Fund * (i + 1);
+//         int bin = round(pitchHz / (Sr / x->WindowSize));
+//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin - 1]);
+//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin]);
+//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin + 1]);
+//     }
+//     post("[follower~] Template loaded");
+//     LOGE() << "PureData end GerenateAnalTemplate";
+// }
+
 // ─────────────────────────────────────
 static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
     LOGE() << "PureData Set Methoda";
@@ -75,7 +126,7 @@ static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
     } else if (method == "event") {
         int f = atom_getint(argv + 1);
         x->CurrentEvent = f;
-        x->OpenScofo->SetCurrentState(f);
+        x->OpenScofo->SetCurrentEvent(f);
     } else {
         pd_error(x, "[follower~] Unknown method");
     }
@@ -111,8 +162,8 @@ static void Start(PdOScofo *x) {
         pd_error(nullptr, "[o.scofo~] Score not loaded");
         return;
     }
-    x->CurrentEvent = 0;
-    x->OpenScofo->SetCurrentState(0);
+    x->CurrentEvent = -1;
+    x->OpenScofo->SetCurrentEvent(-1);
     outlet_float(x->Tempo, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventIndex, 0);
     LOGE() << "PureData end Start Method";
@@ -241,7 +292,7 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
     x->PatchDir = canvas_getdir(canvas)->s_name;
 
     x->Clock = clock_new(x, (t_method)ClockTick);
-    x->Event = 0;
+    x->Event = -1;
 
     x->OpenScofo = new OScofo(x->Sr, x->WindowSize, x->HopSize);
     x->Following = false;

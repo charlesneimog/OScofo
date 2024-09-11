@@ -15,11 +15,13 @@ OScofo::OScofo(float Sr, float WindowSize, float HopSize)
 // ╰─────────────────────────────────────╯
 void OScofo::SetPitchTemplateSigma(double Sigma) {
     m_MDP.SetPitchTemplateSigma(Sigma);
+    m_MDP.UpdatePitchTemplate();
 }
 
 // ─────────────────────────────────────
 void OScofo::SetHarmonics(int Harmonics) {
     m_MDP.SetHarmonics(Harmonics);
+    m_MDP.UpdatePitchTemplate();
 }
 
 // ─────────────────────────────────────
@@ -44,11 +46,7 @@ void OScofo::SetTunning(double Tunning) {
 }
 
 // ─────────────────────────────────────
-void OScofo::SetCurrentState(int Event) {
-    if (Event < 0) {
-        printf("Event must be greater than -1, current event set to 0.\n");
-        Event = 0;
-    }
+void OScofo::SetCurrentEvent(int Event) {
     m_MDP.SetCurrentEvent(Event);
 }
 
@@ -56,7 +54,7 @@ void OScofo::SetCurrentState(int Event) {
 // │            Get Functions            │
 // ╰─────────────────────────────────────╯
 int OScofo::GetEventIndex() {
-    return m_CurrentState; // TODO: Implement yet
+    return m_CurrentEvent; // TODO: Implement yet
 }
 
 // ─────────────────────────────────────
@@ -85,8 +83,8 @@ bool OScofo::ScoreIsLoaded() {
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
     LOGE() << "OScofo::ParseScore";
-    m_States = m_Score.Parse(ScorePath);
-
+    m_States.clear();
+    m_Score.Parse(m_States, ScorePath);
     for (int i = 0; i < m_States.size(); i++) {
         if (!m_States[i].Valid) {
             m_Error = std::string("Error on line ") + std::to_string(m_States[i].Line) + ": " +
@@ -94,8 +92,8 @@ bool OScofo::ParseScore(std::string ScorePath) {
             return false;
         }
     }
-
     m_MDP.SetScoreStates(m_States);
+    LOGE() << "OScofo::ParseScore";
 
     return true;
 }
@@ -106,8 +104,7 @@ bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
         return true;
     }
     m_MIR.GetDescription(AudioBuffer, m_Desc);
-    m_CurrentState = m_MDP.GetEvent(m_Desc);
-
+    m_CurrentEvent = m_MDP.GetEvent(m_Desc) + 1;
     LOGE() << "States event size: " << m_States.size();
     return true;
 }

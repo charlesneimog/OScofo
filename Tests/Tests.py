@@ -1,55 +1,48 @@
 import os
+import unittest
 
-import numpy as np
-import librosa
+import numpy
+import soundfile as sf
 
 from OScofo import OScofo
 
-root = os.path.dirname(os.path.abspath(__file__))
+
+class ProcessBlock(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sr = 48000
+        cls.windowSize = 4096
+        cls.blockSize = 1024
+        cls.root = os.path.dirname(os.path.abspath(__file__))
+
+    def test_ProcessScore1(self):
+        # Load Audio
+        self.data, self.fs = sf.read(self.root + "/Test1.wav")
+        if len(self.data.shape) > 1:
+            self.data = self.data[:, 0]
+
+        # Initialize OScofo
+        self.OScofo = OScofo(48000, 4096, 1024)
+        self.OScofo.ParseScore(self.root + "/Test1.txt")
+
+        # Process Audio
+        event = -1
+        onset = 0
+        for i in range(0, len(self.data), self.blockSize):
+            audioBlock = self.data[i : i + self.windowSize]
+            if len(audioBlock) != self.windowSize:
+                break
+
+            if self.OScofo.ProcessBlock(audioBlock):
+                currentEvent = self.OScofo.GetEventIndex()
+                if currentEvent != event:
+                    event = currentEvent
+                    print("Event: ", event, " at ", onset)
+                onset += 1 / (self.sr / self.blockSize)
+            else:
+                raise Exception("Error in processing block")
+        print("Processing done")
 
 
-AUDIO_FILE = root + "/Test1.wav"
-SCORE_FILE = root + "/Test1.txt"
-HOP_SIZE = 1024
-FFT_SIZE = 4096
-SR = 48000
-
-
-# Initialize OScofo
-OScofo = OScofo(SR, FFT_SIZE, HOP_SIZE)
-OScofo.ParseScore(SCORE_FILE)
-
-samples, sr = librosa.load(AUDIO_FILE, sr=SR)
-
-# Process Audio
-event = 0
-onset = 0
-block = 0
-
-print("Max samples: ", np.max(samples))
-print("Min samples: ", np.min(samples))
-
-
-for i in range(0, len(samples), HOP_SIZE):
-    audioBlock = samples[i : i + FFT_SIZE]
-
-    if len(audioBlock) != FFT_SIZE:
-        print("End of audio")
-        break
-    if OScofo.ProcessBlock(audioBlock):
-        currentEvent = OScofo.GetEventIndex()
-        currentBpm = OScofo.GetLiveBPM()
-
-        if currentEvent != event:
-            event = currentEvent
-            print("\033[91mEvent:", event, "in", onset, f"Bpm: {currentBpm}\033[0m")
-        onset += 1 / (SR / HOP_SIZE)
-    else:
-        raise Exception("Error in processing block")
-    block += 1
-    # if block > 1000:
-    #     print("Max blocks reached")
-    #     break
-    # input("Press Enter to continue...")
-    # print(f"Block time was: {onset}")
-    # print("\n")
+if __name__ == "__main__":
+    unittest.main()

@@ -26,36 +26,55 @@ OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
 // ─────────────────────────────────────
 void OScofoMDP::SetScoreStates(States States) {
     m_States = States;
+    m_LastEvent = m_States.size() - 1;
 
-    // allocate memory for history
-    for (int i = 0; i < m_States.size(); i++) {
-        m_States[i].KLDiv.resize(1000, 0);
-        m_States[i].AlphaT.resize(1000, 0);
-    }
-
+    SetCurrentEvent(-1);
     UpdatePhaseValues();
     UpdatePitchTemplate();
-    UpdateInitialProbability();
 
     // Values
     m_PsiN = 60.0f / m_States[0].BPMExpected;
+    m_PsiN1 = 60.0f / m_States[0].BPMExpected;
     m_LastPsiN = 60.0f / m_States[0].BPMExpected;
-    m_BeatsAhead = m_States[0].BPMExpected / 60 * 4;
-    m_MaxHistory = 10000;
+    m_BeatsAhead = m_States[0].BPMExpected / 60 * 2;
+
+    CreateMarkovMatrix();
 
     int size = m_States.size();
 
     for (int i = 0; i < size; i++) {
-        m_EventObservations[i].resize(10000 + 1, 1);
-        m_AudioObservations[i].resize(10000 + 1, 1);
+        m_EventObservations[i].resize(m_MaxHistory + 1, 1);
+        m_PitchObservations[i].resize(m_MaxHistory + 1, 1);
     }
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::Gaussian(double f, double mean, double sigma2) {
-    return std::exp(-0.5 * std::pow((f - mean), 2) / sigma2) / std::sqrt(2 * M_PI * sigma2);
-}
+void OScofoMDP::CreateMarkovMatrix() {
+    int size = m_States.size();
+    // TODO: REVER
 
+    int i = -1;
+    for (int i = -1; i < size; i++) {
+        double Dur = 0;
+        for (int j = i + 1; j < m_States.size(); j++) {
+            double DurProb = exp(-5 * (Dur / m_BeatsAhead));
+            double LastDur = Dur / m_BeatsAhead;
+            m_TransitionsProb[i][j] = DurProb;
+            Dur += m_States[j].Duration;
+        }
+        double Sum = 0;
+        int innerSize = m_TransitionsProb[i].size();
+
+        for (int j = i + 1; j <= i + innerSize; j++) {
+            Sum += m_TransitionsProb[i][j];
+        }
+        for (int j = i + 1; j <= i + innerSize; j++) {
+            m_TransitionsProb[i][j] /= Sum;
+        }
+    }
+
+    return;
+}
 // ─────────────────────────────────────
 void OScofoMDP::UpdatePitchTemplate() {
     m_PitchTemplateHigherBin = 0;
@@ -64,8 +83,7 @@ void OScofoMDP::UpdatePitchTemplate() {
     m_PitchTemplateHigherBin = 0;
 
     for (int h = 0; h < StateSize; h++) {
-        if (m_States[h].Valid && m_States[h].Type == NOTE) {
-
+        if (m_States[h].Valid) {
             // TODO: Implement CHORDS
             double Pitch = m_States[h].Freqs[0];
             double RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
@@ -85,66 +103,31 @@ void OScofoMDP::UpdatePitchTemplate() {
         }
     }
 }
+
 // ─────────────────────────────────────
 void OScofoMDP::UpdatePhaseValues() {
     m_SyncStr = 0;
+
     if (m_States.size() == 0) {
         return;
     }
 
     m_PsiN = 60.0f / m_States[0].BPMExpected;
     m_States[0].PhaseExpected = 0;
-    m_States[0].IOIHatPhiN = 0;
-    m_States[0].IOIPhiN = 0;
-
     for (int i = 0; i < m_States.size() - 1; i++) {
-        if (m_States[i].MarkovType == SEMIMARKOV) {
-            State &CurrentState = m_States[i];
-            State &NextState = m_States[i + 1];
-            double PsiK = 60.0f / m_States[i].BPMExpected;
-            double Tn = CurrentState.OnsetExpected;
-            double Tn1 = NextState.OnsetExpected;
-            double PhiN0 = CurrentState.PhaseExpected;
-            double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-            PhiN1 = ModPhases(PhiN1);
-            NextState.PhaseExpected = PhiN1;
-            NextState.PhaseObserved = PhiN1;
-            NextState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-            NextState.IOIPhiN = (Tn1 - Tn) / PsiK;
-        }
+        State &CurrentState = m_States[i];
+        State &NextState = m_States[i + 1];
+        double PsiK = 60.0f / m_States[i].BPMExpected;
+        double Tn = CurrentState.OnsetExpected;
+        double Tn1 = NextState.OnsetExpected;
+        double PhiN0 = CurrentState.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        NextState.PhaseExpected = PhiN1;
+        NextState.PhaseObserved = PhiN1;
+        NextState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        NextState.IOIPhiN = (Tn1 - Tn) / PsiK;
     }
-}
-
-// ─────────────────────────────────────
-void OScofoMDP::UpdateInitialProbability() {
-    int size = std::min((int)m_States.size(), 15);
-
-    double StatesMaxDur = 0;
-    for (int i = 0; i < size; i++) {
-        StatesMaxDur += m_States[i].Duration;
-    }
-
-    double Dur = 0;
-    double Sum = 0;
-    m_InitialProbs.resize(size);
-
-    for (int i = 0; i < size; i++) {
-        if (m_States[i].MarkovType == SEMIMARKOV) {
-            double InitialProb = exp(-(Dur / StatesMaxDur));
-            m_InitialProbs[i] = InitialProb;
-            Dur += m_States[i].Duration;
-            Sum += InitialProb;
-        }
-    }
-
-    for (int i = 0; i < size; i++) {
-        if (m_States[i].MarkovType == SEMIMARKOV) {
-            m_InitialProbs[i] /= Sum;
-            // printf("%f\n", m_InitialProbs[i]);
-        }
-    }
-
-    return;
 }
 
 // ╭─────────────────────────────────────╮
@@ -172,19 +155,16 @@ void OScofoMDP::SetTunning(double Tunning) {
 // ─────────────────────────────────────
 void OScofoMDP::SetHarmonics(int Harmonics) {
     m_Harmonics = Harmonics;
-    UpdatePitchTemplate();
 }
 
 // ─────────────────────────────────────
 void OScofoMDP::SetCurrentEvent(int Event) {
-    m_CurrentStateIndex = Event;
-    m_EventDetected = false;
+    m_CurrentEvent = Event;
 }
 
 // ─────────────────────────────────────
 void OScofoMDP::SetPitchTemplateSigma(double f) {
     m_PitchTemplateSigma = f;
-    UpdatePitchTemplate();
 }
 
 // ─────────────────────────────────────
@@ -285,30 +265,15 @@ double OScofoMDP::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::UpdateBPM(int StateIndex) {
-    if (StateIndex != m_CurrentStateIndex && StateIndex == 0) {
-        // we don't run this in the first state
-        double PsiK = 60 / m_States[0].BPMExpected;
-        m_LastPsiN = PsiK;
-        m_PsiN = PsiK;
-        m_States[0].OnsetObserved = 0;
-        m_BPM = m_States[0].BPMExpected;
-        m_Tn = 1;
-        m_TimeInThisEvent = 0;
-        return;
-    } else if (StateIndex == m_CurrentStateIndex) {
-        // don't update if we are in the same state
-        return;
-    }
-
+void OScofoMDP::UpdateBPM() {
     // Cont (2010), Large and Palmer (1999) and Large and Jones (2002)
-    if ((m_CurrentStateIndex + 1) == m_States.size()) {
+    if (m_CurrentEvent == m_States.size()) {
         return;
     }
 
-    State &LastState = m_States[m_CurrentStateIndex - 1];
-    State &CurrentState = m_States[m_CurrentStateIndex];
-    State &NextState = m_States[m_CurrentStateIndex + 1];
+    State &LastState = m_States[m_CurrentEvent - 1];
+    State &CurrentState = m_States[m_CurrentEvent];
+    State &NextState = m_States[m_CurrentEvent + 1];
 
     double IOISeconds = m_Tn - m_LastTn;
     double LastPhiN = LastState.IOIPhiN;
@@ -317,10 +282,6 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
     double PhiNExpected = LastPhiN + ((m_Tn - m_LastTn) / m_PsiN);
     CurrentState.IOIHatPhiN = PhiNExpected;
     CurrentState.OnsetObserved = m_Tn;
-
-    printf("LastState PhiN %f\n", LastState.IOIPhiN);
-    printf("CurrentState PhiN %f\n", CurrentState.IOIPhiN);
-    printf("NextState PhiN %f\n", NextState.IOIPhiN);
 
     // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
     double PhaseDiff = (IOISeconds / m_PsiN) - HatPhiN;
@@ -350,7 +311,7 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
 
     // the m_CurrentEvent + 1 already updated, now
     // we update the future events to get the Sojourn Time
-    for (int i = m_CurrentStateIndex + 2; i < m_CurrentStateIndex + 20; i++) {
+    for (int i = m_CurrentEvent + 2; i < m_CurrentEvent + 20; i++) {
         if (i >= m_States.size()) {
             break;
         }
@@ -362,65 +323,42 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
         LastOnsetExpected = FutureOnset;
     }
 
-    // // TODO: m_Mu value | this is not necessary
-    // double SumX = 0.0, SumY = 0.0;
-    // for (int i = 0; i < m_CurrentStateIndex; ++i) {
-    //     double PhiN = m_States[i].PhaseObserved;
-    //     SumX += std::cos(PhiN);
-    //     SumY += std::sin(PhiN);
-    // }
-    // m_Mu = ModPhases(std::atan2(SumY, SumX));
+    // TODO: m_Mu value | this is not necessary
+    double SumX = 0.0, SumY = 0.0;
+    for (int i = 0; i < m_CurrentEvent; ++i) {
+        double PhiN = m_States[i].PhaseObserved;
+        SumX += std::cos(PhiN);
+        SumY += std::sin(PhiN);
+    }
+    m_Mu = ModPhases(std::atan2(SumY, SumX));
 
     // Update Values for next calls
-    m_BPM = 60.0f / m_PsiN;
+    m_BPM = 60.0f / m_PsiN1;
     m_LastPsiN = m_PsiN;
     m_PsiN = PsiN1;
-
-    if (StateIndex != m_CurrentStateIndex) {
-        m_TimeInThisEvent = 0;
-        m_T = 0;
-    }
+    m_PsiN1 = PsiN1;
 }
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-void OScofoMDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex) {
-    int T = m_T;
-
-    // Get Pitch Template
-    for (size_t j = FirstStateIndex; j < LastStateIndex; j++) {
-        State &StateJ = m_States[j];
-        int StateIndex = StateJ.Index;
-        if (StateJ.Type == NOTE) {
-            double KL = GetPitchSimilarity(StateJ, Desc);
-            if (KL < 1e-8) {
-                KL = 0;
-            }
-            StateJ.KLDiv[T] = KL;
-        } else if (StateJ.Type == TRANSITION) {
-            StateJ.KLDiv[T] = 0;
-        }
-    }
-}
-
-// ─────────────────────────────────────
 double OScofoMDP::GetPitchSimilarity(State &State, Description &Desc) {
     double KLDiv = 0.0;
 
     // TODO: Implement CHORDS
     double RootBinFreq = round(State.Freqs[0] / (m_Sr / m_WindowSize));
-    PitchTemplateArray PitchTemplate;
 
+    PitchTemplateArray PitchTemplate;
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        throw std::runtime_error("PitchTemplate not found");
+        printf("PitchTemplate not found\n");
+        return 0;
     }
 
     for (size_t i = 0; i < m_WindowSize / 2; i++) {
-        double P = PitchTemplate[i];
-        double Q = Desc.NormSpectralPower[i] / Desc.MaxAmp;
+        double P = PitchTemplate[i] * Desc.MaxAmp;
+        double Q = Desc.NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
         } else if (P == 0 && Q >= 0) {
@@ -434,12 +372,9 @@ double OScofoMDP::GetPitchSimilarity(State &State, Description &Desc) {
 
 // ─────────────────────────────────────
 double OScofoMDP::GetSojournTime(State &State, int u) {
-    int J = m_States[m_CurrentStateIndex].Index;
-    // int I = State.Index;
-
     double T = m_Tn + (m_BlockDur * u);
     double Duration = State.Duration;
-    double Sojourn = std::exp(-(T - m_Tn) / (m_PsiN * Duration));
+    double Sojourn = std::exp(-(T - m_Tn) / (m_PsiN1 * Duration));
     return Sojourn;
 }
 
@@ -450,206 +385,178 @@ int OScofoMDP::MaxBlocksInState(State &State) {
 }
 
 // ─────────────────────────────────────
-int OScofoMDP::GetMaxLookAhead(int StateIndex) {
-    int StatesSize = m_States.size();
-    double EventOnset = 0;
-    int MaxEvent = StateIndex;
-    for (int i = StateIndex; i < StatesSize; i++) {
-        if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
-            MaxEvent = m_States[i].Position;
-            if (MaxEvent == m_CurrentStateIndex) {
-                while (MaxEvent >= StatesSize || MaxEvent >= (StateIndex + 3)) {
-                    MaxEvent++;
-                }
-            }
-            break;
-        }
-        EventOnset += m_States[i].Duration * m_PsiN;
+double OScofoMDP::SemiMarkovState(Description &Desc, int j) {
+    int t = m_T;
+    if (m_T > m_MaxHistory) {
+        t = m_MaxHistory;
     }
-    return MaxEvent;
-}
 
-// ─────────────────────────────────────
-MatrixMap OScofoMDP::CreateMarkovMatrix() {
-    MatrixMap P;
-    for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
-        for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
-            if ((i + 1) == j) {
-                P[i][j] = 1;
-            } else {
-                P[i][j] = 0;
-            }
+    double Pitch = GetPitchSimilarity(m_States[j], Desc);
+
+    double MaxProb = 1;
+    for (int u = 1; u < std::min(t, MaxBlocksInState(m_States[j])); u++) {
+        // value 1
+        double Obs = 1;
+        for (int v = 1; v < u; v++) {
+            Obs *= m_PitchObservations[j][t - v];
         }
-    }
-    return P;
-}
 
-// ─────────────────────────────────────
-double OScofoMDP::SemiMarkovState(int j, int T, MatrixMap &P) {
-    State &StateJ = m_States[j];
-    int StateIndex = StateJ.Index;
+        // value 2
+        double Sojourn = GetSojournTime(m_States[j], u);
 
-    // Term 1
-    double Sojourn = GetSojournTime(StateJ, T + 1);
-    double Obs = StateJ.KLDiv[T];
-    double InitialProb = m_InitialProbs[j];
-    double Temp1Val = Sojourn * Obs * InitialProb;
-
-    // Term 2
-    double MaxVal = -std::numeric_limits<double>::infinity();
-    for (int u = 1; u <= T; ++u) {
-        double SojournU = GetSojournTime(StateJ, u);
-        double Temp2Val = SojournU * StateJ.KLDiv[T - u + 1];
-        double MaxInner = -std::numeric_limits<double>::infinity();
-        for (int i = m_CurrentStateIndex; i < j; ++i) {
-            double JumpProb;
-            if ((i + 1) == j) {
-                JumpProb = 1;
-            } else {
-                JumpProb = 0;
+        // value 3
+        double Prob = 0;
+        double EventIObs;
+        for (int i = m_CurrentEvent - 1; i < j; i++) {
+            if (i < -1) {
+                i++;
             }
             if (i != j) {
-                State &StateI = m_States[i];
-                double PrevAlphaI = StateI.AlphaT[T - u];
-                MaxInner = std::max(MaxInner, JumpProb * PrevAlphaI);
-                // printf("Reading value for StateI %d | T: %d | ValueIs: %f\n", j, T - u,
-                // PrevAlphaI);
+                if (i < 0) {
+                    EventIObs = m_TransitionsProb[i][j];
+                } else {
+                    EventIObs = m_EventObservations[i][t - u];
+                }
+                Prob = fmax(Prob, m_TransitionsProb[i][j] * EventIObs);
             }
         }
-        // printf("\n");
-        Temp2Val *= MaxInner;
-        MaxVal = std::max(MaxVal, Temp2Val);
+        if (Prob != 0 && Prob != 1) {
+            MaxProb = Prob;
+        } else {
+            MaxProb = fmax(MaxProb, Obs * Sojourn * Prob);
+        }
     }
 
-    double MaxOverAlphaJ = std::max(Temp1Val, MaxVal);
-    StateJ.AlphaT[T] = MaxOverAlphaJ;
+    double AlphaJ = Pitch * MaxProb;
+    printf("%d -> %d: %f\n", m_CurrentEvent, j, AlphaJ);
 
-    return Obs;
+    // Rotate the observations history
+    if (m_T < m_MaxHistory) {
+        m_EventObservations[j][m_T] = MaxProb;
+        m_PitchObservations[j][m_T] = Pitch;
+    } else {
+        std::copy(m_EventObservations[j].begin() + 1, m_EventObservations[j].end(),
+                  m_EventObservations[j].begin());
+        std::copy(m_PitchObservations[j].begin() + 1, m_PitchObservations[j].end(),
+                  m_PitchObservations[j].begin());
+        m_EventObservations[j][m_MaxHistory] = MaxProb;
+        m_PitchObservations[j][m_MaxHistory] = MaxProb;
+    }
+
+    return AlphaJ;
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::MarkovState(int j, int T, MatrixMap &P) {
+double OScofoMDP::MarkovState(Description &Desc, int j) {
+    // m_PitchKL[j][m_T] = GetPitchSimilarity(m_States[j], Desc);
+    // m_PrevObserved[j][m_T] = AlphaJ;
+
     return 0;
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::RotateObsValues(int Event, int BestEvent, int T) {
-    if (T == m_MaxHistory && Event == BestEvent) {
-        for (int j = Event; j < m_MaxScoreState + 1; j++) {
-            std::copy(m_EventObservations[j].begin() + 1, m_EventObservations[j].end(),
-                      m_EventObservations[j].begin());
-            std::copy(m_AudioObservations[j].begin() + 1, m_AudioObservations[j].end(),
-                      m_AudioObservations[j].begin());
-        }
-    }
+int OScofoMDP::GetBestEventIndex(Description &Desc) {
+    int BestEvent = m_CurrentEvent;
+    bool BestEventFound = false;
 
-    if (Event != BestEvent) {
-        for (int j = Event; j < m_MaxScoreState + 1; j++) {
-            m_AudioObservations[j][0] = m_AudioObservations[j][T];
-            m_EventObservations[j][0] = m_EventObservations[j][T];
+    if (m_CurrentEvent == -1) {
+        m_T = 0;
+        double MaxProb = 0;
+        for (int j = 0; j < m_StateWindow + 1; j++) {
+            double Pitch = GetPitchSimilarity(m_States[j], Desc);
+            m_EventObservations[j][m_T] = m_TransitionsProb[m_CurrentEvent][j];
+            m_PitchObservations[j][m_T] = Pitch;
+            double Prob = m_TransitionsProb[m_CurrentEvent][j] * Pitch;
+            if (Prob > MaxProb) {
+                MaxProb = Prob;
+                BestEvent = j;
+                BestEventFound = true;
+            }
+        }
+    } else {
+        double BestAlphaJ = 0;
+        for (int j = m_CurrentEvent; j < m_StateWindow + 1; j++) {
+            double AlphaJ;
+            if (m_States[j].MarkovType == SEMIMARKOV) {
+                AlphaJ = SemiMarkovState(Desc, j);
+            } else if (m_States[j].MarkovType == MARKOV) {
+                AlphaJ = MarkovState(Desc, j);
+            }
+            if (AlphaJ > BestAlphaJ) {
+                BestAlphaJ = AlphaJ;
+                BestEvent = j;
+                BestEventFound = true;
+            }
         }
     }
+    printf("BestEvent: %d\n", BestEvent + 1);
+    printf("\n\n");
+    return BestEvent;
 }
 
 // ─────────────────────────────────────
 int OScofoMDP::GetEvent(Description &Desc) {
-    // ╭─────────────────────────────────────╮
-    // │        Update initial values        │
-    // ╰─────────────────────────────────────╯
-    if (m_CurrentStateIndex == 0 && m_T == 0) {
+    m_TimeInThisEvent += m_BlockDur;
+    m_T += 1;
+    m_AudioTick += 1;
+
+    if (!Desc.PassTreshold || m_CurrentEvent == m_States.size()) {
+        return m_CurrentEvent;
+    }
+
+    if (m_CurrentEvent == -1) {
         m_BPM = m_States[0].BPMExpected;
         m_PsiN = 60 / m_BPM;
         m_MaxAheadSeconds = m_BeatsAhead * m_PsiN;
         m_Kappa = 1;
     }
 
-    // ╭─────────────────────────────────────╮
-    // │           States Filter.            │
-    // │  Suitably limit J and T (\tau) to   │
-    // │                small                │
-    // │   homogeneous zones in space and    │
-    // │        time during filtering        │
-    // │ as function of the latest decoding  │
-    // │              position.              │
-    // ╰─────────────────────────────────────╯
-    m_MaxScoreState = GetMaxLookAhead(m_CurrentStateIndex);
+    int StatesSize = m_States.size();
+    int NewUpperBound = m_CurrentEvent;
+    double NewEventLookAhead = 0;
 
-    // ╭─────────────────────────────────────╮
-    // │       Get Audio Observations        │
-    // ╰─────────────────────────────────────╯
-    GetAudioObservations(Desc, m_CurrentStateIndex, m_MaxScoreState);
-    printf("Checking Events from %d to %d\n", m_CurrentStateIndex, m_MaxScoreState);
-
-    // ╭─────────────────────────────────────╮
-    // │    Do nothing if thereis silence    │
-    // │     (need to thing about this)      │
-    // ╰─────────────────────────────────────╯
-    if (!Desc.PassTreshold || m_CurrentStateIndex == m_States.size()) {
-        // TODO: Future I will rethink this
-        return m_CurrentStateIndex;
-    }
-
-    // ╭─────────────────────────────────────╮
-    // │           Get Best Event            │
-    // ╰─────────────────────────────────────╯
-    MatrixMap P = CreateMarkovMatrix();
-    int StateIndex = m_CurrentStateIndex;
-    double MaxAlpha = 0;
-    double MaxAlphaJ = 0;
-    int StateScoreIndex = m_CurrentStateIndex;
-    bool AllZero = true;
-
-    for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
-        State &StateJ = m_States[i];
-        if (StateJ.MarkovType == SEMIMARKOV) {
-            MaxAlpha = SemiMarkovState(i, m_T, P);
-        } else if (StateJ.MarkovType == MARKOV) {
-            MaxAlpha = MarkovState(i, m_T, P);
+    while ((NewEventLookAhead - m_TimeInThisEvent) < (m_BeatsAhead * m_PsiN)) {
+        if (NewUpperBound >= StatesSize) {
+            break;
         }
-        if (MaxAlpha > MaxAlphaJ) {
-            AllZero = false;
-            MaxAlphaJ = MaxAlpha;
-            StateIndex = StateJ.Index;
+        if (NewUpperBound < 0) {
+            NewUpperBound = 0;
         }
-        // printf("%d -> %d: %f\n", m_States[m_CurrentStateIndex].Position, StateJ.Position,
-        //        MaxAlphaJ);
+        m_StateWindow = NewUpperBound;
+        NewUpperBound++;
+        State &State = m_States[NewUpperBound];
+        NewEventLookAhead += State.Duration * m_PsiN;
     }
 
-    if (AllZero && m_CurrentStateIndex == 0 && !m_EventDetected) {
-        // The piece probably has not started yet.
-        m_EventDetected = true;
-        for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
-            State &StateJ = m_States[j];
-            StateJ.KLDiv.resize(1000, 1);
-            StateJ.AlphaT.resize(1000, 1);
-        }
-        return 0;
+    int Event = GetBestEventIndex(Desc);
+
+    if (Event == m_CurrentEvent) {
+        return m_CurrentEvent;
     }
 
-    // ╭─────────────────────────────────────╮
-    // │  To keep track where we are in the  │
-    // │  decoding process, we need to keep  │
-    // │          track of the time          │
-    // ╰─────────────────────────────────────╯
-    // TODO: Needs review
-    if (!AllZero) {
-        m_TimeInThisEvent += m_BlockDur; // seconds in this event
-        m_T += 1;                        // audio block in this event
-    }
-
-    // ╭─────────────────────────────────────╮
-    // │            Time Decoding            │
-    // ╰─────────────────────────────────────╯
-    UpdateBPM(StateIndex);
-
-    // ╭─────────────────────────────────────╮
-    // │        Return the best event        │
-    // ╰─────────────────────────────────────╯
-    if (m_CurrentStateIndex != StateIndex) {
-        m_CurrentStateIndex = StateIndex;
-
-        return m_States[StateIndex].Position;
+    // Time Decoding
+    if (Event != m_CurrentEvent && Event == 0) {
+        m_CurrentEvent = Event;
+        double PsiK = 60 / m_States[0].BPMExpected;
+        m_LastPsiN = PsiK;
+        m_PsiN = PsiK;
+        m_PsiN1 = PsiK;
+        m_States[0].OnsetObserved = 0;
+        m_BPM = m_States[0].BPMExpected;
+        m_Tn = 0;
+        m_LastTn = 0;
+        m_TimeInThisEvent = 0;
     } else {
-        return m_States[StateIndex].Position;
+        LOGE() << "<== Event: " << Event << " ==>";
+        m_CurrentEvent = Event;
+        m_LastTn = m_Tn;
+        m_Tn += m_TimeInThisEvent;
+        UpdateBPM();
+        m_TimeInThisEvent = 0;
+        m_T = 0;
+        LOGE();
     }
+
+    m_CurrentEvent = Event;
+    return m_CurrentEvent;
 }

@@ -5,9 +5,9 @@
 #include <vector>
 
 enum EventType {
-    TRANSITION = -1,
     SILENCE = 0,
     NOTE,
+    ONSET,
     // TODO: Add more events
 };
 enum HMMType { SEMIMARKOV = 0, MARKOV };
@@ -18,7 +18,6 @@ struct State {
     int ScoreEventNumber;
     EventType Type;     // NOTE, CHORD, PIZZ, SILENCE
     HMMType MarkovType; // NOTE, CHORD, PIZZ, SILENCE
-    int Position;
     std::vector<double> Freqs;
 
     // Time
@@ -35,10 +34,6 @@ struct State {
     double IOIPhiN;
     double IOIHatPhiN;
     double Duration;
-
-    // Audio Observations
-    std::vector<double> KLDiv;
-    std::vector<double> AlphaT;
 
     // Error Handling
     bool Valid;
@@ -61,12 +56,14 @@ struct Description {
 
     // FFT
     std::vector<std::complex<double>> FFTOut;
+    // Mag
     std::vector<double> NormSpectralPower;
-    std::vector<double> SpectralMag;
-    std::vector<double> SpectralPhase;
-    std::vector<double> SpectralPhaseMinus2;
     double TotalPower;
     double MaxAmp;
+    std::vector<double> SpectralMag;
+    // Phase
+    std::vector<double> SpectralPhase;
+    std::vector<double> SpectralPhaseMinus2;
 
     // double SpectralFlatness;
 };

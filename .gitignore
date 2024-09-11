@@ -45,7 +45,3 @@ Tests/__pycache__
 dist
 poetry.lock
 Sources/Python/OScofo.egg-info
-.build
-Resources/OScofo/__pycache__
-Resources/Research/.ipynb_checkpoints
-Tests/.ipynb_checkpoints

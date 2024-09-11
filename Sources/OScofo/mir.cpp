@@ -162,11 +162,11 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetDescription(const std::vector<double> &In, Description &Desc) {
     GetRMS(In, Desc);
-    GetFFTDescriptions(In, Desc);
 
     if (!Desc.PassTreshold) {
         Desc.Silence = true;
     } else {
         Desc.Silence = false;
+        GetFFTDescriptions(In, Desc);
     }
 }
