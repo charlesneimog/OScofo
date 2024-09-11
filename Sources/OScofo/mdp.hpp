@@ -10,9 +10,7 @@
 #endif
 
 using PitchTemplateArray = std::vector<double>;
-
-using MatrixMap = std::unordered_map<int, std::unordered_map<int, double>>;
-using Array2DMap = std::unordered_map<int, std::vector<double>>;
+using MatrixMap = std::unordered_map<unsigned int, std::unordered_map<unsigned int, double>>;
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
@@ -47,9 +45,8 @@ class OScofoMDP {
     double m_Sr;
     double m_WindowSize;
     double m_HopSize;
-    int m_AudioTick = 0;
     double m_Harmonics = 10;
-    int m_PitchTemplateHigherBin = 0;
+    double m_PitchTemplateHigherBin = 0;
     double m_dBTreshold = -55;
 
     // Events
@@ -69,32 +66,22 @@ class OScofoMDP {
 
     // Markov
     void CreateMarkovMatrix();
-    int GetBestEventIndex(Description &Desc);
+    double GetBestEventIndex(Description &Desc);
     double ForwardRecursion(Description &Desc);
-    std::vector<double> m_Nt;
-    std::vector<std::vector<double>> m_Forwardj;
-    std::vector<std::vector<double>> m_Normj;
-    std::vector<std::vector<double>> m_StateInJ;
-
-    int PseudoGuedonAlgorithm(Description &Desc, int j);
     double SemiMarkovState(Description &Desc, int j);
     double MarkovState(Description &Desc, int j);
-
-    double SemiMarkovStateTest(Description &Desc, int j);
-    double GetSojournTime(State &PossibleState, int u);
-    int MaxBlocksInState(State &State);
 
     int m_StateWindow = 0;
     int m_T = 0;
     int m_BlocksInThisEvent = 0;
-    int m_MaxHistory = 40;
-
+    int m_LastDecodedPosition = -1;
+    MatrixMap m_Believes;
+    MatrixMap m_PitchKL;
     MatrixMap m_TransitionsProb;
-    Array2DMap m_EventObservations;
-    Array2DMap m_PitchObservations;
+    MatrixMap m_Observed;
+    MatrixMap m_PrevObserved;
 
-    double m_BlockDur = 0;
-    double m_BeatsAhead = 1;
+    double m_BeatsAhead = 8;
     double m_TimeInThisEvent = 0;
     double m_LastTn = 0;
     double m_Tn = 0;
@@ -119,7 +106,7 @@ class OScofoMDP {
     double CouplingFunction(double Phi, double PhiMu, double Kappa);
 
     // Pitch
-    double m_PitchTemplateSigma = 0.1;
+    double m_PitchTemplateSigma = 0.3;
     // In Higher values, the pitch algorith becomes more tolerant to pitch changes
     double m_Z = 0.5;
     // Scaling Factor that controls how fast an increase in
@@ -130,6 +117,7 @@ class OScofoMDP {
     std::vector<State> m_States;
     double GetReward(States &NextPossibleStates, Description &Desc);
     double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
+    double GetSojournTime(State &PossibleState, Description &Desc);
 
     // Viterbi | SemiMarkov
     double ComputeViterbiRecursion(State &JState, Description &Desc);
