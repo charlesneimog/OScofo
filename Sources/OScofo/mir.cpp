@@ -15,21 +15,34 @@ OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
 
     int WindowHalf = WindowSize / 2;
     m_FFTIn = (double *)fftw_alloc_real(WindowSize);
-    m_FFTOut = (fftw_complex *)fftw_alloc_complex(WindowHalf + 1);
-    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
-
-    if (m_FFTPlan == nullptr) {
-        LOGE() << "OScofoMIR::OScofoMIR fftw_plan_dft_r2c_1d failed";
+    if (!m_FFTIn) {
+        throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_real failed");
     }
 
-    LOGE() << "OScofoMIR::OScofoMIR end";
+    m_FFTOut = (fftw_complex *)fftw_alloc_complex(WindowHalf + 1);
+    if (!m_FFTOut) {
+        fftw_free(m_FFTIn); // Free previously allocated memory
+        throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_complex failed");
+    }
+
+    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
 }
 
 // ─────────────────────────────────────
 OScofoMIR::~OScofoMIR() {
-    fftw_destroy_plan(m_FFTPlan);
-    fftw_free(m_FFTIn);
-    fftw_free(m_FFTOut);
+    if (m_FFTPlan != nullptr) {
+        fftw_destroy_plan(m_FFTPlan);
+        m_FFTPlan = nullptr;
+    }
+
+    if (m_FFTIn != nullptr) {
+        fftw_free(m_FFTIn);
+        m_FFTIn = nullptr;
+    }
+    if (m_FFTOut != nullptr) {
+        fftw_free(m_FFTOut);
+        m_FFTOut = nullptr;
+    }
 }
 
 // ╭─────────────────────────────────────╮
@@ -52,17 +65,10 @@ double OScofoMIR::Freq2Bin(double freq, double n, double sr) {
     return round(bin);
 }
 
-// ─────────────────────────────────────
-// double OScofoMIR::IsSilence() {
-//     if (m_Desc < m_dBTreshold) {
-//         return false;
-//     }
-// }
-
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::SetTreshold(double dB) {
+void OScofoMIR::SetdBTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
@@ -70,7 +76,6 @@ void OScofoMIR::SetTreshold(double dB) {
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &Desc) {
-    LOGE() << "OScofoMIR::GetFFTDescriptions";
 
     int N = In.size();
     int NHalf = N / 2;
@@ -97,7 +102,7 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
     for (int i = 0; i < NHalf; i++) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
-        Desc.SpectralPower[i] = (Real * Real + Imag * Imag) / N;
+        Desc.SpectralPower[i] = (Real * Real + Imag * Imag) / N; // Amp
         Desc.TotalPower += Desc.SpectralPower[i];
         if (Desc.SpectralPower[i] > Desc.MaxAmp) {
             Desc.MaxAmp = Desc.SpectralPower[i];
@@ -105,25 +110,25 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
         GeometricMeanProduct *= pow(Desc.SpectralPower[i], WindowHalfPlusOneRecip);
     }
 
+    // Normalize Spectral Power
     for (int i = 0; i < NHalf; i++) {
         ArithmeticMeanSum += Desc.SpectralPower[i];
         Desc.NormSpectralPower[i] = Desc.SpectralPower[i] / Desc.MaxAmp;
     }
     ArithmeticMeanSum *= WindowHalfPlusOneRecip;
 
+    // Spectral Flatness
     if (ArithmeticMeanSum <= 0) {
         Desc.SpectralFlatness = -1;
     } else {
         Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
     }
-    LOGE() << "end OScofoMIR::GetFFTDescriptions";
 }
 
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
-    LOGE() << "OScofoMIR::GetRMS";
     double sumOfSquares = 0.0;
     for (double sample : In) {
         sumOfSquares += sample * sample;
@@ -134,24 +139,18 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
         dB = -100;
     }
     Desc.dB = dB;
+    Desc.Amp = 10 * std::pow(10, dB / 20);
     if (dB < m_dBTreshold) {
-        Desc.PassTreshold = false;
+        Desc.Silence = true;
     } else {
-        Desc.PassTreshold = true;
+        Desc.Silence = false;
     }
-
-    LOGE() << "End OScofoMIR::GetRMS";
 }
 
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
 void OScofoMIR::GetDescription(const std::vector<double> &In, Description &Desc) {
-    LOGE() << "OScofoMIR::GetDescription";
     GetRMS(In, Desc);
-    if (!Desc.PassTreshold) {
-        return;
-    }
     GetFFTDescriptions(In, Desc);
-    LOGE() << "end OScofoMIR::GetDescription";
 }

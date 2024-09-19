@@ -85,18 +85,45 @@ int OScofoScore::Name2Midi(std::string note) {
 }
 
 // ─────────────────────────────────────
-State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double BPM,
-                           int LineCount) {
+double OScofoScore::ModPhases(double Phase) {
+    // Following Cont (2010) conventions
+    Phase = fmod(Phase + M_PI, TWO_PI);
+    if (Phase < 0) {
+        Phase += TWO_PI;
+    }
+    return Phase - M_PI;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddTrans(States &ScoreStates, std::vector<std::string> Tokens) {
+    return;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
     double Midi;
-    if (BPM == -1) {
-        State.Valid = false;
-        State.Error = "BPM not defined";
-        return State;
+
+    State NoteState;
+    NoteState.Line = m_LineCount;
+
+    NoteState.Type = NOTE;
+    NoteState.Markov = SEMIMARKOV;
+
+    NoteState.Index = ScoreStates.size();
+    NoteState.Position = m_ScorePosition;
+
+    if (m_MarkovIndex != 0) {
+        NoteState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
+
+    } else {
+        NoteState.OnsetExpected = 0;
+    }
+
+    if (m_CurrentBPM == -1) {
+        throw std::runtime_error("BPM is not defined");
     }
     if (Tokens.size() < 3) {
-        State.Valid = false;
-        State.Error = "Invalid note on line " + std::to_string(LineCount);
-        return State;
+        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount));
     }
 
     // check if pitch is a number os a string
@@ -110,7 +137,7 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
             Midi = Midi * 0.01;
         }
     }
-    State.Freq = m_Tunning * std::pow(2, (Midi - 69) / 12);
+    NoteState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
 
     // check if there is / in the string
     bool isRatio = Tokens[2].find('/') != std::string::npos;
@@ -125,14 +152,71 @@ State OScofoScore::AddNote(State &State, std::vector<std::string> Tokens, double
         }
         double numerator = std::stof(ratioTokens[0]);
         double denominator = std::stof(ratioTokens[1]);
-        State.Duration = numerator / denominator;
+        NoteState.Duration = numerator / denominator;
     } else {
-        State.Duration = std::stof(Tokens[2]);
+        NoteState.Duration = std::stof(Tokens[2]);
     }
+
+    if (NoteState.Index != 0) {
+        int Index = NoteState.Index;
+        double PsiK = 60.0f / ScoreStates[Index - 1].BPMExpected;
+        double Tn = ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = NoteState.OnsetExpected;
+        double PhiN0 = NoteState.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        NoteState.PhaseExpected = PhiN1;
+        NoteState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        NoteState.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        NoteState.PhaseExpected = 0;
+        NoteState.IOIHatPhiN = 0;
+        NoteState.IOIPhiN = 0;
+    }
+
     // time phase
-    State.BPMExpected = BPM;
-    State.Valid = true;
-    return State;
+    NoteState.BPMExpected = m_CurrentBPM;
+    NoteState.Valid = true;
+
+    m_PrevDuration = NoteState.Duration;
+    m_LastOnset = NoteState.OnsetExpected;
+    ScoreStates.push_back(NoteState);
+
+    // State TransState;
+    // TransState.Type = SILENCE;
+    // TransState.Markov = MARKOV;
+    // TransState.BPMExpected = m_CurrentBPM;
+    // TransState.Valid = true;
+    // TransState.Freqs = NoteState.Freqs;
+    // TransState.Position = m_ScorePosition;
+    // TransState.Duration = 0;
+    // ScoreStates.push_back(TransState);
+
+    return;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddChord(States &ScoreStates, std::vector<std::string> Tokens) {
+    // TODO:
+    return;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddTrill(States &ScoreStates, std::vector<std::string> Tokens) {
+    // TODO:
+    return;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddMulti(States &ScoreStates, std::vector<std::string> Tokens) {
+    // TODO:
+    return;
+}
+
+// ─────────────────────────────────────
+void OScofoScore::AddRest(States &ScoreStates, std::vector<std::string> Tokens) {
+    // TODO:
+    return;
 }
 
 // ╭─────────────────────────────────────╮
@@ -146,24 +230,29 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
     // Open the score file for reading
     std::ifstream File(ScoreFile);
     if (!File) {
-        State State;
-        State.Valid = false;
-        State.Error = "File not found";
-        return;
+        throw std::runtime_error("Score File not found");
     }
 
-    double BPM = -1;
+    m_CurrentBPM = -1;
+    m_LineCount = 0;
+    m_MarkovIndex = 0;
+    m_ScorePosition = 1;
+    m_LastOnset = 0;
+    m_PrevDuration = 0;
+
     std::string Line;
-    int LineCount = 0;
     double LastOnset = 0;
-    double Event = 0;
     double PreviousDuration = 0;
 
+    // Process Score
     while (std::getline(File, Line)) {
-        LineCount++;
+        m_LineCount++;
+
+        // comments
         if (Line[0] == '#' || Line.empty() || Line[0] == ';') {
             continue;
         }
+
         std::istringstream iss(Line);
         std::string Token;
         std::vector<std::string> Tokens;
@@ -172,33 +261,29 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
             Tokens.push_back(Token);
         }
 
+        // Initial Silence
+        if (m_ScorePosition == 1) {
+        }
+
+        // Actually Score
         if (Tokens[0] == "NOTE") {
-            State State;
-            State.Type = NOTE;
-            State.Id = States.size();
-            State.Line = LineCount;
-            State = AddNote(State, Tokens, BPM, LineCount);
-            if (!State.Valid) {
-                State.Error = "Error on line " + std::to_string(LineCount) + ": " + State.Error;
-                States.push_back(State);
-                continue;
-            }
-            if (Event != 0) {
-                State.OnsetExpected = LastOnset + PreviousDuration * (60 / BPM); // in Seconds
-            } else {
-                State.OnsetExpected = 0;
-            }
-            Event++;
-            States.push_back(State);
-            PreviousDuration = State.Duration;
-            LastOnset = State.OnsetExpected;
+            AddNote(States, Tokens);
+            m_ScorePosition++;
 
         } else if (Tokens[0] == "BPM") {
-            BPM = std::stof(Tokens[1]);
+            m_CurrentBPM = std::stof(Tokens[1]);
+            State Implicity;
+            Implicity.Type = REST;
+            Implicity.Markov = MARKOV;
+            Implicity.BPMExpected = m_CurrentBPM;
+            Implicity.Position = 0;
+            Implicity.Duration = 0;
+            States.push_back(Implicity);
         }
+        m_MarkovIndex++;
     }
+
     // Optionally, set m_ScoreLoaded to true if necessary
     m_ScoreLoaded = true;
-
     LOGE() << "end OScofoScore::Parse | There are " << States.size() << " events";
 }

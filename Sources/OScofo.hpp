@@ -31,6 +31,10 @@ class OScofo {
     bool ParseScore(std::string ScorePath);
     bool ProcessBlock(std::vector<double> &AudioBuffer);
 
+    // Python Function for Research
+    States GetStates();
+    std::vector<double> GetPitchTemplate(double Freq, int Harmonics, double Sigma);
+
     // Helpers Functions
     bool ScoreIsLoaded();
     std::string GetError();
@@ -42,7 +46,7 @@ class OScofo {
 
     States m_States;
     Description m_Desc;
-    int m_CurrentEvent = -1;
+    int m_CurrentScorePosition = -1;
 
     std::string m_Error;
 };

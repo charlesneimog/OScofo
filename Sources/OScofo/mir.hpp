@@ -19,7 +19,7 @@ class OScofoMIR {
     OScofoMIR(float Sr, float WindowSize, float HopSize);
     ~OScofoMIR();
 
-    void SetTreshold(double dB);
+    void SetdBTreshold(double dB);
     void ResetElapsedTime();
     void UpdateTempoInEvent();
     double TimePrediction();
@@ -42,7 +42,7 @@ class OScofoMIR {
     void GetFFTDescriptions(const std::vector<double> &In, Description &Desc);
 
     // Env
-    double m_dBTreshold = -80;
+    double m_dBTreshold = -50;
     void GetRMS(const std::vector<double> &In, Description &Desc);
 
     // Audio

@@ -33,7 +33,7 @@ class PdOScofo {
     double BlockIndex;
     double BlockSize;
     double HopSize;
-    double WindowSize;
+    double FFTSize;
     double Sr;
 
     t_outlet *EventIndex;
@@ -41,57 +41,6 @@ class PdOScofo {
     t_outlet *Kappa;
     t_outlet *Debug;
 };
-
-// // ─────────────────────────────────────
-// static void GerenateAnalTemplate(PdOScofo *x, t_symbol *s, t_float Sr, t_float Fund, t_float H) {
-//     LOGE() << "PureData GerenateAnalTemplate";
-//
-//     double *FFTIn;
-//     fftw_complex *FFTOut;
-//     fftw_plan FFTPlan;
-//     x->OpenScofo.m_PitchTemplate.clear();
-//
-//     FFTIn = (double *)fftw_malloc(sizeof(double) * x->WindowSize);
-//     FFTOut = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * (x->WindowSize / 2 + 1));
-//     FFTPlan = fftw_plan_dft_r2c_1d(x->WindowSize, nullptr, nullptr, FFTW_ESTIMATE);
-//
-//     t_garray *Array;
-//     int VecSize;
-//     t_word *Vec;
-//
-//     if (!(Array = (t_garray *)pd_findbyclass(s, garray_class))) {
-//         pd_error(x, "[follower~] Array %s not found.", s->s_name);
-//         return;
-//     } else if (!garray_getfloatwords(Array, &VecSize, &Vec)) {
-//         pd_error(x, "[follower~] Bad template for tabwrite '%s'.", s->s_name);
-//         return;
-//     }
-//
-//     // get middle of the array
-//     int middle = VecSize / 2;
-//     std::vector<double> AudioChunk(x->WindowSize, 0);
-//     for (int i = 0; i < x->WindowSize; i++) {
-//         AudioChunk[i] = Vec[middle + i].w_float;
-//     }
-//     fftw_execute_dft_r2c(FFTPlan, AudioChunk.data(), FFTOut);
-//
-//     std::vector<double> SpectralPower(x->WindowSize / 2 + 1, 0);
-//     for (int i = 0; i < x->WindowSize / 2 + 1; i++) {
-//         double real = FFTOut[i][0];
-//         double imag = FFTOut[i][1];
-//         SpectralPower[i] = ((real * real + imag * imag) / x->WindowSize) / x->WindowSize;
-//     }
-//
-//     for (int i = 0; i < H; i++) {
-//         double pitchHz = Fund * (i + 1);
-//         int bin = round(pitchHz / (Sr / x->WindowSize));
-//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin - 1]);
-//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin]);
-//         x->OpenScofo.m_PitchTemplate.push_back(SpectralPower[bin + 1]);
-//     }
-//     post("[follower~] Template loaded");
-//     LOGE() << "PureData end GerenateAnalTemplate";
-// }
 
 // ─────────────────────────────────────
 static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
@@ -145,9 +94,13 @@ static void Score(PdOScofo *x, t_symbol *s) {
         pd_error(nullptr, "[o.scofo~] Score file not found");
         return;
     }
-    x->OpenScofo->ParseScore(CompletePath.c_str());
-    x->ScoreLoaded = true;
-    post("[o.scofo~] Score loaded");
+    bool ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+    if (ok) {
+        x->ScoreLoaded = true;
+        post("[o.scofo~] Score loaded");
+    } else {
+        pd_error(nullptr, "[o.scofo~] Error loading score");
+    }
     LOGE() << "PureData end Score Method";
 }
 
@@ -159,9 +112,11 @@ static void Start(PdOScofo *x) {
         return;
     }
     x->CurrentEvent = -1;
-    x->OpenScofo->SetCurrentEvent(x->CurrentEvent);
+    x->OpenScofo->SetCurrentEvent(-1);
     outlet_float(x->Tempo, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventIndex, 0);
+    x->Following = true;
+
     LOGE() << "PureData end Start Method";
 }
 
@@ -198,31 +153,30 @@ static t_int *DspPerform(t_int *w) {
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
 
-    if (!x->Following) {
+    if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
         return (w + 4);
     }
-
-    if (!x->OpenScofo->ScoreIsLoaded()) {
-        return (w + 4);
-    }
-
+    x->BlockIndex += n;
     std::copy(x->inBuffer.begin() + n, x->inBuffer.end(), x->inBuffer.begin());
     std::copy(in, in + n, x->inBuffer.end() - n);
-
-    x->BlockIndex += n;
-    if (!x->ScoreLoaded) {
-        return (w + 4);
-    }
 
     if (x->BlockIndex != x->HopSize) {
         return (w + 4);
     }
-
+    // process block
     x->BlockIndex = 0;
 
-    // Windowing
-    for (int i = 0; i < x->WindowSize; i++) {
-        x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->WindowSize - 1)));
+    // TODO: Implement precomputed window
+    // std::vector<double> windowTable(x->WindowSize);
+    // double factor = 2.0 * M_PI / (x->WindowSize - 1);
+    //
+    // for (int i = 0; i < x->WindowSize; i++) {
+    //     windowTable[i] = 0.5 * (1.0 - cos(factor * i));
+    // }
+    //
+
+    for (int i = 0; i < x->FFTSize; i++) {
+        x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->FFTSize - 1)));
     }
 
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
@@ -245,7 +199,7 @@ static void AddDsp(PdOScofo *x, t_signal **sp) {
     LOGE() << "AddDsp";
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
-    x->inBuffer.resize(x->WindowSize, 0.0f);
+    x->inBuffer.resize(x->FFTSize, 0.0f);
     dsp_add(DspPerform, 3, x, sp[0]->s_vec, sp[0]->s_n);
     LOGE() << "AddDsp Successful";
 }
@@ -257,7 +211,7 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
     PdOScofo *x = (PdOScofo *)pd_new(OScofoObj);
     x->EventIndex = outlet_new(&x->xObj, &s_float);
     x->Tempo = outlet_new(&x->xObj, &s_float);
-    x->WindowSize = 4096.0f;
+    x->FFTSize = 4096.0f;
     x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
     double overlap = 4;
@@ -266,7 +220,7 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
             std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
             if (argument == "-w") {
                 if (argv[i + 1].a_type == A_FLOAT) {
-                    x->WindowSize = atom_getfloat(&argv[i + 1]);
+                    x->FFTSize = atom_getfloat(&argv[i + 1]);
                     i++;
                 }
             }
@@ -283,15 +237,15 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
         }
     }
     if (overlap != 4) {
-        x->HopSize = x->WindowSize / overlap;
+        x->HopSize = x->FFTSize / overlap;
     }
     t_canvas *canvas = canvas_getcurrent();
     x->PatchDir = canvas_getdir(canvas)->s_name;
 
     x->Clock = clock_new(x, (t_method)ClockTick);
-    x->Event = -1;
+    x->Event = 0;
 
-    x->OpenScofo = new OScofo(x->Sr, x->WindowSize, x->HopSize);
+    x->OpenScofo = new OScofo(x->Sr, x->FFTSize, x->HopSize);
     x->Following = false;
 
     LOGE() << "Returning NewOScofo";
@@ -308,8 +262,7 @@ static void *FreeOScofo(PdOScofo *x) {
 
 // ─────────────────────────────────────
 extern "C" void setup_o0x2escofo_tilde(void) {
-    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo,
-                          sizeof(OScofo), CLASS_DEFAULT, A_GIMME, 0);
+    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo, sizeof(OScofo), CLASS_DEFAULT, A_GIMME, 0);
 
     CLASS_MAINSIGNALIN(OScofoObj, PdOScofo, Sample);
     class_addmethod(OScofoObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);

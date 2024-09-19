@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#define SCOFO_DEBUG true
+#define SCOFO_DEBUG false
 
 class LogStream {
   public:

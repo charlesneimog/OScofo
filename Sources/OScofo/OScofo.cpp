@@ -4,8 +4,7 @@
 // │     Construstor and Destructor      │
 // ╰─────────────────────────────────────╯
 //  ─────────────────────────────────────
-OScofo::OScofo(float Sr, float WindowSize, float HopSize)
-    : m_MDP(Sr, WindowSize, HopSize), m_MIR(Sr, WindowSize, HopSize) {
+OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopSize), m_MIR(Sr, FftSize, HopSize) {
     m_States = States();
     m_Desc = Description();
 }
@@ -37,6 +36,7 @@ void OScofo::SetTimeAccumFactor(double TimeAccumFactor) {
 // ─────────────────────────────────────
 void OScofo::SetdBTreshold(double dB) {
     m_MDP.SetdBTreshold(dB);
+    m_MIR.SetdBTreshold(dB);
 }
 
 // ─────────────────────────────────────
@@ -54,7 +54,7 @@ void OScofo::SetCurrentEvent(int Event) {
 // │            Get Functions            │
 // ╰─────────────────────────────────────╯
 int OScofo::GetEventIndex() {
-    return m_CurrentEvent; // TODO: Implement yet
+    return m_CurrentScorePosition; // TODO: Implement yet
 }
 
 // ─────────────────────────────────────
@@ -79,22 +79,23 @@ bool OScofo::ScoreIsLoaded() {
 }
 
 // ╭─────────────────────────────────────╮
+// │ Python Research and Test Functions  │
+// ╰─────────────────────────────────────╯
+States OScofo::GetStates() {
+    return m_States;
+}
+
+// ─────────────────────────────────────
+std::vector<double> OScofo::GetPitchTemplate(double Freq, int Harmonics, double Sigma) {
+    return m_MDP.GetPitchTemplate(Freq, Harmonics, Sigma);
+}
+
+// ╭─────────────────────────────────────╮
 // │           Main Functions            │
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
-    LOGE() << "OScofo::ParseScore";
     m_Score.Parse(m_States, ScorePath);
-    LOGE() << "Score has " << m_States.size() << " states";
-
-    for (int i = 0; i < m_States.size(); i++) {
-        if (!m_States[i].Valid) {
-            m_Error = std::string("Error on line ") + std::to_string(m_States[i].Line) + ": " +
-                      m_States[i].Error;
-            return false;
-        }
-    }
     m_MDP.SetScoreStates(m_States);
-    m_MDP.UpdatePhaseValues();
     return true;
 }
 
@@ -104,7 +105,6 @@ bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
         return true;
     }
     m_MIR.GetDescription(AudioBuffer, m_Desc);
-    m_CurrentEvent = m_MDP.GetEvent(m_Desc) + 1;
-    LOGE() << "States event size: " << m_States.size();
+    m_CurrentScorePosition = m_MDP.GetEvent(m_Desc);
     return true;
 }

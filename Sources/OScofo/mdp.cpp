@@ -3,83 +3,103 @@
 
 #include <boost/math/special_functions/bessel.hpp>
 
+#define BUFFER_SIZE 1000
+
 // ╭─────────────────────────────────────╮
 // │Constructor and Destructor Functions │
 // ╰─────────────────────────────────────╯
-OScofoMDP::OScofoMDP(float Sr, float WindowSize, float HopSize) {
+OScofoMDP::OScofoMDP(float Sr, float FFTSize, float HopSize) {
     m_HopSize = HopSize;
-    m_WindowSize = WindowSize;
+    m_FFTSize = FFTSize;
     m_Sr = Sr;
 
-    if (m_WindowSize / 2 != m_PitchTemplate.size()) {
-        m_PitchTemplate.resize(m_WindowSize / 2);
+    if (m_FFTSize / 2 != m_PitchTemplate.size()) {
+        m_PitchTemplate.resize(m_FFTSize / 2);
     }
+
     m_AccumulationFactor = 0.5;
     m_CouplingStrength = 0.5;
+    m_BlockDur = (1 / m_Sr) * HopSize;
+    m_TimeInPrevEvent = 0;
 
     SetTunning(440);
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::SetScoreStates(States States) {
+void OScofoMDP::SetScoreStates(States ScoreStates) {
     m_States.clear();
-    m_States = States;
+    m_States = ScoreStates;
+
+    // double Value2 = StateJ.In[t] * StateJ.Forward[t - 1] + StateJ.Norm[t - 1];
+    // allocate memory for history
+    for (int i = 0; i < m_States.size(); i++) {
+        m_States[i].Obs.resize(BUFFER_SIZE + 1, 0);
+        m_States[i].AlphaT.resize(BUFFER_SIZE + 1, 0);
+    }
+
+    m_CurrentStateIndex = -1;
+    m_Kappa = 1;
+    m_BPM = m_States[0].BPMExpected;
+    m_PsiN = 60.0f / m_States[0].BPMExpected;
+    m_PsiN1 = 60.0f / m_States[0].BPMExpected;
+    m_LastPsiN = 60.0f / m_States[0].BPMExpected;
+    m_BeatsAhead = m_States[0].BPMExpected / 60 * 2;
+    m_CurrentStateIndex = -1;
+    m_SyncStr = 0;
+
     UpdatePitchTemplate();
+    UpdatePhaseValues();
 }
+
 // ─────────────────────────────────────
 void OScofoMDP::UpdatePitchTemplate() {
-    LOGE() << "start OScofoMDP::UpdatePitchTemplate";
-    m_PitchTemplates.clear();
-    m_PitchTemplateHigherBin = 0;
-
     int StateSize = m_States.size();
+    m_PitchTemplates.clear();
+
     for (int h = 0; h < StateSize; h++) {
-        if (m_States[h].Valid) {
-            double Pitch = m_States[h].Freq;
-            double RootBinFreq = round(Pitch / (m_Sr / m_WindowSize));
+        if (m_States[h].Valid && m_States[h].Type == NOTE) {
+            // TODO: Implement CHORDS
+            double Pitch = m_States[h].Freqs[0];
+            double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
                 continue;
-            } else {
-                m_PitchTemplates[RootBinFreq].resize(m_WindowSize / 2);
             }
-            for (size_t i = 0; i < m_WindowSize / 2; ++i) {
-                for (size_t j = 0; j < m_Harmonics; ++j) {
-                    double amp = 1 / (std::pow(2, j)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
-                    double num = std::pow(i - (RootBinFreq * (j + 1)), 2);
-                    double den = 2 * M_PI * m_PitchTemplateSigma * m_PitchTemplateSigma;
-                    m_PitchTemplates[RootBinFreq][i] += amp * std::exp(-(num / den));
-                    if (m_PitchTemplateHigherBin < RootBinFreq) {
-                        m_PitchTemplateHigherBin = RootBinFreq;
-                    }
+            m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
+            double Sigma = m_PitchTemplateSigma;
+            for (int k = 1; k <= m_Harmonics; ++k) {
+                double harmonicFreqBin = RootBinFreq * k;
+                for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)
+                    double gaussian = (1 / std::sqrt(2 * M_PI * Sigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * Sigma * Sigma));
+                    double envelope = 1 / (std::pow(2, k)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+                    double noise = 0.00001 * (rand() % 100) / 100.0;
+                    m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
                 }
             }
         }
     }
-    LOGE() << "end OScofoMDP::UpdatePitchTemplate";
+}
+
+// ─────────────────────────────────────
+std::vector<double> OScofoMDP::GetPitchTemplate(double Freq, int Harmonics, double Sigma) {
+    double Pitch = Freq;
+    double RootBinFreq = Pitch / (m_Sr / m_FFTSize);        // Fundamental frequency bin
+    std::vector<double> PitchTemplates(m_FFTSize / 2, 0.0); // Initialize with zero
+
+    for (int k = 1; k <= Harmonics; ++k) {
+        double harmonicFreqBin = RootBinFreq * k;
+        for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)
+            double gaussian = (1 / std::sqrt(2 * M_PI * Sigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * Sigma * Sigma));
+            double envelope = 1 / (std::pow(2, k)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+            double noise = 0.00001 * (rand() % 100) / 100.0;
+            PitchTemplates[i] += (envelope * gaussian) + noise;
+        }
+    }
+
+    return PitchTemplates;
 }
 
 // ─────────────────────────────────────
 void OScofoMDP::UpdatePhaseValues() {
-    m_SyncStr = 0;
-
-    if (m_States.size() == 0) {
-        return;
-    }
-
-    m_PsiN = 60.0f / m_States[0].BPMExpected;
-    m_States[0].PhaseExpected = 0;
-    for (int i = 0; i < m_States.size() - 1; i++) {
-        double PsiK = 60.0f / m_States[i].BPMExpected;
-        double Tn = m_States[i].OnsetExpected;
-        double Tn1 = m_States[i + 1].OnsetExpected;
-        double PhiN0 = m_States[i].PhaseExpected;
-        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-        PhiN1 = ModPhases(PhiN1);
-        m_States[i + 1].PhaseExpected = PhiN1;
-        m_States[i + 1].PhaseObserved = PhiN1;
-        m_States[i + 1].IOIHatPhiN = (Tn1 - Tn) / PsiK;
-        m_States[i + 1].IOIPhiN = (Tn1 - Tn) / PsiK;
-    }
 }
 
 // ╭─────────────────────────────────────╮
@@ -125,7 +145,8 @@ int OScofoMDP::GetTunning() {
 
 // ─────────────────────────────────────
 void OScofoMDP::SetCurrentEvent(int Event) {
-    m_CurrentEvent = Event;
+    m_CurrentStateIndex = Event;
+    m_EventDetected = false;
 }
 
 // ─────────────────────────────────────
@@ -216,25 +237,69 @@ double OScofoMDP::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-void OScofoMDP::GetBPM() {
+int OScofoMDP::GetMaxLookAhead(int StateIndex) {
+    // BUG: NOT WORKING
+    int StatesSize = m_States.size();
+    int MaxEvent = StateIndex;
+    double EventOnset = 0;
+
+    for (int i = StateIndex; i < StatesSize; i++) {
+        if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
+            MaxEvent = m_States[i].Position;
+            if (MaxEvent == m_CurrentStateIndex) {
+                while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
+                    MaxEvent++;
+                }
+            }
+            break;
+        }
+        EventOnset += m_States[i].Duration * m_PsiN;
+        MaxEvent = i;
+    }
+    return MaxEvent;
+}
+
+// ─────────────────────────────────────
+void OScofoMDP::UpdateBPM(int StateIndex) {
+    if (StateIndex == m_CurrentStateIndex) {
+        m_TimeInPrevEvent += m_BlockDur;
+        m_T += 1;
+        return;
+    } else {
+        if (StateIndex == 0) {
+            double PsiK = 60 / m_States[0].BPMExpected;
+            m_LastPsiN = PsiK;
+            m_PsiN = PsiK;
+            m_PsiN1 = PsiK;
+            m_States[0].OnsetObserved = 0;
+            m_BPM = m_States[0].BPMExpected;
+            m_CurrentStateOnset = 0;
+            m_LastTn = 0;
+            m_TimeInPrevEvent = 0;
+            return;
+        } else {
+            m_TimeInPrevEvent += m_BlockDur;
+            m_LastTn = m_CurrentStateOnset;
+            m_CurrentStateOnset += m_TimeInPrevEvent;
+        }
+    }
+
     // Cont (2010), Large and Palmer (1999) and Large and Jones (2002)
+    State &LastState = m_States[StateIndex - 1];
+    State &CurrentState = m_States[StateIndex];
+    State &NextState = m_States[StateIndex + 1];
 
-    State &LastState = m_States[m_CurrentEvent - 1];
-    State &CurrentState = m_States[m_CurrentEvent];
-    State &NextState = m_States[m_CurrentEvent + 1];
-
-    double IOISeconds = m_Tn - m_LastTn;
+    double IOISeconds = m_CurrentStateOnset - m_LastTn;
     double LastPhiN = LastState.IOIPhiN;
     double LastHatPhiN = LastState.IOIHatPhiN;
     double HatPhiN = CurrentState.IOIHatPhiN;
-    LOGE() << "PsiN: " << m_PsiN;
-    double PhiNExpected = LastPhiN + ((m_Tn - m_LastTn) / m_PsiN);
+    double PhiNExpected = LastPhiN + ((m_CurrentStateOnset - m_LastTn) / m_PsiN);
     CurrentState.IOIHatPhiN = PhiNExpected;
+    CurrentState.OnsetObserved = m_CurrentStateOnset;
 
     // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
     double PhaseDiff = (IOISeconds / m_PsiN) - HatPhiN;
     double SyncStrength = m_SyncStr - m_AccumulationFactor * (m_SyncStr - cos(TWO_PI * PhaseDiff));
-    LOGE() << "SyncStrength: " << SyncStrength;
     double Kappa = InverseA2(SyncStrength);
     m_SyncStr = SyncStrength;
     m_Kappa = Kappa;
@@ -250,40 +315,73 @@ void OScofoMDP::GetBPM() {
     double PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValuePrediction);
 
     // Prediction for Next HatPhiN
-    double Duration = CurrentState.Duration;
-    double Tn1 = m_Tn + Duration * PsiN1;
-    double PhiN1 = ModPhases((Tn1 - m_Tn) / PsiN1);
+    double Tn1 = m_CurrentStateOnset + CurrentState.Duration * PsiN1;
+    double PhiN1 = ModPhases((Tn1 - m_CurrentStateOnset) / PsiN1);
     NextState.IOIHatPhiN = PhiN1;
 
-    // Update Previous Values
-    m_BPM = 60.0f / m_PsiN1;
+    // Update all next expected onsets
+    NextState.OnsetExpected = Tn1;
+    double LastOnsetExpected = Tn1;
+
+    // the m_CurrentEvent + 1 already updated, now
+    // we update the future events to get the Sojourn Time
+    for (int i = m_CurrentStateIndex + 2; i < m_CurrentStateIndex + 20; i++) {
+        if (i >= m_States.size()) {
+            break;
+        }
+        State &FutureState = m_States[i];
+        State &PreviousFutureState = m_States[(i - 1)];
+        double Duration = PreviousFutureState.Duration;
+        double FutureOnset = LastOnsetExpected + Duration * PsiN1;
+        FutureState.OnsetExpected = FutureOnset;
+        LastOnsetExpected = FutureOnset;
+    }
+
+    // Update Values for next calls
+    m_BPM = 60.0f / m_PsiN;
     m_LastPsiN = m_PsiN;
     m_PsiN = PsiN1;
-    m_PsiN1 = PsiN1;
 
-    LOGE() << "Attencional Energy: " << m_SyncStr;
-    LOGE() << "BPM: " << m_BPM;
+    if (StateIndex != m_CurrentStateIndex) {
+        m_TimeInPrevEvent = 0;
+        // m_T = 0;
+    }
 }
 
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-double OScofoMDP::GetPitchSimilarity(State &PossibleState, Description &Desc) {
-    double KLDiv = 0.0;
-    double RootBinFreq = round(PossibleState.Freq / (m_Sr / m_WindowSize));
+void OScofoMDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T) {
+    for (int j = FirstStateIndex; j <= LastStateIndex; j++) {
+        if (j < 0) {
+            continue;
+        }
+        State &StateJ = m_States[j];
+        int BufferIndex = (T % BUFFER_SIZE);
+        if (StateJ.Type == NOTE) {
+            double KL = GetPitchSimilarity(StateJ, Desc);
+            StateJ.Obs[BufferIndex] = KL;
+        } else if (StateJ.Type == REST) {
+            StateJ.Obs[BufferIndex] = 1 - Desc.Amp;
+        }
+    }
+}
 
+// ─────────────────────────────────────
+double OScofoMDP::GetPitchSimilarity(State &State, Description &Desc) {
+    double KLDiv = 0.0;
+
+    // TODO: Implement CHORDS
+    double RootBinFreq = round(State.Freqs[0] / (m_Sr / m_FFTSize));
     PitchTemplateArray PitchTemplate;
+
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        printf("PitchTemplate not found\n");
-        return 0;
+        throw std::runtime_error("PitchTemplate not found for " + std::to_string(State.Freqs[0]) + ", this should not happen, please report");
     }
 
-    for (size_t i = 0; i < m_WindowSize / 2; i++) {
-        if (i > m_PitchTemplateHigherBin) {
-            break;
-        }
+    for (size_t i = 0; i < m_FFTSize / 2; i++) {
         double P = PitchTemplate[i] * Desc.MaxAmp;
         double Q = Desc.NormSpectralPower[i];
         if (P > 0 && Q > 0) {
@@ -296,103 +394,195 @@ double OScofoMDP::GetPitchSimilarity(State &PossibleState, Description &Desc) {
     KLDiv = exp(-m_Z * KLDiv);
     return KLDiv;
 }
-
 // ─────────────────────────────────────
-double OScofoMDP::GetTimeSimilarity(State &PossibleState, Description &Desc) {
-    // m_SyncStr = 0;
+double OScofoMDP::GetInitialDistribution(int CurrentState, int j) {
+    int Size = m_MaxScoreState - CurrentState;
+    std::vector<double> InitialProb(Size);
 
-    return 0;
+    int i = -1;
+    double Dur = 0;
+    double Sum = 0;
+    for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
+        int index = i - m_CurrentStateIndex;
+        double DurProb = exp(-0.5 * (Dur / m_BeatsAhead));
+        double LastDur = Dur / m_BeatsAhead;
+        InitialProb[index] = DurProb;
+        Dur += m_States[j].Duration;
+        Sum += DurProb;
+    }
+
+    // normalize
+    for (int i = 0; i < Size; i++) {
+        InitialProb[i] /= Sum;
+    }
+
+    int index = j - m_CurrentStateIndex;
+
+    return InitialProb[index];
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetReward(State &PossibleState, Description &Desc) {
-    double PitchWeight;
-    double TimeWeight;
-    if (PossibleState.Type == NOTE) {
-        PitchWeight = 0.5;
-        TimeWeight = 0.5;
+double OScofoMDP::GetTransProbability(int i, int j) {
+    // simplest markov
+    if (i + 1 == j) {
+        return 1;
+    } else {
+        return 0;
     }
-
-    // TODO: Add Attack Envelope
-
-    double PitchSimilarity = GetPitchSimilarity(PossibleState, Desc);
-
-    // double TimeSimilarity = GetTimeSimilarity(PossibleState, Desc) * TimeWeight;
-
-    double Reward = (PitchSimilarity * PitchWeight); //+ (TimeSimilarity * (m_SyncStr / 2));
-
-    return Reward;
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetBestEvent(Description &Desc) {
-    if (m_CurrentEvent == -1) {
-        m_BPM = m_States[0].BPMExpected;
+double OScofoMDP::GetSojournTime(State &State, int u) {
+    double T = m_LastTn + (m_BlockDur * u);
+    double Duration = State.Duration;
+    double Sojourn = std::exp(-(T - m_LastTn) / (m_PsiN1 * Duration));
+    return Sojourn;
+}
+
+// ─────────────────────────────────────
+int OScofoMDP::GetMaxUForJ(State &StateJ) {
+    double MaxU = StateJ.Duration / m_BlockDur;
+    int MaxUInt = round(MaxU);
+    return MaxUInt;
+}
+
+// ─────────────────────────────────────
+int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
+    double MaxValue = -std::numeric_limits<double>::infinity();
+    int BestState = CurrentState;
+
+    // Initialize AlphaT buffer with a fixed size and rotate indices
+    for (auto &state : m_States) {
+        if (state.AlphaT.size() != BUFFER_SIZE) {
+            state.AlphaT.resize(BUFFER_SIZE, 0);
+        }
     }
 
-    double LookAhead = 2; // TODO: Look 5 seconds in future
-    int BestGuess, i = m_CurrentEvent;
-    double BestReward = -1;
-    double EventLookAhead = 0;
-    int StatesSize = m_States.size();
+    for (int j = CurrentState; j <= MaxState; j++) {
+        if (j < 0)
+            continue;
+        State &StateJ = m_States[j];
+        int bufferIndex = T % BUFFER_SIZE; // Circular buffer index
+        if (StateJ.Markov == SEMIMARKOV) {
+            if (T == 0) {
+                StateJ.AlphaT[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
+            } else {
+                double Obs = StateJ.Obs[bufferIndex];
+                double MaxAlpha = -std::numeric_limits<double>::infinity();
+                for (int u = 1; u <= std::min(T, GetMaxUForJ(StateJ)); u++) {
+                    double ProbPrevObs = 1.0;
+                    for (int v = 1; v < u; v++) {
+                        int PrevIndex = (bufferIndex - v + BUFFER_SIZE) % BUFFER_SIZE;
+                        ProbPrevObs *= StateJ.Obs[PrevIndex];
+                    }
+                    double Sur = GetSojournTime(StateJ, u);
 
-    // Core Function
-    while (EventLookAhead < LookAhead) {
-        if (i >= StatesSize) {
-            break;
+                    double MaxTrans = -std::numeric_limits<double>::infinity();
+                    for (int i = CurrentState - 1; i <= j; i++) {
+                        if (i >= 0 && i != j) {
+                            State &StateI = m_States[i];
+                            int PrevIndex = (bufferIndex - u + BUFFER_SIZE) % BUFFER_SIZE;
+                            MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.AlphaT[PrevIndex]);
+                        }
+                    }
+                    double MaxResult = ProbPrevObs * Sur * MaxTrans;
+                    MaxAlpha = std::max(MaxAlpha, MaxResult);
+                }
+                StateJ.AlphaT[bufferIndex] = Obs * MaxAlpha;
+            }
         }
-        if (i < 0) {
-            i = 0;
+        // Handle Markov
+        else if (StateJ.Markov == MARKOV) {
+            if (T == 0) {
+                StateJ.AlphaT[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
+            } else {
+                double Obs = StateJ.Obs[bufferIndex];
+                double MaxAlpha = -std::numeric_limits<double>::infinity();
+                for (int i = CurrentState - 1; i <= j; i++) {
+                    if (i >= 0) {
+                        int prevIndex = (bufferIndex - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+                        double Value = GetTransProbability(i, j) * m_States[i].AlphaT[prevIndex];
+                        MaxAlpha = std::max(MaxAlpha, Value);
+                    }
+                }
+                StateJ.AlphaT[bufferIndex] = Obs * MaxAlpha;
+            }
         }
-        EventLookAhead += m_States[i].Duration * m_PsiN;
-        State State = m_States[i];
-        double Reward = GetReward(State, Desc);
-        if (Reward > BestReward) {
-            BestReward = Reward;
-            BestGuess = i;
+
+        if (StateJ.AlphaT[bufferIndex] > MaxValue) {
+            MaxValue = StateJ.AlphaT[bufferIndex];
+            BestState = j;
         }
-        i++;
     }
-    LOGE() << "end OScofoMDP::GetBestEvent";
-    return BestGuess;
+
+    return BestState;
 }
 
 // ─────────────────────────────────────
 int OScofoMDP::GetEvent(Description &Desc) {
-    double BlockDur = 1 / m_Sr;
-    m_TimeInThisEvent += BlockDur * m_HopSize;
+    // ╭─────────────────────────────────────╮
+    // │           States Filter.            │
+    // │  Suitably limit J and T (\tau) to   │
+    // │                small                │
+    // │   homogeneous zones in space and    │
+    // │        time during filtering        │
+    // │ as function of the latest decoding  │
+    // │              position.              │
+    // ╰─────────────────────────────────────╯
+    m_MaxScoreState = GetMaxLookAhead(m_CurrentStateIndex);
 
-    if (!Desc.PassTreshold) {
-        return m_CurrentEvent;
+    // ╭─────────────────────────────────────╮
+    // │       Get Audio Observations        │
+    // ╰─────────────────────────────────────╯
+    GetAudioObservations(Desc, m_CurrentStateIndex - 1, m_MaxScoreState, m_T);
+
+    // ╭─────────────────────────────────────╮
+    // │    Do nothing if thereis silence    │
+    // │     (need to thing about this)      │
+    // ╰─────────────────────────────────────╯
+    if (Desc.Silence || m_CurrentStateIndex == m_States.size()) {
+        if (m_CurrentStateIndex == -1) {
+            return 0;
+        }
+        // TODO: Future I will rethink this
+        return m_States[m_CurrentStateIndex].Position;
     }
 
-    // Get the best event to describe the current state
-    double Event = GetBestEvent(Desc);
+    // ╭─────────────────────────────────────╮
+    // │           Get Best Event            │
+    // ╰─────────────────────────────────────╯
+    int StateIndex = m_CurrentStateIndex;
+    double MaxAlpha = 0;
 
-    if (Event != m_CurrentEvent && Event == 0) {
-        LOGE();
-        m_CurrentEvent = Event;
-        double PsiK = 60 / m_States[0].BPMExpected;
-        m_LastPsiN = PsiK;
-        m_PsiN = PsiK;
-        m_PsiN1 = PsiK;
-        m_States[0].OnsetObserved = 0;
-        m_BPM = m_States[0].BPMExpected;
-        m_Tn = 0;
-        m_LastTn = 0;
-        m_TimeInThisEvent = 0;
-    } else if (Event != m_CurrentEvent && Event != 0) {
-        LOGE() << "<== Event: " << Event << " ==>";
-        m_CurrentEvent = Event;
-        m_LastTn = m_Tn;
-        m_Tn += m_TimeInThisEvent;
-        GetBPM();
-        m_TimeInThisEvent = 0;
-        LOGE();
+    double Survival = 0;
+    if (m_CurrentStateIndex > -1) {
+        Survival = GetSojournTime(m_States[m_CurrentStateIndex], m_T);
     }
 
-    LOGE() << "Get Event Finish";
-    m_CurrentEvent = Event;
-    // printf("Event: %d\n", m_CurrentEvent);
-    return m_CurrentEvent;
+    double AlphaSum = 0;
+    for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
+        State &StateJ = m_States[j];
+        StateJ.InitProb = GetInitialDistribution(m_CurrentStateIndex, j);
+    }
+
+    StateIndex = Inference(m_CurrentStateIndex, m_MaxScoreState, m_T);
+
+    if (StateIndex == -1) {
+        return 0;
+    }
+
+    // ╭─────────────────────────────────────╮
+    // │            Time Decoding            │
+    // ╰─────────────────────────────────────╯
+    UpdateBPM(StateIndex);
+
+    // ╭─────────────────────────────────────╮
+    // │        Return the best event        │
+    // ╰─────────────────────────────────────╯
+    if (m_CurrentStateIndex == StateIndex) {
+        return m_States[StateIndex].Position;
+    } else {
+        m_CurrentStateIndex = StateIndex;
+        return m_States[StateIndex].Position;
+    }
 }
