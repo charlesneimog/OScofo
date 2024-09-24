@@ -34,10 +34,10 @@ class OScofoMDP {
     // Get Functions
     int GetTunning();
 
-    std::vector<State> GetStates();
-    State GetState(int Index);
+    std::vector<MacroState> GetStates();
+    MacroState GetState(int Index);
     double GetKappa();
-    void AddState(State state);
+    void AddState(MacroState state);
     void ClearStates();
 
     int GetStatesSize();
@@ -51,6 +51,7 @@ class OScofoMDP {
     void SetCurrentEvent(int Event);
     void SetTimeAccumFactor(double f);
     void SetTimeCouplingStrength(double f);
+    double GaussianProbTimeOnset(int j, int T, double Sigma);
 
   private:
     // Audio
@@ -94,17 +95,15 @@ class OScofoMDP {
     double InverseA2(double r);
     double ModPhases(double value);
     double CouplingFunction(double Phi, double PhiMu, double Kappa);
-    double GetSojournTime(State &State, int u);
-    // double GetSurvivorFunction(State &StateJ, int u);
+    double GetSojournTime(MacroState &State, int u);
 
     // Markov and Probabilities
     double GetTransProbability(int i, int j);
     double GetInitialDistribution(int CurrentState, int j);
-    int GetMaxUForJ(State &StateJ);
-    double FjoT(int CurrentState, int MaxState, int T);
+    int GetMaxUForJ(MacroState &StateJ);
 
     // Pitch
-    std::vector<State> m_States;
+    std::vector<MacroState> m_States;
     std::vector<double> m_PitchTemplate;
     double m_PitchTemplateSigma = 1;
     double m_Z = 0.5; // TODO: How should I call this?
@@ -114,9 +113,12 @@ class OScofoMDP {
     void GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T);
 
     // Markov
+    std::vector<double> m_N;
     bool m_EventDetected = false;
     double GetBestEvent(Description &Desc);
-    double GetPitchSimilarity(State &NextPossibleState, Description &Desc);
+    double GetPitchSimilarity(MacroState &NextPossibleState, Description &Desc);
     int GetMaxLookAhead(int StateIndex);
     int Inference(int CurrentState, int j, int T);
+    double SemiMarkov(int j, int T);
+    double Markov(int j, int T);
 };

@@ -1,6 +1,6 @@
 #include <vector>
 
-#include <OScofo.hpp> // Assuming this header file defines your OScofo class
+#include <OScofo.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -11,7 +11,7 @@ PYBIND11_MODULE(_OScofo, m) {
 
     py::class_<OScofo>(m, "OScofo")
         .def(py::init<float, float, float>())
-        // Init
+        // Score
         .def("ParseScore", &OScofo::ParseScore)
 
         // Config
@@ -29,6 +29,7 @@ PYBIND11_MODULE(_OScofo, m) {
         .def("GetError", &OScofo::GetError)
         .def("GetStates", &OScofo::GetStates)
         .def("GetPitchTemplate", &OScofo::GetPitchTemplate)
+        .def("GetGaussianTimeLine", &OScofo::GaussianProbTimeOnset)
 
         // Process
         .def("ProcessBlock", [](OScofo &self, py::array_t<double> Audio) {
@@ -43,27 +44,25 @@ PYBIND11_MODULE(_OScofo, m) {
         });
 
     // State Class
-    py::class_<State>(m, "State")
+    py::class_<MacroState>(m, "State")
         .def(py::init<>()) // Default constructor
-        .def_readwrite("Index", &State::Index)
-        .def_readwrite("Position", &State::Position)
-        .def_readwrite("Type", &State::Type)
-        .def_readwrite("Markov", &State::Markov)
-        .def_readwrite("Freqs", &State::Freqs)
-        .def_readwrite("KLDiv", &State::Obs)
-        .def_readwrite("AlphaT", &State::AlphaT)
-        .def_readwrite("BPMExpected", &State::BPMExpected)
-        .def_readwrite("BPMObserved", &State::BPMObserved)
-        .def_readwrite("OnsetExpected", &State::OnsetExpected)
-        .def_readwrite("OnsetObserved", &State::OnsetObserved)
-        .def_readwrite("PhaseExpected", &State::PhaseExpected)
-        .def_readwrite("PhaseObserved", &State::PhaseObserved)
-        .def_readwrite("IOIPhiN", &State::IOIPhiN)
-        .def_readwrite("IOIHatPhiN", &State::IOIHatPhiN)
-        .def_readwrite("Duration", &State::Duration)
-        .def_readwrite("Valid", &State::Valid)
-        .def_readwrite("Line", &State::Line)
-        .def_readwrite("Error", &State::Error)
-        .def("__repr__", &State::to_string)
-        .def("__str__", &State::to_string);
+        .def_readwrite("Index", &MacroState::Index)
+        .def_readwrite("Position", &MacroState::ScorePos)
+        .def_readwrite("Type", &MacroState::Type)
+        .def_readwrite("Markov", &MacroState::Markov)
+        .def_readwrite("Freqs", &MacroState::Freqs)
+        .def_readwrite("KLDiv", &MacroState::Obs)
+        .def_readwrite("Forward", &MacroState::Forward)
+        .def_readwrite("BPMExpected", &MacroState::BPMExpected)
+        .def_readwrite("BPMObserved", &MacroState::BPMObserved)
+        .def_readwrite("OnsetExpected", &MacroState::OnsetExpected)
+        .def_readwrite("OnsetObserved", &MacroState::OnsetObserved)
+        .def_readwrite("PhaseExpected", &MacroState::PhaseExpected)
+        .def_readwrite("PhaseObserved", &MacroState::PhaseObserved)
+        .def_readwrite("IOIPhiN", &MacroState::IOIPhiN)
+        .def_readwrite("IOIHatPhiN", &MacroState::IOIHatPhiN)
+        .def_readwrite("Duration", &MacroState::Duration)
+        .def_readwrite("Line", &MacroState::Line)
+        .def("__repr__", &MacroState::__repr__)
+        .def("__str__", &MacroState::__repr__);
 }

@@ -34,8 +34,11 @@ void OScofoMDP::SetScoreStates(States ScoreStates) {
     // allocate memory for history
     for (int i = 0; i < m_States.size(); i++) {
         m_States[i].Obs.resize(BUFFER_SIZE + 1, 0);
-        m_States[i].AlphaT.resize(BUFFER_SIZE + 1, 0);
+        m_States[i].Forward.resize(BUFFER_SIZE + 1, 0);
+        m_States[i].Norm.resize(BUFFER_SIZE + 1, 0);
+        m_States[i].In.resize(BUFFER_SIZE + 1, 0);
     }
+    m_N.resize(BUFFER_SIZE + 1, 0);
 
     m_CurrentStateIndex = -1;
     m_Kappa = 1;
@@ -57,7 +60,7 @@ void OScofoMDP::UpdatePitchTemplate() {
     m_PitchTemplates.clear();
 
     for (int h = 0; h < StateSize; h++) {
-        if (m_States[h].Valid && m_States[h].Type == NOTE) {
+        if (m_States[h].Type == NOTE) {
             // TODO: Implement CHORDS
             double Pitch = m_States[h].Freqs[0];
             double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
@@ -154,11 +157,11 @@ int OScofoMDP::GetStatesSize() {
     return m_States.size();
 }
 // ─────────────────────────────────────
-void OScofoMDP::AddState(State State) {
+void OScofoMDP::AddState(MacroState State) {
     m_States.push_back(State);
 }
 // ─────────────────────────────────────
-State OScofoMDP::GetState(int Index) {
+MacroState OScofoMDP::GetState(int Index) {
     return m_States[Index];
 }
 
@@ -245,7 +248,7 @@ int OScofoMDP::GetMaxLookAhead(int StateIndex) {
 
     for (int i = StateIndex; i < StatesSize; i++) {
         if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
-            MaxEvent = m_States[i].Position;
+            MaxEvent = m_States[i].ScorePos;
             if (MaxEvent == m_CurrentStateIndex) {
                 while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
                     MaxEvent++;
@@ -276,6 +279,7 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
             m_CurrentStateOnset = 0;
             m_LastTn = 0;
             m_TimeInPrevEvent = 0;
+            m_T = 0;
             return;
         } else {
             m_TimeInPrevEvent += m_BlockDur;
@@ -285,9 +289,9 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
     }
 
     // Cont (2010), Large and Palmer (1999) and Large and Jones (2002)
-    State &LastState = m_States[StateIndex - 1];
-    State &CurrentState = m_States[StateIndex];
-    State &NextState = m_States[StateIndex + 1];
+    MacroState &LastState = m_States[StateIndex - 1];
+    MacroState &CurrentState = m_States[StateIndex];
+    MacroState &NextState = m_States[StateIndex + 1];
 
     double IOISeconds = m_CurrentStateOnset - m_LastTn;
     double LastPhiN = LastState.IOIPhiN;
@@ -329,10 +333,11 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
         if (i >= m_States.size()) {
             break;
         }
-        State &FutureState = m_States[i];
-        State &PreviousFutureState = m_States[(i - 1)];
+        MacroState &FutureState = m_States[i];
+        MacroState &PreviousFutureState = m_States[(i - 1)];
         double Duration = PreviousFutureState.Duration;
         double FutureOnset = LastOnsetExpected + Duration * PsiN1;
+
         FutureState.OnsetExpected = FutureOnset;
         LastOnsetExpected = FutureOnset;
     }
@@ -344,7 +349,7 @@ void OScofoMDP::UpdateBPM(int StateIndex) {
 
     if (StateIndex != m_CurrentStateIndex) {
         m_TimeInPrevEvent = 0;
-        // m_T = 0;
+        m_T = 0;
     }
 }
 
@@ -356,7 +361,7 @@ void OScofoMDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int
         if (j < 0) {
             continue;
         }
-        State &StateJ = m_States[j];
+        MacroState &StateJ = m_States[j];
         int BufferIndex = (T % BUFFER_SIZE);
         if (StateJ.Type == NOTE) {
             double KL = GetPitchSimilarity(StateJ, Desc);
@@ -368,7 +373,7 @@ void OScofoMDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetPitchSimilarity(State &State, Description &Desc) {
+double OScofoMDP::GetPitchSimilarity(MacroState &State, Description &Desc) {
     double KLDiv = 0.0;
 
     // TODO: Implement CHORDS
@@ -432,7 +437,7 @@ double OScofoMDP::GetTransProbability(int i, int j) {
 }
 
 // ─────────────────────────────────────
-double OScofoMDP::GetSojournTime(State &State, int u) {
+double OScofoMDP::GetSojournTime(MacroState &State, int u) {
     double T = m_LastTn + (m_BlockDur * u);
     double Duration = State.Duration;
     double Sojourn = std::exp(-(T - m_LastTn) / (m_PsiN1 * Duration));
@@ -440,10 +445,18 @@ double OScofoMDP::GetSojournTime(State &State, int u) {
 }
 
 // ─────────────────────────────────────
-int OScofoMDP::GetMaxUForJ(State &StateJ) {
+int OScofoMDP::GetMaxUForJ(MacroState &StateJ) {
     double MaxU = StateJ.Duration / m_BlockDur;
     int MaxUInt = round(MaxU);
     return MaxUInt;
+}
+
+// ─────────────────────────────────────
+double OScofoMDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
+    MacroState &StateJ = m_States[j];
+    double Onset = std::ceil((StateJ.OnsetExpected - m_LastTn) / m_BlockDur);
+    double Gaussian = std::exp(-((T - Onset) * (T - Onset)) / (2 * Sigma * Sigma));
+    return Gaussian + 1e-100; // 1e-10.5;
 }
 
 // ─────────────────────────────────────
@@ -451,22 +464,20 @@ int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
 
-    // Initialize AlphaT buffer with a fixed size and rotate indices
-    for (auto &state : m_States) {
-        if (state.AlphaT.size() != BUFFER_SIZE) {
-            state.AlphaT.resize(BUFFER_SIZE, 0);
-        }
-    }
-
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
             continue;
-        State &StateJ = m_States[j];
+        MacroState &StateJ = m_States[j];
         int bufferIndex = T % BUFFER_SIZE; // Circular buffer index
+
+        // ╭─────────────────────────────────────╮
+        // │          Handle SemiMarkov          │
+        // ╰─────────────────────────────────────╯
         if (StateJ.Markov == SEMIMARKOV) {
             if (T == 0) {
-                StateJ.AlphaT[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
+                StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
             } else {
+                double GaussianTimeLine = GaussianProbTimeOnset(j, T, 500);
                 double Obs = StateJ.Obs[bufferIndex];
                 double MaxAlpha = -std::numeric_limits<double>::infinity();
                 for (int u = 1; u <= std::min(T, GetMaxUForJ(StateJ)); u++) {
@@ -476,41 +487,51 @@ int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
                         ProbPrevObs *= StateJ.Obs[PrevIndex];
                     }
                     double Sur = GetSojournTime(StateJ, u);
-
                     double MaxTrans = -std::numeric_limits<double>::infinity();
-                    for (int i = CurrentState - 1; i <= j; i++) {
-                        if (i >= 0 && i != j) {
-                            State &StateI = m_States[i];
+                    for (int i = CurrentState; i <= j; i++) { // TODO: Moficar para Current State (no -1)
+                        if (i < 0) {
+                            continue;
+                        }
+                        MacroState &StateI = m_States[i];
+                        if (i != j) {
                             int PrevIndex = (bufferIndex - u + BUFFER_SIZE) % BUFFER_SIZE;
-                            MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.AlphaT[PrevIndex]);
+                            MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
+                        } else {
+
+                            // Self transition (this is not compatible with Guedon (2005))
+                            int PrevIndex = (bufferIndex - u + BUFFER_SIZE) % BUFFER_SIZE;
+                            MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
                         }
                     }
                     double MaxResult = ProbPrevObs * Sur * MaxTrans;
                     MaxAlpha = std::max(MaxAlpha, MaxResult);
                 }
-                StateJ.AlphaT[bufferIndex] = Obs * MaxAlpha;
-            }
-        }
-        // Handle Markov
-        else if (StateJ.Markov == MARKOV) {
-            if (T == 0) {
-                StateJ.AlphaT[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
-            } else {
-                double Obs = StateJ.Obs[bufferIndex];
-                double MaxAlpha = -std::numeric_limits<double>::infinity();
-                for (int i = CurrentState - 1; i <= j; i++) {
-                    if (i >= 0) {
-                        int prevIndex = (bufferIndex - 1 + BUFFER_SIZE) % BUFFER_SIZE;
-                        double Value = GetTransProbability(i, j) * m_States[i].AlphaT[prevIndex];
-                        MaxAlpha = std::max(MaxAlpha, Value);
-                    }
-                }
-                StateJ.AlphaT[bufferIndex] = Obs * MaxAlpha;
+                StateJ.Forward[bufferIndex] = Obs * MaxAlpha * GaussianTimeLine;
             }
         }
 
-        if (StateJ.AlphaT[bufferIndex] > MaxValue) {
-            MaxValue = StateJ.AlphaT[bufferIndex];
+        // ╭─────────────────────────────────────╮
+        // │            Handle Markov            │
+        // ╰─────────────────────────────────────╯
+        else if (StateJ.Markov == MARKOV) {
+            if (T == 0) {
+                StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
+            } else {
+                double Obs = StateJ.Obs[bufferIndex];
+                double MaxAlpha = -std::numeric_limits<double>::infinity();
+                for (int i = CurrentState; i <= j; i++) {
+                    if (i >= 0) {
+                        int prevIndex = (bufferIndex - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+                        double Value = GetTransProbability(i, j) * m_States[i].Forward[prevIndex];
+                        MaxAlpha = std::max(MaxAlpha, Value);
+                    }
+                }
+                StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
+            }
+        }
+
+        if (StateJ.Forward[bufferIndex] > MaxValue) {
+            MaxValue = StateJ.Forward[bufferIndex];
             BestState = j;
         }
     }
@@ -545,7 +566,7 @@ int OScofoMDP::GetEvent(Description &Desc) {
             return 0;
         }
         // TODO: Future I will rethink this
-        return m_States[m_CurrentStateIndex].Position;
+        return m_States[m_CurrentStateIndex].ScorePos;
     }
 
     // ╭─────────────────────────────────────╮
@@ -561,7 +582,7 @@ int OScofoMDP::GetEvent(Description &Desc) {
 
     double AlphaSum = 0;
     for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
-        State &StateJ = m_States[j];
+        MacroState &StateJ = m_States[j];
         StateJ.InitProb = GetInitialDistribution(m_CurrentStateIndex, j);
     }
 
@@ -580,9 +601,9 @@ int OScofoMDP::GetEvent(Description &Desc) {
     // │        Return the best event        │
     // ╰─────────────────────────────────────╯
     if (m_CurrentStateIndex == StateIndex) {
-        return m_States[StateIndex].Position;
+        return m_States[StateIndex].ScorePos;
     } else {
         m_CurrentStateIndex = StateIndex;
-        return m_States[StateIndex].Position;
+        return m_States[StateIndex].ScorePos;
     }
 }

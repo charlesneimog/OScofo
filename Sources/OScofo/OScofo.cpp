@@ -1,4 +1,5 @@
 #include "../OScofo.hpp"
+#include <cmath>
 
 // ╭─────────────────────────────────────╮
 // │     Construstor and Destructor      │
@@ -7,6 +8,9 @@
 OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopSize), m_MIR(Sr, FftSize, HopSize) {
     m_States = States();
     m_Desc = Description();
+    m_Sr = Sr;
+    m_FFTSize = FftSize;
+    m_HopSize = HopSize;
 }
 
 // ╭─────────────────────────────────────╮
@@ -88,6 +92,23 @@ States OScofo::GetStates() {
 // ─────────────────────────────────────
 std::vector<double> OScofo::GetPitchTemplate(double Freq, int Harmonics, double Sigma) {
     return m_MDP.GetPitchTemplate(Freq, Harmonics, Sigma);
+}
+
+// ─────────────────────────────────────
+std::vector<double> OScofo::GaussianProbTimeOnset(int j, double sigma) {
+    double BlockDur = (1 / m_Sr) * m_HopSize;
+    MacroState State = m_MDP.GetState(j);
+    MacroState LastState = m_MDP.GetState(m_MDP.GetStatesSize() - 1);
+    double LastStateDur = LastState.Duration;
+    double LastStateOnset = LastState.OnsetExpected;
+    double EndTime = LastStateDur + LastStateOnset;
+    int LastT = std::ceil(EndTime / BlockDur);
+    std::vector<double> Probs(LastT);
+    for (int i = 0; i < LastT; i++) {
+        Probs.at(i) = m_MDP.GaussianProbTimeOnset(j, i, sigma);
+    }
+
+    return Probs;
 }
 
 // ╭─────────────────────────────────────╮

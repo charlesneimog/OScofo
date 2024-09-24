@@ -23,7 +23,7 @@ class OScofoScore {
   private:
     // Helpers
     double ModPhases(double Phase);
-    State AddTransState(State &State, int ScoreEvent, int BPM);
+    MacroState AddTransState(MacroState &State, int ScoreEvent, int BPM);
     int Name2Midi(std::string note);
 
     // Add events

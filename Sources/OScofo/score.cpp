@@ -8,16 +8,18 @@
 #define ACCUMULATION_FACTOR 1 // TODO: define by user
 
 // clang-format off
-
 // TODO: Add SECTION word, for example, "SECTION B" will start a score after the SECTION B event
 // TODO: Add EVENT (This must get a duration) and output one timer with it, for example, in 10000ms, a timer from 0 to 10000ms
 // TODO: ADD CHORD, MULTI, etc.
 // TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
 // clang-format on
 
+// ─────────────────────────────────────
 void OScofoScore::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
+
+// ─────────────────────────────────────
 bool OScofoScore::ScoreIsLoaded() {
     return m_ScoreLoaded;
 }
@@ -69,15 +71,14 @@ int OScofoScore::Name2Midi(std::string note) {
             int midi = classNote + 12 + (12 * octave);
             return midi;
         } else {
-            // pd_error(NULL, "Invalid note name for %s", note.c_str());
-            return -1;
+            throw std::runtime_error("Invalid note name for " + note);
         }
     } else {
         if (std::isdigit(note[1])) {
             int octave = std::stoi(note.substr(1));
             int midi = classNote + 12 + (12 * octave);
         } else {
-            // pd_error(NULL, "Invalid note name for %s", note.c_str());
+            throw std::runtime_error("Invalid note name for " + note);
             return -1;
         }
     }
@@ -103,14 +104,14 @@ void OScofoScore::AddTrans(States &ScoreStates, std::vector<std::string> Tokens)
 void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
     double Midi;
 
-    State NoteState;
+    MacroState NoteState;
     NoteState.Line = m_LineCount;
 
     NoteState.Type = NOTE;
     NoteState.Markov = SEMIMARKOV;
 
     NoteState.Index = ScoreStates.size();
-    NoteState.Position = m_ScorePosition;
+    NoteState.ScorePos = m_ScorePosition;
 
     if (m_MarkovIndex != 0) {
         NoteState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
@@ -139,7 +140,7 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
     }
     NoteState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
 
-    // check if there is / in the string
+    // Duration and tempo
     bool isRatio = Tokens[2].find('/') != std::string::npos;
     if (isRatio) {
         std::string ratio = Tokens[2];
@@ -176,21 +177,18 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 
     // time phase
     NoteState.BPMExpected = m_CurrentBPM;
-    NoteState.Valid = true;
 
+    // Add values
     m_PrevDuration = NoteState.Duration;
     m_LastOnset = NoteState.OnsetExpected;
+
     ScoreStates.push_back(NoteState);
 
-    // State TransState;
-    // TransState.Type = SILENCE;
-    // TransState.Markov = MARKOV;
-    // TransState.BPMExpected = m_CurrentBPM;
-    // TransState.Valid = true;
-    // TransState.Freqs = NoteState.Freqs;
-    // TransState.Position = m_ScorePosition;
-    // TransState.Duration = 0;
-    // ScoreStates.push_back(TransState);
+    MacroState Silence;
+    NoteState.Line = m_LineCount;
+
+    NoteState.Type = NOTE;
+    NoteState.Markov = SEMIMARKOV;
 
     return;
 }
@@ -272,11 +270,11 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
 
         } else if (Tokens[0] == "BPM") {
             m_CurrentBPM = std::stof(Tokens[1]);
-            State Implicity;
+            MacroState Implicity;
             Implicity.Type = REST;
             Implicity.Markov = MARKOV;
             Implicity.BPMExpected = m_CurrentBPM;
-            Implicity.Position = 0;
+            Implicity.ScorePos = 0;
             Implicity.Duration = 0;
             States.push_back(Implicity);
         }

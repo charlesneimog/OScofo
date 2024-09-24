@@ -11,7 +11,7 @@ def d1(u, state_onset, sigma):
 
 # Path setup
 root = os.path.dirname(os.path.abspath(__file__))
-SCORE_FILE = root + "/Test1.txt"
+SCORE_FILE = root + "/Test0.txt"
 
 # Constants
 BLOCKS_TO_COMPUTE = 500
@@ -19,7 +19,7 @@ HOP_SIZE = 512
 FFT_SIZE = 4096
 SR = 48000
 BLOCK_DUR = 1 / SR * HOP_SIZE
-sigma = 40  # Increase this for wider, smoother peaks
+sigma = 20  # Increase this for wider, smoother peaks
 
 print(f"Block duration: {BLOCK_DUR:.3f} sec")
 
@@ -41,15 +41,7 @@ colors = plt.cm.viridis(np.linspace(0, 1, len(states)))
 # Plot Gaussian peak for each state
 for idx, state in enumerate(states):
     state_onset = math.ceil(state.OnsetExpected / BLOCK_DUR)
-    state_timeline = []
-
-    # if idx == 6:
-
-    for t in range(0, max_t):
-        d1_value = d1(t, state_onset, sigma) * 0.5  # Use wider Gaussian
-        state_timeline.append(d1_value)
-
-    # Plot the Gaussian curve for the current state with a different color
+    state_timeline = OpenScofo.GetGaussianTimeLine(idx, 1000)
     plt.plot(state_timeline, label=f"State {idx}", color=colors[idx])
 
 # Plot configuration
@@ -57,6 +49,9 @@ plt.xlabel("Time (in blocks)")
 plt.ylabel("Gaussian Peak Value")
 plt.title("Smoother and Wider Gaussian Peaks Around Onset")
 plt.legend()
+
+# make y-axis range 0-1
+plt.ylim(-0.1, 1.2)
 
 # Show the plot
 plt.show()

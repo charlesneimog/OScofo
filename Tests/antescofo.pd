@@ -1,0 +1,6 @@
+#N canvas 963 23 951 1016 12;
+#X obj 7 172 antescofo~;
+#X msg 16 49 verbosity 4;
+#X msg 46 97 score Test1.txt;
+#X connect 1 0 0 0;
+#X connect 2 0 0 0;

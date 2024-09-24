@@ -5,30 +5,43 @@
 #include <vector>
 
 enum EventType {
-    TRANSITION = -1,
-    REST = 0,
-    NOTE,
+    REST,  // Markov state
+    NOTE,  // MacroState, Semimarkov with Markov inside
+    CHORD, // MacroState,
+    TRILL, // MacroState, SemiMarkov with Markov inside
+    MULTI, // MacroState,
 };
-enum HMMType { SEMIMARKOV = 0, MARKOV };
+
+enum HMMType { SEMIMARKOV, MARKOV };
 
 // ─────────────────────────────────────
-struct State {
-    int Index;
-    int Position;
-    int Type;
+class SubState {
+  public:
+    EventType Type;
     HMMType Markov;
+    double Freq;
+    std::vector<double> Obs;
+    std::vector<double> AlphaT;
+};
+
+// ─────────────────────────────────────
+class MacroState {
+  public:
+    int Index;
+    int ScorePos;
+    EventType Type;
+    HMMType Markov;
+    int MarkovIndex = -1;
+
     // Forward Algorithm
     double InitProb;
     std::vector<double> Obs;
-    std::vector<double> AlphaT;
+    std::vector<double> Forward;
+    std::vector<double> Norm;
+    std::vector<double> In;
 
-    // Observed
-    double Alpha;
-
-    // Audio
+    // Audio Obs
     std::vector<double> Freqs;
-
-    // Observations
 
     // Time
     int UpperBound;
@@ -43,20 +56,20 @@ struct State {
     double Duration;
 
     // Error Handling
-    bool Valid;
     int Line;
-    std::string Error;
 
-    std::string to_string() const {
+    std::string __repr__() const {
         std::ostringstream oss;
-        oss << "State(Index=" << Index << ", ScorePosition=" << Position << ", BPMExpected=" << BPMExpected << ")";
+        oss << "State(Index=" << Index << ", ScorePosition=" << ScorePos << ", BPMExpected=" << BPMExpected << ")";
         return oss.str();
     }
 };
-using States = std::vector<State>;
+
+using States = std::vector<MacroState>;
 
 // ─────────────────────────────────────
-struct Description {
+class Description {
+  public:
     bool Silence;
     double WindowSize;
     double Sr;

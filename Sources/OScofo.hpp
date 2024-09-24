@@ -34,6 +34,7 @@ class OScofo {
     // Python Function for Research
     States GetStates();
     std::vector<double> GetPitchTemplate(double Freq, int Harmonics, double Sigma);
+    std::vector<double> GaussianProbTimeOnset(int j, double Sigma);
 
     // Helpers Functions
     bool ScoreIsLoaded();
@@ -47,6 +48,10 @@ class OScofo {
     States m_States;
     Description m_Desc;
     int m_CurrentScorePosition = -1;
+
+    double m_Sr;
+    double m_FFTSize;
+    double m_HopSize;
 
     std::string m_Error;
 };

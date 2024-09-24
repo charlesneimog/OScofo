@@ -7,10 +7,10 @@ from OScofo import OScofo
 
 root = os.path.dirname(os.path.abspath(__file__))
 
-BLOCKS_TO_COMPUTE = 500
+BLOCKS_TO_COMPUTE = 1500
+
 
 for e in range(0, 2):
-    print("")
     AUDIO_FILE = root + f"/Test{e}.wav"
     SCORE_FILE = root + f"/Test{e}.txt"
 
@@ -25,7 +25,7 @@ for e in range(0, 2):
     # Initialize OScofo
     OpenScofo = OScofo(SR, FFT_SIZE, HOP_SIZE)
     OpenScofo.ParseScore(SCORE_FILE)
-    # OpenScofo.SetdBTreshold(-45)
+    OpenScofo.SetdBTreshold(-45)
 
     samples, sr = librosa.load(AUDIO_FILE, sr=SR)
 
