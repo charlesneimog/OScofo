@@ -1,91 +1,124 @@
 import os
-
+import warnings
 import librosa
 import csv
+import unittest
+
 
 from OScofo import OScofo
 
-root = os.path.dirname(os.path.abspath(__file__))
-
-BLOCKS_TO_COMPUTE = 1500
+MAX_ERROR_TOL = 250
 
 
-for e in range(0, 2):
-    AUDIO_FILE = root + f"/Test{e}.wav"
-    SCORE_FILE = root + f"/Test{e}.txt"
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    print("# ──────────────────────────────────────")
-    print("Testing Audio file:", AUDIO_FILE)
-    print("# ──────────────────────────────────────")
 
-    HOP_SIZE = 512
-    FFT_SIZE = 4096
-    SR = 48000
+class OScofoTest(unittest.TestCase):
+    def setUp(self):
+        self.warning_context = warnings.catch_warnings(record=True)
+        self.warning_context.__enter__()
+        warnings.simplefilter("ignore", category=DeprecationWarning)
 
-    # Initialize OScofo
-    OpenScofo = OScofo(SR, FFT_SIZE, HOP_SIZE)
-    OpenScofo.ParseScore(SCORE_FILE)
-    OpenScofo.SetdBTreshold(-45)
+    def open_expected_csv(self, root):
+        csv_file = f"{root}/expected.csv"
+        with open(csv_file, mode="r") as file:
+            reader = csv.reader(file)
+            reader_list = list(reader)
 
-    samples, sr = librosa.load(AUDIO_FILE, sr=SR)
+        self.expected_dict = {}
+        for row in list(reader_list):
+            self.expected_dict[int(row[1])] = float(row[0])
 
-    event = 0
-    onset = 0
-    block = 0
-    Events = {}
+    def save_csv(self, root):
+        csv_file = f"{root}/result.csv"
+        with open(csv_file, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            for key, value in self.events_dict.items():
+                writer.writerow(
+                    [
+                        value["onset"] / 1000,
+                        value["event"],
+                        value["diff"],
+                        value["good"],
+                    ]
+                )
 
-    for i in range(0, len(samples), HOP_SIZE):
-        audioBlock = samples[i : i + FFT_SIZE]
+        exp = len(self.expected_dict)
+        det = len(self.events_dict)
+        print(f"Events Expected {exp} | Events Detected {det}")
 
-        if len(audioBlock) != FFT_SIZE:
-            print("End of audio")
-            break
-        if OpenScofo.ProcessBlock(audioBlock):
-            currentEvent = OpenScofo.GetEventIndex()
-            currentBpm = OpenScofo.GetLiveBPM()
-
-            onset += 1 / (SR / HOP_SIZE)
-            if currentEvent != event:
-                event = currentEvent
-                onset_ms = int(onset * 1000)
-                base = 500
-                resultado = 0
-                for i in range(1, event + 1):
-                    resultado = base * (i - 1)
-
-                if abs(resultado - onset_ms) < 50:
-                    print(
-                        f"\033[92mEvent: {event:02d}",
-                        "in",
-                        f"{onset_ms:04d} ms |",
-                        f"BPM: {currentBpm:.2f}\033[0m",
-                    )
-
-                else:
-                    print(
-                        f"\033[91mEvent: {event:02d}",
-                        "in",
-                        f"{onset_ms:04d} ms |",
-                        f"BPM: {currentBpm:.2f}\033[0m",
-                    )
-
-                Events[event] = {
-                    "onset": onset_ms,
-                    "bpm": currentBpm,
-                    "event": f"Event {event}",
-                }
-
+    def report(self, event, onset, bpm):
+        onset_ms = int(onset * 1000)
+        event_exp_onset = self.expected_dict[event + 1] * 1000
+        event += 1
+        if abs(event_exp_onset - onset_ms) < MAX_ERROR_TOL:
+            print(
+                f"\033[92mEvent: {event:02d}",
+                "in",
+                f"{onset_ms:04d} ms |",
+                f"BPM: {bpm:.2f}\033[0m",
+            )
         else:
-            raise Exception("Error in processing block")
-        block += 1
-        # if block > BLOCKS_TO_COMPUTE:
-        #     break
-        # input("Press Enter to continue...")
+            print(
+                f"\033[91mEvent: {event:02d}",
+                "in",
+                f"{onset_ms:04d} ms |",
+                f"BPM: {bpm:.2f}\033[0m",
+            )
+        self.events_dict[event] = {
+            "onset": onset_ms,
+            "bpm": bpm,
+            "event": f"{event}",
+            "diff": abs(event_exp_onset - onset_ms),
+            "good": abs(event_exp_onset - onset_ms) < MAX_ERROR_TOL,
+        }
 
-    csv_file = root + f"/Test{e}.csv"
-    with open(csv_file, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        for key, value in Events.items():
-            writer.writerow([value["onset"] / 1000, value["event"]])
+    def ordinary_test(self, test_root, sr, fft_size, hop_size):
+        piece_name = test_root.replace("./", "")
+        print(f"\n\033[94mTesting {piece_name}\033[0m")
+        self.open_expected_csv(test_root)
+        wav_file = f"{test_root}/audio.wav"
+        score_file = f"{test_root}/score.txt"
+        OpenScofo = OScofo(sr, fft_size, hop_size)
+        OpenScofo.ParseScore(score_file)
+        samples, sr = librosa.load(wav_file, sr=sr)
 
-    print(f'CSV file "{csv_file}" has been created.')
+        event = 0
+        onset = 0
+        block = 0
+        self.events_dict = {}
+
+        for i in range(0, len(samples), hop_size):
+            audioBlock = samples[i : i + fft_size]
+
+            if len(audioBlock) != fft_size:
+                audioBlock = librosa.util.fix_length(audioBlock, size=fft_size)
+
+            if OpenScofo.ProcessBlock(audioBlock):
+                currentEvent = OpenScofo.GetEventIndex()
+                currentBpm = OpenScofo.GetLiveBPM()
+                onset += 1 / (sr / hop_size)
+                if currentEvent != event:
+                    self.report(event, onset, currentBpm)
+                event = currentEvent
+            else:
+                raise Exception("Error in processing block")
+            block += 1
+        self.save_csv(test_root)
+        print()
+
+    def test_1scaleC4(self):
+        self.ordinary_test("./Scale-C4", 48000, 4096, 512)
+
+    def test_1scaleC5(self):
+        self.ordinary_test("./Scale-C5", 48000, 4096, 512)
+
+    def test_2synrix(self):
+        self.ordinary_test("./Syrinx", 48000, 4096, 512)
+
+    def test_3bwv1013(self):
+        self.ordinary_test("./BWV-1013", 48000, 4096, 512)
+
+
+if __name__ == "__main__":
+    unittest.main(failfast=True)

@@ -463,6 +463,7 @@ double OScofoMDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
+    m_Nt = 0;
 
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
@@ -477,7 +478,6 @@ int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
             if (T == 0) {
                 StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
             } else {
-                double GaussianTimeLine = GaussianProbTimeOnset(j, T, 500);
                 double Obs = StateJ.Obs[bufferIndex];
                 double MaxAlpha = -std::numeric_limits<double>::infinity();
                 for (int u = 1; u <= std::min(T, GetMaxUForJ(StateJ)); u++) {
@@ -488,25 +488,25 @@ int OScofoMDP::Inference(int CurrentState, int MaxState, int T) {
                     }
                     double Sur = GetSojournTime(StateJ, u);
                     double MaxTrans = -std::numeric_limits<double>::infinity();
-                    for (int i = CurrentState; i <= j; i++) { // TODO: Moficar para Current State (no -1)
+                    for (int i = CurrentState; i <= j; i++) {
                         if (i < 0) {
                             continue;
                         }
                         MacroState &StateI = m_States[i];
                         if (i != j) {
-                            int PrevIndex = (bufferIndex - u + BUFFER_SIZE) % BUFFER_SIZE;
+                            int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
                         } else {
+                            // TODO: Criar subdescrições do evento atual
 
-                            // Self transition (this is not compatible with Guedon (2005))
-                            int PrevIndex = (bufferIndex - u + BUFFER_SIZE) % BUFFER_SIZE;
+                            int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
                         }
                     }
                     double MaxResult = ProbPrevObs * Sur * MaxTrans;
                     MaxAlpha = std::max(MaxAlpha, MaxResult);
                 }
-                StateJ.Forward[bufferIndex] = Obs * MaxAlpha * GaussianTimeLine;
+                StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
             }
         }
 

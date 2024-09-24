@@ -114,6 +114,7 @@ class OScofoMDP {
 
     // Markov
     std::vector<double> m_N;
+    double m_Nt;
     bool m_EventDetected = false;
     double GetBestEvent(Description &Desc);
     double GetPitchSimilarity(MacroState &NextPossibleState, Description &Desc);

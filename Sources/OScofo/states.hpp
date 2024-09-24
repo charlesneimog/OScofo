@@ -59,9 +59,15 @@ class MacroState {
     int Line;
 
     std::string __repr__() const {
-        std::ostringstream oss;
-        oss << "State(Index=" << Index << ", ScorePosition=" << ScorePos << ", BPMExpected=" << BPMExpected << ")";
-        return oss.str();
+        std::string oss;
+        oss = "<<State(Index=";
+        oss += std::to_string(Index);
+        oss += ", ScorePosition=";
+        oss += std::to_string(ScorePos);
+        oss += ", BPMExpected=";
+        oss += std::to_string(BPMExpected);
+        oss += ")>>";
+        return oss;
     }
 };
 

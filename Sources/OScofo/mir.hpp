@@ -39,11 +39,11 @@ class OScofoMIR {
     double *m_FFTIn;
     fftw_complex *m_FFTOut;
     fftw_plan m_FFTPlan;
-    void GetFFTDescriptions(const std::vector<double> &In, Description &Desc);
+    void GetFFTDescriptions(std::vector<double> &In, Description &Desc);
 
     // Env
     double m_dBTreshold = -50;
-    void GetRMS(const std::vector<double> &In, Description &Desc);
+    void GetRMS(std::vector<double> &In, Description &Desc);
 
     // Audio
     double m_FftSize;

@@ -1,21 +1,23 @@
-# OScofo
+<p align="center">
+  <h1 align="center">OScofo</h1>
+</p>
 
-**O**pen **SCO**re **FO**llower (OScofo) is a PureData object designed for contemporary music applications. This project aims to encourage collaboration among researchers and musicians for contemporary music. Here's what you need to know:
+**O**pen **SCO**re **FO**llower (OScofo) is a PureData object is being designed for contemporary music applications. This project aims to encourage collaboration among researchers and musicians for contemporary music. Here's what you need to know:
 
 ## Goal
 
-The goal of *OScofo* is to provide a simple, accessible tool for real-time score following. By keeping the software lightweight, it can be easily run on the web using the [pd4web](https://charlesneimog.github.io/pd4web/) platform, now the we can use PureData on Web Browsers. So finally we have something that can be run for rehearsals one click distance (without externals, OSs incompatibility, etc).
+The aim of *OScofo* is to provide a straightforward and accessible tool for real-time score following. By keeping the software lightweight, it can run seamlessly on the web through the [pd4web](https://charlesneimog.github.io/pd4web/) platform, thanks to the ability to use PureData directly in web browsers. With _pd4web_ and _OScofo_ will be possible to use the software in rehearsals with just a single click, eliminating the need for external libraries, compatibility issues, or complex installations -- ultimately facilitating the sharing and performance of contemporary music.
 
 ## Collaboration and Contribution
 
-I invite researchers and developers to contribute to the *OScofo* project. By sharing the source code, I am trying to provide access to the theories and mathematical formulas that drive the software. This transparency is inspired by the amazing tools like IEM, SPARTA, and of course, PureData. My main aim is artistic, maybe your research can help me and a lot of others composers.
+I invite composers, researchers and developers to contribute to the *OScofo* project. Not just with code, but with theory, math, etc. I am trying to make OScofo acessible via a Python implementation, to test it should be easy. By sharing the source code, I am trying to provide access to the theories and mathematical formulas that drive the software, all this come from the amazing research work of Arshia Cont and Philippe Cuvillier at IRCAM. This transparency is inspired by the amazing tools like IEM, SPARTA, and of course, PureData.
 
 ## Technical Foundations
 
-*OScofo* uses several concepts developed by many researches:
+*OScofo* uses several concepts developed by many researches (with focus on the research of Cont and Cuvillier).
 
-* **Score Language**: Based on the `scofo` (by Miller Puckette) and `antescofo~` (by Arshia Cont) language.
-* **Pitch Comparison**: Utilizes the Kullback-Leibler (KL) Divergence method for pitch comparison as presented by Arshia Cont in 2008 and 2010.
+* **Pitch Comparison**: Utilizes the Kullback-Leibler (KL) Divergence method for pitch comparison as presented by Christopher Raphael (2006), Arshia Cont in 2008 and 2010.
 * **Rhythm Synchronization**: Integrates theories of rhythm synchronization developed by Edward Large and Mari Riess Jones (1999) and Edward Large and Caroline Palmer (2002), as presented for Cont (2010).
-* **Descriptors**: Employs descriptors from Willian Brent's timbreIDLib project for analyzing and identifying timbral characteristics.
+* **Forward Algorithm**: For now, *OScofo* uses the equation presented by Arshia Cont (2010) and developed by Yann Guédon (2005).
+* **Score Language**: Based on the `scofo` (by Miller Puckette) and `antescofo~` (by Arshia Cont, Philippe Cuvillier, and others) language.
 

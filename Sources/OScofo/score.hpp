@@ -16,7 +16,7 @@
 
 class OScofoScore {
   public:
-    void Parse(States &States, std::string ScoreFile);
+    States Parse(std::string ScoreFile);
     void SetTunning(double Tunning);
     bool ScoreIsLoaded();
 

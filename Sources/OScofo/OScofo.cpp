@@ -86,7 +86,11 @@ bool OScofo::ScoreIsLoaded() {
 // │ Python Research and Test Functions  │
 // ╰─────────────────────────────────────╯
 States OScofo::GetStates() {
-    return m_States;
+    if (m_States.size() != 0) {
+        return m_States;
+    }
+    printf("ok\n");
+    throw std::runtime_error("No states found, please use the ScoreParse first");
 }
 
 // ─────────────────────────────────────
@@ -115,7 +119,7 @@ std::vector<double> OScofo::GaussianProbTimeOnset(int j, double sigma) {
 // │           Main Functions            │
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
-    m_Score.Parse(m_States, ScorePath);
+    m_States = m_Score.Parse(ScorePath);
     m_MDP.SetScoreStates(m_States);
     return true;
 }

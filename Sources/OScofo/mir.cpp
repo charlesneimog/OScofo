@@ -1,5 +1,6 @@
 #include "mir.hpp"
 
+#include <algorithm>
 #include <math.h>
 #include <vector>
 
@@ -54,7 +55,6 @@ OScofoMIR::~OScofoMIR() {
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-//  ─────────────────────────────────────
 double OScofoMIR::Mtof(double note, double tunning) {
     return tunning * std::pow(2.0, (note - 69) / 12.0);
 }
@@ -65,9 +65,9 @@ double OScofoMIR::Ftom(double freq, double tunning) {
 }
 
 // ─────────────────────────────────────
-double OScofoMIR::Freq2Bin(double freq, double n, double sr) {
+double OScofoMIR::Freq2Bin(double Freq, double n, double sr) {
     double bin;
-    bin = freq * n / sr;
+    bin = Freq * n / sr;
     return round(bin);
 }
 
@@ -81,8 +81,8 @@ void OScofoMIR::SetdBTreshold(double dB) {
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &Desc) {
 
+void OScofoMIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
     int N = In.size();
     int NHalf = N / 2;
 
@@ -134,7 +134,7 @@ void OScofoMIR::GetFFTDescriptions(const std::vector<double> &In, Description &D
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
+void OScofoMIR::GetRMS(std::vector<double> &In, Description &Desc) {
     double sumOfSquares = 0.0;
     for (double sample : In) {
         sumOfSquares += sample * sample;
