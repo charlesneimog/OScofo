@@ -175,9 +175,9 @@ static t_int *DspPerform(t_int *w) {
     // }
     //
 
-    for (int i = 0; i < x->FFTSize; i++) {
-        x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->FFTSize - 1)));
-    }
+    // for (int i = 0; i < x->FFTSize; i++) {
+    //     x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->FFTSize - 1)));
+    // }
 
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {

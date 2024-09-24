@@ -23,7 +23,7 @@ class OScofoMIR {
     void ResetElapsedTime();
     void UpdateTempoInEvent();
     double TimePrediction();
-    void GetDescription(const std::vector<double> &In, Description &Desc);
+    void GetDescription(std::vector<double> &In, Description &Desc);
     void GetMidi(double Tunning);
     double GetEventTimeElapsed();
     double GetTempoInEvent();
@@ -46,7 +46,7 @@ class OScofoMIR {
     void GetRMS(const std::vector<double> &In, Description &Desc);
 
     // Audio
-    double m_WindowSize;
+    double m_FftSize;
     double m_BlockSize;
     double m_HopSize;
     double m_Sr;

@@ -125,6 +125,7 @@ bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
     if (!m_Score.ScoreIsLoaded()) {
         return true;
     }
+
     m_MIR.GetDescription(AudioBuffer, m_Desc);
     m_CurrentScorePosition = m_MDP.GetEvent(m_Desc);
     return true;

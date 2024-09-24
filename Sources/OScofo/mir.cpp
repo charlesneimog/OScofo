@@ -6,15 +6,15 @@
 // ╭─────────────────────────────────────╮
 // │Constructor and Destructor Functions │
 // ╰─────────────────────────────────────╯
-OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
+OScofoMIR::OScofoMIR(float Sr, float FftSize, float HopSize) {
     LOGE() << "OScofoMIR::OScofoMIR";
 
     m_HopSize = HopSize;
-    m_WindowSize = WindowSize;
+    m_FftSize = FftSize;
     m_Sr = Sr;
 
-    int WindowHalf = WindowSize / 2;
-    m_FFTIn = (double *)fftw_alloc_real(WindowSize);
+    int WindowHalf = FftSize / 2;
+    m_FFTIn = (double *)fftw_alloc_real(FftSize);
     if (!m_FFTIn) {
         throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_real failed");
     }
@@ -25,7 +25,13 @@ OScofoMIR::OScofoMIR(float Sr, float WindowSize, float HopSize) {
         throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_complex failed");
     }
 
-    m_FFTPlan = fftw_plan_dft_r2c_1d(m_WindowSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
+    m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
+
+    // blackman
+    m_WindowingFunc.resize(m_FftSize);
+    for (int i = 0; i < m_FftSize; i++) {
+        m_WindowingFunc[i] = 0.5 * (1.0 - cos(2.0 * M_PI * i / (m_FftSize - 1)));
+    }
 }
 
 // ─────────────────────────────────────
@@ -150,7 +156,12 @@ void OScofoMIR::GetRMS(const std::vector<double> &In, Description &Desc) {
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::GetDescription(const std::vector<double> &In, Description &Desc) {
+void OScofoMIR::GetDescription(std::vector<double> &In, Description &Desc) {
+    // apply windowing function
+    for (int i = 0; i < m_FftSize; i++) {
+        In[i] *= m_WindowingFunc[i];
+    }
+
     GetRMS(In, Desc);
     GetFFTDescriptions(In, Desc);
 }
