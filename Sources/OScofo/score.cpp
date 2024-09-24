@@ -53,8 +53,7 @@ int OScofoScore::Name2Midi(std::string note) {
         classNote = 11;
         break;
     default:
-        // TODO: Need to implement pd_error
-        // pd_error(NULL, "Invalid note name for %s", note.c_str());
+        throw std::runtime_error("Invalid note name for " + note);
         break;
         return -1;
     }
@@ -77,9 +76,9 @@ int OScofoScore::Name2Midi(std::string note) {
         if (std::isdigit(note[1])) {
             int octave = std::stoi(note.substr(1));
             int midi = classNote + 12 + (12 * octave);
+            return midi;
         } else {
             throw std::runtime_error("Invalid note name for " + note);
-            return -1;
         }
     }
     return -1;
@@ -115,7 +114,6 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 
     if (m_MarkovIndex != 0) {
         NoteState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
-
     } else {
         NoteState.OnsetExpected = 0;
     }
@@ -124,14 +122,13 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
         throw std::runtime_error("BPM is not defined");
     }
     if (Tokens.size() < 3) {
-        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount));
+        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
     }
 
     // check if pitch is a number os a string
     if (!std::isdigit(Tokens[1][0])) {
         std::string noteName = Tokens[1];
-        int midi = Name2Midi(noteName);
-        Midi = midi;
+        Midi = Name2Midi(noteName);
     } else {
         Midi = std::stof(Tokens[1]);
         if (Midi > 127) {
@@ -220,10 +217,10 @@ void OScofoScore::AddRest(States &ScoreStates, std::vector<std::string> Tokens) 
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-void OScofoScore::Parse(States &States, std::string ScoreFile) {
+States OScofoScore::Parse(std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
 
-    States.clear(); // Clear the vector before parsing
+    States NewStates;
 
     // Open the score file for reading
     std::ifstream File(ScoreFile);
@@ -265,7 +262,7 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
 
         // Actually Score
         if (Tokens[0] == "NOTE") {
-            AddNote(States, Tokens);
+            AddNote(NewStates, Tokens);
             m_ScorePosition++;
 
         } else if (Tokens[0] == "BPM") {
@@ -276,12 +273,14 @@ void OScofoScore::Parse(States &States, std::string ScoreFile) {
             Implicity.BPMExpected = m_CurrentBPM;
             Implicity.ScorePos = 0;
             Implicity.Duration = 0;
-            States.push_back(Implicity);
+            Implicity.Index = 0;
+            NewStates.push_back(Implicity);
         }
         m_MarkovIndex++;
     }
 
     // Optionally, set m_ScoreLoaded to true if necessary
     m_ScoreLoaded = true;
-    LOGE() << "end OScofoScore::Parse | There are " << States.size() << " events";
+    LOGE() << "end OScofoScore::Parse | There are " << NewStates.size() << " events";
+    return NewStates;
 }
