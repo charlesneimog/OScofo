@@ -1,5 +1,11 @@
 <p align="center">
   <h1 align="center">OScofo</h1>
+  <p align="center">
+    <a href="https://charlesneimog.github.io/OScofo">
+      <img src="./Documentation/assets/OScofo.svg" width="10%" alt="Logo">
+    </a>
+  </p>
+  <h4 align="center">pd4web: Running PureData Patches with Externals on Web</h4>
 </p>
 
 **O**pen **SCO**re **FO**llower (OScofo) is a PureData object is being designed for contemporary music applications. This project aims to encourage collaboration among researchers and musicians for contemporary music. Here's what you need to know:
