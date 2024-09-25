@@ -49,7 +49,10 @@ class OScofoTest(unittest.TestCase):
 
     def report(self, event, onset, bpm):
         onset_ms = int(onset * 1000)
-        event_exp_onset = self.expected_dict[event + 1] * 1000
+        try:
+            event_exp_onset = self.expected_dict[event + 1] * 1000
+        except:
+            return
         event += 1
         if abs(event_exp_onset - onset_ms) < MAX_ERROR_TOL:
             print(

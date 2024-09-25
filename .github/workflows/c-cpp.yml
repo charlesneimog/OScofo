@@ -1,13 +1,16 @@
+---
 name: C/C++ CI
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches: [main]
+    paths: ['**/*.cpp', '**/*.hpp']
   pull_request:
-    branches: ["main"]
+    branches: [main]
+    paths: ['**/*.cpp', '**/*.hpp']
 env:
   LIBNAME: o.scofo~
-  LIBVERSION: 0.1
+  LIBVERSION: 0.0.1
 jobs:
   macos-universal-build:
     runs-on: macos-latest
@@ -60,7 +63,7 @@ jobs:
       matrix:
         compiler: [mingw]
         arch: [amd64]
-        precision: [32, 64] # pd double and single float
+        precision: [32, 64]  # pd double and single float
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -73,7 +76,8 @@ jobs:
         with:
           msystem: mingw64
           update: false
-          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-pybind11
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost
+            mingw-w64-x86_64-pybind11
       - name: Install winget
         uses: Cyberboss/install-winget@v1
       - name: Install PureData Float 32
@@ -100,7 +104,8 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: ${{env.LIBNAME}}-f${{ matrix.precision }}-windows-${{ matrix.compiler }}
+          name: ${{env.LIBNAME}}-f${{ matrix.precision }}-windows-${{ matrix.compiler
+            }}
           path: ${{env.LIBNAME}}
   linux-build:
     runs-on: ubuntu-latest
@@ -160,7 +165,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: '${{ env.LIBNAME }}-*'
+          pattern: ${{ env.LIBNAME }}-*
           path: artifacts
           merge-multiple: true
       - name: Clear tmp files
@@ -183,4 +188,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.LIBNAME }}-${{env.LIBVERSION}}
-          path: "./package/"
+          path: ./package/

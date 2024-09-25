@@ -45,7 +45,6 @@ void OScofo::SetdBTreshold(double dB) {
 
 // ─────────────────────────────────────
 void OScofo::SetTunning(double Tunning) {
-    m_MDP.SetTunning(Tunning);
     m_Score.SetTunning(Tunning);
 }
 

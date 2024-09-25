@@ -87,11 +87,11 @@ int OScofoScore::Name2Midi(std::string note) {
 // ─────────────────────────────────────
 double OScofoScore::ModPhases(double Phase) {
     // Following Cont (2010) conventions
-    Phase = fmod(Phase + M_PI, TWO_PI);
-    if (Phase < 0) {
-        Phase += TWO_PI;
+    double NewPhase = fmod(Phase + M_PI, TWO_PI);
+    if (NewPhase < 0) {
+        NewPhase += TWO_PI;
     }
-    return Phase - M_PI;
+    return NewPhase - M_PI;
 }
 
 // ─────────────────────────────────────
@@ -102,13 +102,12 @@ void OScofoScore::AddTrans(States &ScoreStates, std::vector<std::string> Tokens)
 // ─────────────────────────────────────
 void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
     double Midi;
+    bool isRest = false;
 
     MacroState NoteState;
     NoteState.Line = m_LineCount;
-
     NoteState.Type = NOTE;
     NoteState.Markov = SEMIMARKOV;
-
     NoteState.Index = ScoreStates.size();
     NoteState.ScorePos = m_ScorePosition;
 
@@ -131,7 +130,9 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
         Midi = Name2Midi(noteName);
     } else {
         Midi = std::stof(Tokens[1]);
-        if (Midi > 127) {
+        if (Midi == 0) {
+            isRest = true;
+        } else if (Midi > 127) {
             Midi = Midi * 0.01;
         }
     }
@@ -186,6 +187,10 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 
     NoteState.Type = NOTE;
     NoteState.Markov = SEMIMARKOV;
+
+    if (!isRest) {
+        m_ScorePosition++;
+    }
 
     return;
 }
@@ -263,7 +268,6 @@ States OScofoScore::Parse(std::string ScoreFile) {
         // Actually Score
         if (Tokens[0] == "NOTE") {
             AddNote(NewStates, Tokens);
-            m_ScorePosition++;
 
         } else if (Tokens[0] == "BPM") {
             m_CurrentBPM = std::stof(Tokens[1]);

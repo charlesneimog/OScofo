@@ -241,7 +241,6 @@ double OScofoMDP::ModPhases(double Phase) {
 
 // ─────────────────────────────────────
 int OScofoMDP::GetMaxLookAhead(int StateIndex) {
-    // BUG: NOT WORKING
     int StatesSize = m_States.size();
     int MaxEvent = StateIndex;
     double EventOnset = 0;

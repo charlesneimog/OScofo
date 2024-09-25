@@ -2,16 +2,15 @@
 ; Copyright (c) IRCAM 2015
 ; Designed by Robert Piéchaud
 
-; Original file: bwv1013.xml
+; Original file: score.xml
 ; exported from MuseScore 4.4.2
 ; MusicXML version 4.0
-; Converted to Antescofo on Tue Sep 24 20:43:36 2024
+; Converted to Antescofo on Wed Sep 25 12:15:15 2024
 
 ; start
 
 ; ----------- measure 1 --- beat 0 --- time signature 4/4
 
-; repeat (opening)
 BPM 80
 NOTE E5 1/4
 NOTE A5 1/4
@@ -164,5 +163,61 @@ NOTE F5 1/4
 
 ; ----------- measure 9 --- beat 32 --- time signature 4/4
 
-NOTE E5 2 measure9
-NOTE 0 2
+NOTE E5 1/4 measure9
+NOTE G5 1/4
+NOTE C6 1/4
+NOTE B5 1/4
+NOTE C6 1/4
+NOTE E6 1/4
+NOTE C6 1/4
+NOTE G5 1/4
+NOTE C5 1/4
+NOTE G5 1/4
+NOTE C6 1/4
+NOTE B5 1/4
+NOTE C6 1/4
+NOTE E6 1/4
+NOTE C6 1/4
+NOTE G5 1/4
+
+; ----------- measure 10 --- beat 36 --- time signature 4/4
+
+NOTE C5 1/4 measure10
+NOTE G5 1/4
+NOTE A#5 1/4
+NOTE A5 1/4
+NOTE A#5 1/4
+NOTE E6 1/4
+NOTE A#5 1/4
+NOTE G5 1/4
+NOTE C5 1/4
+NOTE G5 1/4
+NOTE A#5 1/4
+NOTE A5 1/4
+NOTE A#5 1/4
+NOTE E6 1/4
+NOTE A#5 1/4
+NOTE G5 1/4
+
+; ----------- measure 11 --- beat 40 --- time signature 4/4
+
+NOTE C#5 1/4 measure11
+NOTE G5 1/4
+NOTE A#5 1/4
+NOTE A5 1/4
+NOTE A#5 1/4
+NOTE E6 1/4
+NOTE A#5 1/4
+NOTE G5 1/4
+NOTE C#5 1/4
+NOTE G5 1/4
+NOTE E5 1/4
+NOTE C#5 1/4
+NOTE A4 1/4
+NOTE G4 1/4
+NOTE F4 1/4
+NOTE E4 1/4
+
+; ----------- measure 12 --- beat 44 --- time signature 4/4
+
+NOTE D4 2 measure12

@@ -94,7 +94,13 @@ static void Score(PdOScofo *x, t_symbol *s) {
         pd_error(nullptr, "[o.scofo~] Score file not found");
         return;
     }
-    bool ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+    bool ok;
+    try {
+        ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+    } catch (std::exception &e) {
+        pd_error(nullptr, "[o.scofo~] Error parsing score, %s.", e.what());
+        return;
+    }
     if (ok) {
         x->ScoreLoaded = true;
         post("[o.scofo~] Score loaded");
@@ -163,22 +169,9 @@ static t_int *DspPerform(t_int *w) {
     if (x->BlockIndex != x->HopSize) {
         return (w + 4);
     }
+
     // process block
     x->BlockIndex = 0;
-
-    // TODO: Implement precomputed window
-    // std::vector<double> windowTable(x->WindowSize);
-    // double factor = 2.0 * M_PI / (x->WindowSize - 1);
-    //
-    // for (int i = 0; i < x->WindowSize; i++) {
-    //     windowTable[i] = 0.5 * (1.0 - cos(factor * i));
-    // }
-    //
-
-    // for (int i = 0; i < x->FFTSize; i++) {
-    //     x->inBuffer[i] *= 0.5 * (1.0 - cos(2.0 * M_PI * i / (x->FFTSize - 1)));
-    // }
-
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {
         return (w + 4);

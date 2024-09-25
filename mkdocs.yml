@@ -1,17 +1,18 @@
 site_name: OScofo
 docs_dir: Documentation
-copyright: Copyright &copy 2023 | Charles K. Neimog | University of São Paulo.
+copyright: Copyright &copy 2023 | Charles K. Neimog | University of São Paulo. 
+
 theme:
-  logo: img/icon-light.svg
+  logo: assets/icon-light.svg
   custom_dir: Documentation/overrides
-  logo_dark_mode: img/icon-dark.svg
-  logo_light_mode: img/icon-light.svg
-  favicon: img/icon.png
+  logo_dark_mode: assets/icon-dark.svg
+  logo_light_mode: assets/icon-light.svg
+  favicon: assets/icon.png
   name: material
   features:
     - navigation.top
     - navigation.sections
-    - content.code.annotate
+    - content.code.annotate 
     - content.code.copy
     - navigation.tabs
     - navigation.tabs.sticky
@@ -21,6 +22,8 @@ theme:
     - toc.follow
     - navigation.instant
     - header.autohide
+
+    
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -36,33 +39,40 @@ theme:
       toggle:
         icon: material/lightbulb-outline
         name: Switch to light mode
+  
 markdown_extensions:
-  - pymdownx.tabbed:
-      alternate_style: true
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
-  - pymdownx.extra
-  - pymdownx.details
-  - pymdownx.inlinehilite
-  - pymdownx.tasklist
-  - pymdownx.magiclink
-  - pymdownx.highlight
-  - abbr
-  - admonition
-  - pymdownx.details
-  - attr_list
-  - md_in_html
-  - pymdownx.superfences
-  - footnotes
-  - pymdownx.keys
+    - pymdownx.tabbed:
+        alternate_style: true
+    - pymdownx.emoji:
+        emoji_index: !!python/name:material.extensions.emoji.twemoji
+        emoji_generator: !!python/name:material.extensions.emoji.to_svg
+    - pymdownx.extra
+    - pymdownx.details
+    - pymdownx.inlinehilite
+    - pymdownx.tasklist
+    - pymdownx.magiclink
+    - pymdownx.highlight
+    - abbr
+    - admonition
+    - pymdownx.details
+    - attr_list
+    - md_in_html
+    - pymdownx.superfences
+    - footnotes
+    - pymdownx.keys
+
 repo_url: https://github.com/charlesneimog/OScofo
+
 extra_css:
   - extra/extra.css
+  
 extra_javascript:
   - js/index_slider.js
+  
 nav:
-  - index.md
+    - index.md
+
+
 extra:
   social:
     - icon: fontawesome/brands/instagram
@@ -71,3 +81,5 @@ extra:
       link: https://www.github.com/charlesneimog/
     - icon: fontawesome/solid/paper-plane
       link: mailto:charlesneimog@outlook.com
+
+
