@@ -1,6 +1,6 @@
 # Score Syntax
 
-The score syntax of _OScofo_ is very similar of _Antescofo_ about the events especification. 
+The score syntax of _OScofo_ is similar and inspired in _Antescofo_  about the events especification. 
 
 ## Pitches
 
@@ -10,6 +10,9 @@ The score syntax of _OScofo_ is very similar of _Antescofo_ about the events esp
     Pitches we use: `NOTE <PITCH_NAME> <TEMPO>`.
     <p>
     <code> 
+    # Evething that stats with '#' <br>
+    # or ';' is considered a comment, <br>
+    # and is not computed by the algorithm<br>
     <span style="color:red;">NOTE</span> C4 1 <br>
     <span style="color:red;">NOTE</span> D4 0.5  <br>
     <span style="color:red;">NOTE</span> E4 1.5 ; tied note <br>
