@@ -9,6 +9,8 @@
 #define OSCOFO_VERSION_MINOR 1
 #define OSCOFO_VERSION_PATCH 0
 
+namespace OScofo {
+
 class OScofo {
   public:
     OScofo(float Sr, float WindowSize, float HopSize);
@@ -41,9 +43,9 @@ class OScofo {
     std::string GetError();
 
   private:
-    OScofoMDP m_MDP;
-    OScofoMIR m_MIR;
-    OScofoScore m_Score;
+    MDP m_MDP;
+    MIR m_MIR;
+    Score m_Score;
 
     States m_States;
     Description m_Desc;
@@ -55,3 +57,4 @@ class OScofo {
 
     std::string m_Error;
 };
+} // namespace OScofo

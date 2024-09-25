@@ -5,6 +5,8 @@
 
 #include "states.hpp"
 
+namespace OScofo {
+
 #ifndef TWO_PI
 #define TWO_PI (2 * M_PI)
 #endif
@@ -14,9 +16,9 @@ using PitchTemplateArray = std::vector<double>;
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-class OScofoMDP {
+class MDP {
   public:
-    OScofoMDP(float Sr, float WindowSize, float HopSize);
+    MDP(float Sr, float WindowSize, float HopSize);
 
     // Init Functions
     void SetScoreStates(States States);
@@ -80,7 +82,7 @@ class OScofoMDP {
     double m_CurrentStateOnset = 0;
     int m_MaxScoreState = 0;
 
-    int m_T = 0;
+    int m_Tau = 0;
     double m_LastPsiN = 0;
     double m_PsiN = 0;
     double m_PsiN1 = 0;
@@ -89,9 +91,10 @@ class OScofoMDP {
     double m_MaxAheadSeconds;
     double m_BeatsAhead = 1;
     double m_NormAlpha = 1;
+    double m_SecondsAhead = 2;
 
     // Time
-    void UpdateBPM(int StateIndex);
+    double UpdatePsiN(int StateIndex);
     double InverseA2(double r);
     double ModPhases(double value);
     double CouplingFunction(double Phi, double PhiMu, double Kappa);
@@ -106,20 +109,19 @@ class OScofoMDP {
     std::vector<MacroState> m_States;
     std::vector<double> m_PitchTemplate;
     double m_PitchTemplateSigma = 1;
-    double m_Z = 0.5; // TODO: How should I call this?
+    double m_PitchScalingFactor = 0.5; // TODO: How should I call this?
     std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
 
     // Audio Observations
     void GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T);
 
     // Markov
-    std::vector<double> m_N;
-    double m_Nt;
     bool m_EventDetected = false;
     double GetBestEvent(Description &Desc);
     double GetPitchSimilarity(MacroState &NextPossibleState, Description &Desc);
-    int GetMaxLookAhead(int StateIndex);
+    int FindMaxLookaheadIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(int j, int T);
     double Markov(int j, int T);
 };
+} // namespace OScofo

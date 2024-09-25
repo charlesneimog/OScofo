@@ -5,7 +5,7 @@
 
 #include "score.hpp"
 
-#define ACCUMULATION_FACTOR 1 // TODO: define by user
+namespace OScofo {
 
 // clang-format off
 // TODO: Add SECTION word, for example, "SECTION B" will start a score after the SECTION B event
@@ -15,19 +15,25 @@
 // clang-format on
 
 // ─────────────────────────────────────
-void OScofoScore::SetTunning(double Tunning) {
+void Score::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
 
 // ─────────────────────────────────────
-bool OScofoScore::ScoreIsLoaded() {
+bool Score::ScoreIsLoaded() {
     return m_ScoreLoaded;
 }
 
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-int OScofoScore::Name2Midi(std::string note) {
+bool Score::SpaceTab(const std::string &line, int numSpaces) {
+    std::string spaces(numSpaces, ' ');
+    return line.find(spaces) != std::string::npos;
+}
+
+// ─────────────────────────────────────
+int Score::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
     switch (noteName) {
@@ -85,7 +91,7 @@ int OScofoScore::Name2Midi(std::string note) {
 }
 
 // ─────────────────────────────────────
-double OScofoScore::ModPhases(double Phase) {
+double Score::ModPhases(double Phase) {
     // Following Cont (2010) conventions
     double NewPhase = fmod(Phase + M_PI, TWO_PI);
     if (NewPhase < 0) {
@@ -95,12 +101,7 @@ double OScofoScore::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-void OScofoScore::AddTrans(States &ScoreStates, std::vector<std::string> Tokens) {
-    return;
-}
-
-// ─────────────────────────────────────
-void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
+MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
     double Midi;
     bool isRest = false;
 
@@ -180,49 +181,42 @@ void OScofoScore::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
     m_PrevDuration = NoteState.Duration;
     m_LastOnset = NoteState.OnsetExpected;
 
-    ScoreStates.push_back(NoteState);
-
-    MacroState Silence;
-    NoteState.Line = m_LineCount;
-
-    NoteState.Type = NOTE;
-    NoteState.Markov = SEMIMARKOV;
-
     if (!isRest) {
         m_ScorePosition++;
     }
 
-    return;
+    return NoteState;
 }
 
 // ─────────────────────────────────────
-void OScofoScore::AddChord(States &ScoreStates, std::vector<std::string> Tokens) {
-    // TODO:
-    return;
-}
-
-// ─────────────────────────────────────
-void OScofoScore::AddTrill(States &ScoreStates, std::vector<std::string> Tokens) {
-    // TODO:
-    return;
-}
-
-// ─────────────────────────────────────
-void OScofoScore::AddMulti(States &ScoreStates, std::vector<std::string> Tokens) {
-    // TODO:
-    return;
-}
-
-// ─────────────────────────────────────
-void OScofoScore::AddRest(States &ScoreStates, std::vector<std::string> Tokens) {
-    // TODO:
-    return;
-}
+// MacroState OScofoScore::AddChord(States &ScoreStates, std::vector<std::string> Tokens) {
+//     // TODO:
+//     return;
+// }
+//
+// // ─────────────────────────────────────
+// MacroState OScofoScore::AddTrill(States &ScoreStates, std::vector<std::string> Tokens) {
+//     // TODO:
+//     return;
+// }
+//
+// // ─────────────────────────────────────
+// MacroState OScofoScore::AddMulti(States &ScoreStates, std::vector<std::string> Tokens) {
+//     // TODO:
+//     return;
+// }
+//
+// // ─────────────────────────────────────
+// MacroState OScofoScore::AddRest(States &ScoreStates, std::vector<std::string> Tokens) {
+//     // TODO:
+//     return;
+// }
+//
 
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-States OScofoScore::Parse(std::string ScoreFile) {
+States Score::Parse(std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
 
     States NewStates;
@@ -249,7 +243,12 @@ States OScofoScore::Parse(std::string ScoreFile) {
         m_LineCount++;
 
         // comments
-        if (Line[0] == '#' || Line.empty() || Line[0] == ';') {
+        if (Line.empty() || Line[0] == '#' || Line[0] == ';') {
+            continue;
+        }
+
+        // check if line is a tab line (for actions)
+        if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
             continue;
         }
 
@@ -267,8 +266,8 @@ States OScofoScore::Parse(std::string ScoreFile) {
 
         // Actually Score
         if (Tokens[0] == "NOTE") {
-            AddNote(NewStates, Tokens);
-
+            MacroState NewNote = AddNote(NewStates, Tokens);
+            NewStates.push_back(NewNote);
         } else if (Tokens[0] == "BPM") {
             m_CurrentBPM = std::stof(Tokens[1]);
             MacroState Implicity;
@@ -283,8 +282,8 @@ States OScofoScore::Parse(std::string ScoreFile) {
         m_MarkovIndex++;
     }
 
-    // Optionally, set m_ScoreLoaded to true if necessary
     m_ScoreLoaded = true;
     LOGE() << "end OScofoScore::Parse | There are " << NewStates.size() << " events";
     return NewStates;
 }
+} // namespace OScofo

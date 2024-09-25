@@ -4,10 +4,12 @@
 #include <math.h>
 #include <vector>
 
+namespace OScofo {
+
 // ╭─────────────────────────────────────╮
 // │Constructor and Destructor Functions │
 // ╰─────────────────────────────────────╯
-OScofoMIR::OScofoMIR(float Sr, float FftSize, float HopSize) {
+MIR::MIR(float Sr, float FftSize, float HopSize) {
     LOGE() << "OScofoMIR::OScofoMIR";
 
     m_HopSize = HopSize;
@@ -36,7 +38,7 @@ OScofoMIR::OScofoMIR(float Sr, float FftSize, float HopSize) {
 }
 
 // ─────────────────────────────────────
-OScofoMIR::~OScofoMIR() {
+MIR::~MIR() {
     if (m_FFTPlan != nullptr) {
         fftw_destroy_plan(m_FFTPlan);
         m_FFTPlan = nullptr;
@@ -55,17 +57,17 @@ OScofoMIR::~OScofoMIR() {
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-double OScofoMIR::Mtof(double note, double tunning) {
+double MIR::Mtof(double note, double tunning) {
     return tunning * std::pow(2.0, (note - 69) / 12.0);
 }
 
 // ─────────────────────────────────────
-double OScofoMIR::Ftom(double freq, double tunning) {
+double MIR::Ftom(double freq, double tunning) {
     return 69 + 12 * log2(freq / tunning);
 }
 
 // ─────────────────────────────────────
-double OScofoMIR::Freq2Bin(double Freq, double n, double sr) {
+double MIR::Freq2Bin(double Freq, double n, double sr) {
     double bin;
     bin = Freq * n / sr;
     return round(bin);
@@ -74,7 +76,7 @@ double OScofoMIR::Freq2Bin(double Freq, double n, double sr) {
 // ╭─────────────────────────────────────╮
 // │          Set|Get Functions          │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::SetdBTreshold(double dB) {
+void MIR::SetdBTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
@@ -82,7 +84,7 @@ void OScofoMIR::SetdBTreshold(double dB) {
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
 
-void OScofoMIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
+void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
     int N = In.size();
     int NHalf = N / 2;
 
@@ -134,7 +136,7 @@ void OScofoMIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
 // ╭─────────────────────────────────────╮
 // │                 RMS                 │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::GetRMS(std::vector<double> &In, Description &Desc) {
+void MIR::GetRMS(std::vector<double> &In, Description &Desc) {
     double sumOfSquares = 0.0;
     for (double sample : In) {
         sumOfSquares += sample * sample;
@@ -156,7 +158,7 @@ void OScofoMIR::GetRMS(std::vector<double> &In, Description &Desc) {
 // ╭─────────────────────────────────────╮
 // │            Main Function            │
 // ╰─────────────────────────────────────╯
-void OScofoMIR::GetDescription(std::vector<double> &In, Description &Desc) {
+void MIR::GetDescription(std::vector<double> &In, Description &Desc) {
     // apply windowing function
     for (int i = 0; i < m_FftSize; i++) {
         In[i] *= m_WindowingFunc[i];
@@ -165,3 +167,4 @@ void OScofoMIR::GetDescription(std::vector<double> &In, Description &Desc) {
     GetRMS(In, Desc);
     GetFFTDescriptions(In, Desc);
 }
+} // namespace OScofo

@@ -4,6 +4,8 @@
 // ╭─────────────────────────────────────╮
 // │     Construstor and Destructor      │
 // ╰─────────────────────────────────────╯
+namespace OScofo {
+
 //  ─────────────────────────────────────
 OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopSize), m_MIR(Sr, FftSize, HopSize) {
     m_States = States();
@@ -133,3 +135,5 @@ bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
     m_CurrentScorePosition = m_MDP.GetEvent(m_Desc);
     return true;
 }
+
+} // namespace OScofo

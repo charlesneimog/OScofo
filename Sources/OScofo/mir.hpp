@@ -6,6 +6,7 @@
 
 #include "log.hpp"
 #include "states.hpp"
+namespace OScofo {
 
 #ifndef TWO_PI
 #define TWO_PI (2 * M_PI)
@@ -14,10 +15,10 @@
 // ╭─────────────────────────────────────╮
 // │     Music Information Retrieval     │
 // ╰─────────────────────────────────────╯
-class OScofoMIR {
+class MIR {
   public:
-    OScofoMIR(float Sr, float WindowSize, float HopSize);
-    ~OScofoMIR();
+    MIR(float Sr, float WindowSize, float HopSize);
+    ~MIR();
 
     void SetdBTreshold(double dB);
     void ResetElapsedTime();
@@ -54,3 +55,4 @@ class OScofoMIR {
     // Time
     double m_EventTimeElapsed = 0.0; // ms
 };
+} // namespace OScofo

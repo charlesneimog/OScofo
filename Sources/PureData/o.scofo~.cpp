@@ -15,7 +15,7 @@ class PdOScofo {
     t_sample Sample;
     std::vector<double> inBuffer;
     t_clock *Clock;
-    OScofo *OpenScofo;
+    OScofo::OScofo *OpenScofo;
 
     int Event;
     std::string PatchDir;
@@ -238,7 +238,7 @@ static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
     x->Clock = clock_new(x, (t_method)ClockTick);
     x->Event = 0;
 
-    x->OpenScofo = new OScofo(x->Sr, x->FFTSize, x->HopSize);
+    x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     x->Following = false;
 
     LOGE() << "Returning NewOScofo";
@@ -255,7 +255,7 @@ static void *FreeOScofo(PdOScofo *x) {
 
 // ─────────────────────────────────────
 extern "C" void setup_o0x2escofo_tilde(void) {
-    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo, sizeof(OScofo), CLASS_DEFAULT, A_GIMME, 0);
+    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
 
     CLASS_MAINSIGNALIN(OScofoObj, PdOScofo, Sample);
     class_addmethod(OScofoObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);

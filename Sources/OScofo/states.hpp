@@ -1,8 +1,9 @@
 #pragma once
 
-#include <sstream>
 #include <string>
 #include <vector>
+
+namespace OScofo {
 
 enum EventType {
     REST,  // Markov state
@@ -37,8 +38,8 @@ class MacroState {
     double InitProb;
     std::vector<double> Obs;
     std::vector<double> Forward;
-    std::vector<double> Norm;
-    std::vector<double> In;
+    // std::vector<double> Norm;
+    // std::vector<double> In;
 
     // Audio Obs
     std::vector<double> Freqs;
@@ -89,3 +90,4 @@ class Description {
     double MaxAmp;
     double SpectralFlatness;
 };
+} // namespace OScofo
