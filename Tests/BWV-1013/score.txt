@@ -13,6 +13,7 @@
 
 BPM 80
 NOTE E5 1/4
+    
 NOTE A5 1/4
 NOTE G#5 1/4
 NOTE A5 1/4

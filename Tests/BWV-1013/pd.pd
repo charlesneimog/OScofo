@@ -2,7 +2,7 @@
 #X obj 13 171 o.scofo~, f 18;
 #X obj 13 195 nbx 3 24 -1e+37 1e+37 0 0 empty empty empty 0 -9 0 20 #fcfcfc #ff0400 #ff0400 0 256;
 #X obj 13 77 readsf~;
-#X msg 13 30 open audio.wav \, 1;
+#X msg 13 18 open audio.wav \, 1;
 #X obj 118 196 nbx 5 16 -1e+37 1e+37 0 0 empty empty empty 0 -9 0 10 #fcfcfc #000000 #000000 0 256;
 #X obj 44 119 dac~;
 #X obj 13 251 cyclone/click~;
