@@ -3,11 +3,11 @@ docs_dir: Documentation
 copyright: Copyright &copy 2023 | Charles K. Neimog | University of São Paulo. 
 
 theme:
-  logo: assets/icon-light.svg
+  logo: assets/score.svg
   custom_dir: Documentation/overrides
-  logo_dark_mode: assets/icon-dark.svg
-  logo_light_mode: assets/icon-light.svg
-  favicon: assets/icon.png
+  logo_dark_mode: assets/score.svg
+  logo_light_mode: assets/score.svg
+  favicon: assets/score.png
   name: material
   features:
     - navigation.top
@@ -71,6 +71,7 @@ extra_javascript:
   
 nav:
     - index.md
+    - score.md
 
 
 extra:
