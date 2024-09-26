@@ -60,8 +60,6 @@ int Score::Name2Midi(std::string note) {
         break;
     default:
         throw std::runtime_error("Invalid note name for " + note);
-        break;
-        return -1;
     }
 
     if (note[1] == '#' || note[1] == 'b') {
@@ -87,7 +85,6 @@ int Score::Name2Midi(std::string note) {
             throw std::runtime_error("Invalid note name for " + note);
         }
     }
-    return -1;
 }
 
 // ─────────────────────────────────────
@@ -212,6 +209,14 @@ MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 //     return;
 // }
 //
+// ─────────────────────────────────────
+void Score::AddAction(std::vector<std::string> Tokens) {
+
+    for (auto Token : Tokens) {
+        printf("%s ", Token.c_str());
+    }
+    printf("\n");
+}
 
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
@@ -247,39 +252,38 @@ States Score::Parse(std::string ScoreFile) {
             continue;
         }
 
-        // check if line is a tab line (for actions)
-        if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
-            continue;
-        }
-
         std::istringstream iss(Line);
         std::string Token;
         std::vector<std::string> Tokens;
-
         while (std::getline(iss, Token, ' ')) {
             Tokens.push_back(Token);
         }
 
-        // Initial Silence
-        if (m_ScorePosition == 1) {
-        }
+        // check if line is a tab line (for actions)
+        if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
+            AddAction(Tokens);
+        } else {
+            // Initial Silence
+            if (m_ScorePosition == 1) {
+            }
 
-        // Actually Score
-        if (Tokens[0] == "NOTE") {
-            MacroState NewNote = AddNote(NewStates, Tokens);
-            NewStates.push_back(NewNote);
-        } else if (Tokens[0] == "BPM") {
-            m_CurrentBPM = std::stof(Tokens[1]);
-            MacroState Implicity;
-            Implicity.Type = REST;
-            Implicity.Markov = MARKOV;
-            Implicity.BPMExpected = m_CurrentBPM;
-            Implicity.ScorePos = 0;
-            Implicity.Duration = 0;
-            Implicity.Index = 0;
-            NewStates.push_back(Implicity);
+            // Actually Score
+            if (Tokens[0] == "NOTE") {
+                MacroState NewNote = AddNote(NewStates, Tokens);
+                NewStates.push_back(NewNote);
+            } else if (Tokens[0] == "BPM") {
+                m_CurrentBPM = std::stof(Tokens[1]);
+                MacroState Implicity;
+                Implicity.Type = REST;
+                Implicity.Markov = MARKOV;
+                Implicity.BPMExpected = m_CurrentBPM;
+                Implicity.ScorePos = 0;
+                Implicity.Duration = 0;
+                Implicity.Index = 0;
+                NewStates.push_back(Implicity);
+            }
+            m_MarkovIndex++;
         }
-        m_MarkovIndex++;
     }
 
     m_ScoreLoaded = true;

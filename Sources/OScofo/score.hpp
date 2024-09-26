@@ -35,6 +35,7 @@ class Score {
     MacroState AddTrill(States &ScoreStates, std::vector<std::string> Tokens);
     MacroState AddMulti(States &ScoreStates, std::vector<std::string> Tokens);
     MacroState AddRest(States &ScoreStates, std::vector<std::string> Tokens);
+    void AddAction(std::vector<std::string> Tokens);
 
     // Variables
     int m_ScorePosition = 1;
