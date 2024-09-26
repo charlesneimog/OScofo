@@ -1,0 +1,8 @@
+BPM 160
+NOTE 60 1
+	delay 200
+NOTE D4 1
+	exec lua { 
+	 print("OI")
+	
+	}

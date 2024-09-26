@@ -39,6 +39,30 @@ set_target_properties(fftw3 PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ╭──────────────────────────────────────╮
+# │             Tree-Sitter              │
+# ╰──────────────────────────────────────╯
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
+find_program(TREE_SITTER_EXECUTABLE tree-sitter)
+
+if(TREE_SITTER_EXECUTABLE)
+  message(STATUS "Tree-sitter executable found at ${TREE_SITTER_EXECUTABLE}")
+  execute_process(
+    COMMAND ${TREE_SITTER_EXECUTABLE} generate
+    WORKING_DIRECTORY
+      ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score/
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE error_output)
+else()
+  message(
+    FATAL_ERROR "Tree-sitter executable not found. Please install Tree-sitter.")
+endif()
+
+add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
+include_directories(Libraries/tree-sitter/include)
+
+# ╭──────────────────────────────────────╮
 # │                OScofo                │
 # ╰──────────────────────────────────────╯
 list(APPEND SCofoSrc Sources/OScofo/mdp.cpp)
@@ -51,6 +75,7 @@ set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
   OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
+target_link_libraries(OScofo PRIVATE tree-sitter score_parser)
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │
@@ -63,6 +88,7 @@ if(BUILD_PY_MODULE)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Sources)
   pybind11_add_module(_OScofo Sources/Python/PyOScofo.cpp)
   target_link_libraries(_OScofo PRIVATE OScofo ${PYTHON_LIBRARIES})
+
   set_target_properties(
     _OScofo
     PROPERTIES CXX_STANDARD 11
