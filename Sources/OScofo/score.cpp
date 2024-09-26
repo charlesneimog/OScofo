@@ -3,7 +3,10 @@
 #include <fstream>
 #include <sstream>
 
+#include "log.hpp"
 #include "score.hpp"
+
+extern "C" TSLanguage *tree_sitter_score();
 
 namespace OScofo {
 
@@ -213,7 +216,7 @@ MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 void Score::AddAction(std::vector<std::string> Tokens) {
 
     for (auto Token : Tokens) {
-        printf("%s ", Token.c_str());
+        // printf("%s ", Token.c_str());
     }
     printf("\n");
 }
@@ -221,6 +224,50 @@ void Score::AddAction(std::vector<std::string> Tokens) {
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
+void Score::PrintTreeSitterNode(TSNode node, int indent) {
+    const char *type = ts_node_type(node);
+    std::string text = ts_node_string(node);
+    if (indent != 0) {
+        std::cout << std::string(indent, ' ') << type << ": " << text << std::endl;
+    }
+
+    uint32_t child_count = ts_node_child_count(node);
+    for (uint32_t i = 0; i < child_count; i++) {
+        PrintTreeSitterNode(ts_node_child(node, i), indent + 4); // Aumenta a indentação para filhos
+    }
+}
+
+// ─────────────────────────────────────
+void Score::ParseInput(const std::string &input) {
+    TSParser *Parser = ts_parser_new();
+    ts_parser_set_language(Parser, tree_sitter_score());
+    TSTree *Tree = ts_parser_parse_string(Parser, nullptr, input.c_str(), input.size());
+    TSNode RootNode = ts_tree_root_node(Tree);
+    PrintTreeSitterNode(RootNode);
+
+    // núcleo
+    uint32_t child_count = ts_node_child_count(RootNode);
+    for (uint32_t i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(RootNode, i);
+        std::string Type = ts_node_type(child);
+
+        // Verifica se é um nó de erro
+        if (Type == "ERROR") {
+            std::cerr << "Erro de sintaxe encontrado: " << ts_node_string(child) << std::endl;
+        } else if (Type == "EVENT") {
+            TSNode Event = ts_node_child(RootNode, i);
+            std::string EventType = ts_node_type(Event);
+            if (EventType == "NOTE") {
+            }
+        }
+    }
+
+    // Limpeza
+    ts_tree_delete(Tree);
+    ts_parser_delete(Parser);
+}
+
+// ─────────────────────────────────────
 States Score::Parse(std::string ScoreFile) {
     LOGE() << "start OScofoScore::Parse";
 
@@ -231,6 +278,12 @@ States Score::Parse(std::string ScoreFile) {
     if (!File) {
         throw std::runtime_error("Score File not found");
     }
+
+    std::ifstream file(ScoreFile);
+    std::string input((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    // Parse the input using Tree-sitter
+    ParseInput(input);
 
     m_CurrentBPM = -1;
     m_LineCount = 0;

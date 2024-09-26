@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "log.hpp"
 #include "states.hpp"
+#include <tree_sitter/api.h>
 
 namespace OScofo {
 
@@ -28,6 +28,8 @@ class Score {
     MacroState AddTransState(MacroState &State, int ScoreEvent, int BPM);
     int Name2Midi(std::string note);
     bool SpaceTab(const std::string &line, int numSpaces);
+    void ParseInput(const std::string &input);
+    void PrintTreeSitterNode(TSNode node, int indent = 0);
 
     // Add events
     MacroState AddNote(States &ScoreStates, std::vector<std::string> Tokens);
