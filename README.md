@@ -29,13 +29,14 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 
 ## Building
 
-### Requirements
+#### Requirements
 
 * cmake and ninja;
+* treesitter (`npm install tree-sitter`) (If you want to change/update score syntax)
 * pybind11 (optional): To build Python package.
 * PureData (optional): To build the Pd Object.
 
-### Building Options
+#### Building Options
 
 * `PDLIBDIR`: Where the Pd object will be installed
 * `BUILD_PY_MODULE`: Build or not the OScofo python module.
