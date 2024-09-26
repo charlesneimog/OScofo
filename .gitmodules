@@ -1,3 +1,6 @@
 [submodule "Resources/pd.cmake"]
 	path = Resources/pd.cmake
 	url = https://github.com/pure-data/pd.cmake
+[submodule "Libraries/tree-sitter"]
+	path = Libraries/tree-sitter
+	url = https://github.com/tree-sitter/tree-sitter

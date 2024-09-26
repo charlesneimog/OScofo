@@ -8,7 +8,7 @@
   <h4 align="center">OScofo: OpenScore Follower</h4>
 </p>
 
-**O**pen **SCO**re **FO**llower (OScofo) is a PureData object is being designed for contemporary music applications. This project aims to encourage collaboration among researchers and musicians for contemporary music. Here's what you need to know:
+`OScofo` is an open-source project designed to provide score following capabilities for contemporary music applications. Originally developed as a PureData (Pd) object, OScofo has now been expanded into a versatile C++ library that integrates seamlessly with multiple environments, including a Python package. Currently under development, OScofo is already functional and serves as a valuable tool for researchers and musicians.
 
 ## Goal
 
@@ -26,4 +26,26 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 * **Rhythm Synchronization**: Integrates theories of rhythm synchronization developed by Edward Large and Mari Riess Jones (1999) and Edward Large and Caroline Palmer (2002), as presented for Cont (2010).
 * **Forward Algorithm**: For now, *OScofo* uses the equation presented by Arshia Cont (2010) and developed by Yann Guédon (2005).
 * **Score Language**: Based on the `scofo` (by Miller Puckette) and `antescofo~` (by Arshia Cont, Philippe Cuvillier, and others) language.
+
+## Building
+
+### Requirements
+
+* cmake and ninja;
+* pybind11 (optional): To build Python package.
+* PureData (optional): To build the Pd Object.
+
+### Building Options
+
+* `PDLIBDIR`: Where the Pd object will be installed
+* `BUILD_PY_MODULE`: Build or not the OScofo python module.
+* `BUILD_PD_OBJECT`: Build or not the Pd Object.
+
+``` bash
+git clone https://github.com/charlesneimog/OScofo --recursive
+cmake . -B build -DBUILD_PY_MODULE=ON -DBUILD_PD_OBJECT=ON -G Ninja 
+cmake --build build
+```
+
+To install use `cmake --install build`.
 
