@@ -34,6 +34,6 @@ module.exports = grammar({
     pitch: ($) => choice(/[A-Ga-g][#b]?(\d)?/, /\d+/),
 
     // Tokens permitidos, duração pode ser 1/3
-    duration: ($) => choice(/\d+/, seq(/\d+/, "/", /\d+/)),
+    duration: ($) => choice(/\d+/, /\d+\.\d+/, seq(/\d+/, "/", /\d+/)),
   },
 });
