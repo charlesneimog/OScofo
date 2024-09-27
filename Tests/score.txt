@@ -1,8 +1,10 @@
-BPM 160
-NOTE 60 1
-	delay 200
+NOTE C4 1
+NOTE D4 0.5
+NOTE E4 1.5
+NOTE Bb4 0.5
+NOTE A4 0.5
+NOTE G4 1
+NOTE E4 0.5
+NOTE F#4 1.5
 NOTE D4 1
-	exec lua { 
-	 print("OI")
-	
-	}
+NOTE E4 4
