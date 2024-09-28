@@ -56,7 +56,9 @@ if(TREE_SITTER_EXECUTABLE)
     ERROR_VARIABLE error_output)
 else()
   message(
-    FATAL_ERROR "Tree-sitter executable not found. Please install Tree-sitter.")
+    WARNING
+      "We will not generate the parser because the tree-sitter executable was not found. Please install tree-sitter-cli."
+  )
 endif()
 
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
