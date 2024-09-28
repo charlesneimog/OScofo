@@ -62,7 +62,6 @@ static void oscofo_score(t_oscofo *x, t_symbol *s){
     }
     
 	x->ScoreLoaded = true;
-	x->Following = WasFollowing;
 	object_post((t_object *)x, "[o.scofo~] Score loaded");
 }
 
@@ -146,16 +145,15 @@ static void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long nu
 	if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
 		return;
     }
+
 	x->BlockIndex += sampleframes;
     std::copy(x->inBuffer.begin() + sampleframes, x->inBuffer.end(), x->inBuffer.begin());
     std::copy(ins[0], ins[0] + sampleframes, x->inBuffer.end() - sampleframes);
-
 	if (x->BlockIndex != x->HopSize) {
 		return;
 	}
 
 	x->BlockIndex = 0;
-
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {
         return;
