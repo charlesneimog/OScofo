@@ -58,7 +58,7 @@ find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 if(TREE_SITTER_EXECUTABLE)
   message(STATUS "Tree-sitter executable found at ${TREE_SITTER_EXECUTABLE}")
   execute_process(
-    COMMAND ${TREE_SITTER_EXECUTABLE} generate
+    COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
     WORKING_DIRECTORY
       ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score/
     RESULT_VARIABLE result
@@ -66,7 +66,9 @@ if(TREE_SITTER_EXECUTABLE)
     ERROR_VARIABLE error_output)
 else()
   message(
-    FATAL_ERROR "Tree-sitter executable not found. Please install Tree-sitter.")
+    WARNING
+      "We will not generate the parser because the tree-sitter executable was not found. Please install tree-sitter-cli."
+  )
 endif()
 
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
