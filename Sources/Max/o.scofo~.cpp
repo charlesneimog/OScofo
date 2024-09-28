@@ -1,112 +1,236 @@
 #include <ext.h>		    // standard Max include, always required (except in Jitter)
 #include <ext_obex.h>		// required for "new" style objects
 #include <z_dsp.h>		    // required for MSP objects
+#include <ext_common.h>
+
+#include "../OScofo.hpp"
+
+#include <algorithm>
+#include <fstream>
+#include <math.h>
+
+static t_class *oscofo_class = NULL;
 
 
 typedef struct _oscofo {
 	t_pxobject		ob;			// the object itself (t_pxobject in MSP instead of t_object)
 	double			offset; 	// the value of a property of our object
+	t_clock *Clock;
+    OScofo::OScofo *OpenScofo;
+	int Event;
+	float Tempo;
+	int EventIndex;
+	bool Following;
+	std::string PatchDir;
+
+	// Position
+	int CurrentEvent;
+	bool ScoreLoaded;
+
+	// Audio
+	std::vector<double> inBuffer;
+	int FFTSize;
+	int HopSize;
+	int BlockSize;
+	int BlockIndex;
+	int Sr;
+
+	// Outlet
+	void *EventOut;
+	void *TempoOut;
+	void *KappaOut;
 } t_oscofo;
 
-
-// method prototypes
-void *oscofo_new(t_symbol *s, long argc, t_atom *argv);
-void oscofo_free(t_oscofo *x);
-void oscofo_assist(t_oscofo *x, void *b, long m, long a, char *s);
-void oscofo_float(t_oscofo *x, double f);
-void oscofo_dsp64(t_oscofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags);
-void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam);
-
-
-// global class pointer variable
-static t_class *oscofo_class = NULL;
-
-
-//***********************************************************************************************
-
-void ext_main(void *r){
-	// object initialization, note the use of dsp_free for the freemethod, which is required
-	// unless you need to free allocated memory, in which case you should call dsp_free from
-	// your custom free function.
-	t_class *c = class_new("o.scofo~", (method)oscofo_new, (method)dsp_free, (long)sizeof(t_oscofo), 0L, A_GIMME, 0);
-	class_addmethod(c, (method)oscofo_float, "float", A_FLOAT, 0);
-	class_addmethod(c, (method)oscofo_dsp64, "dsp64", A_CANT, 0);
-	class_addmethod(c, (method)oscofo_assist, "assist",	A_CANT, 0);
-	class_dspinit(c);
-	class_register(CLASS_BOX, c);
-	oscofo_class = c;
+static void oscofo_score(t_oscofo *x, t_symbol *s){
+    x->ScoreLoaded = false;
+	bool WasFollowing = x->Following;
+	x->Following = false;
+    std::string CompletePath = x->PatchDir;
+    CompletePath += "/";
+    CompletePath += s->s_name;
+    std::ifstream file(CompletePath);
+    if (!file) {
+        object_error((t_object *)x, "[o.scofo~] Score file not found");
+        return;
+    }
+    bool ok;
+    try {
+        ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+    } catch (std::exception &e) {
+        object_error((t_object *)x, "[o.scofo~] Error parsing score, %s.", e.what());
+        return;
+    }
+    
+	x->ScoreLoaded = true;
+	x->Following = WasFollowing;
+	object_post((t_object *)x, "[o.scofo~] Score loaded");
 }
 
+// this method is called when the object is created
+static void oscofo_set(t_oscofo *x, t_symbol *s, long argc, t_atom *argv)
+{
+    if (argv[0].a_type != A_SYM) {
+        object_error((t_object *)x, "[o.scofo~] First argument must be a symbol");
+		outlet_float(x->EventOut, 230);
+        return;
+    }
 
-void *oscofo_new(t_symbol *s, long argc, t_atom *argv){
-	t_oscofo *x = (t_oscofo *)object_alloc(oscofo_class);
-	if (x) {
-		dsp_setup((t_pxobject *)x, 1);	// MSP inlets: arg is # of inlets and is REQUIRED!
-		// use 0 if you don't need inlets
-		outlet_new(x, nullptr); 		// signal outlet (note "signal" rather than NULL)
-		x->offset = 0.0;
+    std::string method = atom_getsym(argv)->s_name;
+    if (method == "sigma") {
+		float sigma = atom_getfloat(argv + 1);
+        x->OpenScofo->SetPitchTemplateSigma(sigma);
+        object_post((t_object *)x, "Sigma set to %f", sigma);
+    } else if (method == "harmonics") {
+		long harmonics = atom_getlong(argv + 1);
+        x->OpenScofo->SetHarmonics(harmonics);
+        object_post((t_object *)x, "Using pitch template with %d harmonics", harmonics);
+    } else if (method == "threshold") {
+        double dB = atom_getfloat(argv + 1);
+        x->OpenScofo->SetdBTreshold(dB);
+        object_post((t_object *)x, "Treshold set to %f", atom_getfloat(argv + 1));
+    } else if (method == "tunning") {
+		float tunning = atom_getfloat(argv + 1);
+        x->OpenScofo->SetTunning(tunning);
+		object_post((t_object *)x, "Tunning set to %f", tunning);	
+    } else if (method == "event") {
+		long f = atom_getlong(argv + 1);
+        x->CurrentEvent = f;
+        x->OpenScofo->SetCurrentEvent(f);
+    } else {
+        object_error((t_object *)x, "[follower~] Unknown method");
+    }
+    
+}
+
+static void oscofo_following(t_oscofo *x, long f) {
+	if (!x->OpenScofo->ScoreIsLoaded()) {
+		object_error((t_object *)x, "[o.scofo~] Score not loaded");
+		return;
 	}
-	return (x);
-}
-
-
-// NOT CALLED!, we use dsp_free for a generic free function
-void oscofo_free(t_oscofo *x)
-{
-	;
-}
-
-
-void oscofo_assist(t_oscofo *x, void *b, long m, long a, char *s)
-{
-	if (m == ASSIST_INLET) { //inlet
-		//sprintf(s, "I am inlet %ld", a);
-	}
-	else {	// outlet
-		//sprintf(s, "I am outlet %ld", a);
+	if (f == 1) {
+		x->Following = true;
+		object_post((t_object *)x, "Following!");
+	} else {
+		object_post((t_object *)x, "Not Following!");
+		x->Following = false;
 	}
 }
 
-
-void oscofo_float(t_oscofo *x, double f)
-{
-	x->offset = f;
+static void oscofo_start(t_oscofo *x) {
+	x->Following = false;
+	if (!x->OpenScofo->ScoreIsLoaded()) {
+        object_error((t_object *)x, "[o.scofo~] Score not loaded");
+        return;
+    }
+    x->CurrentEvent = -1;
+    x->OpenScofo->SetCurrentEvent(-1);
+    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+    outlet_float(x->EventOut, 0);
+    x->Following = true;
 }
 
 
-// registers a function for the signal chain in Max
-void oscofo_dsp64(t_oscofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
-{
-	// when I turn on the sound.
-	post("my sample rate is: %f", samplerate);
 
-	// instead of calling dsp_add(), we send the "dsp_add64" message to the object representing the dsp chain
-	// the arguments passed are:
-	// 1: the dsp64 object passed-in by the calling function
-	// 2: the symbol of the "dsp_add64" message we are sending
-	// 3: a pointer to your object
-	// 4: a pointer to your 64-bit perform method
-	// 5: flags to alter how the signal chain handles your object -- just pass 0
-	// 6: a generic pointer that you can use to pass any additional data to your perform method
-
-	object_method(dsp64, gensym("dsp_add64"), x, oscofo_perform64, 0, NULL);
+// this is the tick method for the clock
+static void oscofo_tick(t_oscofo *x) {
+    if (x->Event != 0) {
+		outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+		outlet_float(x->EventOut, x->Event);
+    }
 }
 
 
 // this is the 64-bit perform method audio vectors
-void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam)
+static void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam)
 {
-	// create a simple oscillator
-	double *out = outs[0];
-	double offset = x->offset;
-	double phase = 0.0;
-	double phase_incr = 0.1;
-	for (long i = 0; i < sampleframes; i++) {
-		*out++ = sin(phase) * 0.5 + 0.5;
-		phase += phase_incr;
-		if (phase > 2 * 3.14159) {
-			phase -= 2 * 3.14159;
-		}
+	if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
+		return;
+    }
+	x->BlockIndex += sampleframes;
+    std::copy(x->inBuffer.begin() + sampleframes, x->inBuffer.end(), x->inBuffer.begin());
+    std::copy(ins[0], ins[0] + sampleframes, x->inBuffer.end() - sampleframes);
+
+	if (x->BlockIndex != x->HopSize) {
+		return;
 	}
 
+	x->BlockIndex = 0;
+
+    bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
+    if (!ok) {
+        return;
+    }
+    int Event = x->OpenScofo->GetEventIndex();
+    if (Event == 0) {
+        return;
+    }
+    if (Event != x->Event) {
+        x->Event = Event;
+        clock_delay(x->Clock, 0);
+    }
+}
+
+
+
+// registers a function for the signal chain in Max
+static void oscofo_dsp64(t_oscofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
+{
+	x->BlockSize = maxvectorsize;
+    x->BlockIndex = 0;
+    x->inBuffer.resize(x->FFTSize, 0.0f);
+	object_method(dsp64, gensym("dsp_add64"), x, oscofo_perform64, 0, NULL);
+}
+
+
+static void *oscofo_new(t_symbol *s, long argc, t_atom *argv){
+	t_oscofo *x = (t_oscofo *)object_alloc(oscofo_class);
+	if (!x) {
+		object_error((t_object *)x, "[o.scofo~] Error creating object");
+		return nullptr;
+	}
+	dsp_setup((t_pxobject *)x, 1);	// MSP inlets: arg is # of inlets and is REQUIRED!
+	
+	x->TempoOut = outlet_new(x, "float");	// tempo outlet
+	x->EventOut = outlet_new(x, "int");
+	x->offset = 0.0;
+	x->Clock = clock_new(x, (method)oscofo_tick);
+	x->FFTSize = 4096;
+	x->HopSize = 512;
+	x->Sr = sys_getsr();
+	x->Following = false;
+	x->Event = -1;
+	
+	char patch_path[MAX_PATH_CHARS];
+	short path_id = path_getdefault();
+	path_toabsolutesystempath(path_id, NULL, patch_path);
+	x->PatchDir = patch_path;
+
+	object_post((t_object *)x, "[o.scofo~] Sr: %d | FFTSize: %d | HopSize: %d", x->Sr, x->FFTSize, x->HopSize);
+	//
+	x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
+	return (x);
+}
+
+
+static void oscofo_free(t_oscofo *x)
+{
+	delete x->OpenScofo;
+}
+
+void ext_main(void *r){
+	t_class *c = class_new("o.scofo~", (method)oscofo_new, (method)dsp_free, (long)sizeof(t_oscofo), 0L, A_GIMME, 0);
+
+	// message methods
+	class_addmethod(c, (method)oscofo_set, "set", A_GIMME, 0);
+	class_addmethod(c, (method)oscofo_score, "score", A_SYM, 0);
+	class_addmethod(c, (method)oscofo_following, "follow", A_LONG, 0);
+	class_addmethod(c, (method)oscofo_start, "start", A_NOTHING, 0);
+
+	// dsp methods
+	class_addmethod(c, (method)oscofo_dsp64, "dsp64", A_CANT, 0);
+
+	// register the class
+	class_dspinit(c);
+	class_register(CLASS_BOX, c);
+	oscofo_class = c;
 }

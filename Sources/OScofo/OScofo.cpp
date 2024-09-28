@@ -1,4 +1,4 @@
-#include "../OScofo.hpp"
+#include <OScofo.hpp>
 #include <cmath>
 
 // ╭─────────────────────────────────────╮

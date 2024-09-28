@@ -19,3 +19,5 @@ if(NOT APPLE)
 endif()
 install(TARGETS _OScofo
         DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Python/OScofo/)
+
+target_include_directories(_OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")

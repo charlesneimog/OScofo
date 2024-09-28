@@ -60,15 +60,6 @@ static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
         double dB = atom_getfloat(argv + 1);
         x->OpenScofo->SetdBTreshold(dB);
         post("[follower~] Treshold set to %f", atom_getfloat(argv + 1));
-    } else if (method == "time") {
-        std::string submethod = atom_getsymbol(argv + 1)->s_name;
-        if (submethod == "accum") {
-            x->OpenScofo->SetTimeAccumFactor(atom_getfloat(argv + 2));
-            printf("[follower~] Time accumulation set to %.4f\n", atom_getfloat(argv + 2));
-        } else if (submethod == "coupling") {
-            x->OpenScofo->SetTimeCouplingStrength(atom_getfloat(argv + 2));
-            printf("[follower~] Time coupling set to %.4f\n", atom_getfloat(argv + 2));
-        }
     } else if (method == "tunning") {
         x->OpenScofo->SetTunning(atom_getfloat(argv + 1));
 
