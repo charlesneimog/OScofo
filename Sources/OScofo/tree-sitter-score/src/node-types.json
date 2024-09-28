@@ -1,0 +1,139 @@
+[
+  {
+    "type": "ACTION",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "LUA",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "COMMENT",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "CONFIG",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "EVENT",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "ACTION",
+          "named": true
+        },
+        {
+          "type": "NOTE",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "LUA",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "NOTE",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "duration",
+          "named": true
+        },
+        {
+          "type": "pitch",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "duration",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "pitch",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "COMMENT",
+          "named": true
+        },
+        {
+          "type": "CONFIG",
+          "named": true
+        },
+        {
+          "type": "EVENT",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "#",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": ";",
+    "named": false
+  },
+  {
+    "type": "BPM",
+    "named": false
+  },
+  {
+    "type": "NOTE",
+    "named": false
+  },
+  {
+    "type": "delay",
+    "named": false
+  },
+  {
+    "type": "exec lua",
+    "named": false
+  },
+  {
+    "type": "{",
+    "named": false
+  },
+  {
+    "type": "}",
+    "named": false
+  }
+]
