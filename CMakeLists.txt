@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_OSX_ARCHITECTURES x86_64;arm64)  # Enable Apple silicon builds
 
-project(OScofo LANGUAGES CXX)
+# IF MAC, USE APPLE CLANG
+if(APPLE)
+  set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+  set(CMAKE_C_COMPILER "/usr/bin/clang")
+endif()
+
+project(OScofo  LANGUAGES C CXX)
 
 set(PDCMAKE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
@@ -11,11 +19,13 @@ include(${PDCMAKE_DIR}/pd.cmake)
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
+option(BUILD_MAX_OBJECT "Build Max Object" OFF)
 option(BUILD_ALL "Build Python Module and PureData Object" OFF)
 
 if(BUILD_ALL)
   set(BUILD_PY_MODULE ON)
   set(BUILD_PD_OBJECT ON)
+  set(BUILD_MAX_OBJECT ON)
 endif()
 
 # ╭──────────────────────────────────────╮
@@ -81,46 +91,19 @@ target_link_libraries(OScofo PRIVATE tree-sitter score_parser)
 # │            Python Module             │
 # ╰──────────────────────────────────────╯
 if(BUILD_PY_MODULE)
-  find_package(Python REQUIRED COMPONENTS Interpreter Development)
-  find_package(pybind11 REQUIRED)
-  include_directories(${PYTHON_INCLUDE_DIRS})
-  include_directories(${pybind11_INCLUDE_DIR})
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Sources)
-  pybind11_add_module(_OScofo Sources/Python/PyOScofo.cpp)
-  target_link_libraries(_OScofo PRIVATE OScofo ${PYTHON_LIBRARIES})
-
-  set_target_properties(
-    _OScofo
-    PROPERTIES CXX_STANDARD 11
-               CXX_STANDARD_REQUIRED YES
-               CXX_EXTENSIONS NO)
-  if(NOT APPLE)
-    target_compile_options(_OScofo PRIVATE -static-libstdc++ -static-libgcc
-                                           -Wl,-allow-multiple-definition)
-    target_link_options(_OScofo PRIVATE -static-libstdc++ -static-libgcc
-                        -Wl,-allow-multiple-definition)
-  endif()
-  install(TARGETS _OScofo
-          DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Python/OScofo/)
+    add_subdirectory(Sources/Python)
 endif()
 
 # ╭──────────────────────────────────────╮
 # │           PureData Object            │
 # ╰──────────────────────────────────────╯
 if(BUILD_PD_OBJECT)
-  project(o.scofo~)
-  pd_add_external(o.scofo~ Sources/PureData/o.scofo~.cpp TARGET PdOScofo)
-  target_include_directories(
-    PdOScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-  if(NOT APPLE)
-    target_compile_options(PdOScofo PRIVATE -static-libstdc++ -static-libgcc
-                                            -Wl,-allow-multiple-definition)
-    target_link_options(PdOScofo PRIVATE -static-libstdc++ -static-libgcc
-                        -Wl,-allow-multiple-definition)
-  endif()
-  target_link_libraries(PdOScofo PRIVATE OScofo)
+    add_subdirectory(Sources/PureData)
+endif()
 
-  pd_add_datafile(pdOScofo "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-  pd_add_datafile(pdOScofo
-                  "${CMAKE_CURRENT_SOURCE_DIR}/Resources/o.scofo~-help.pd")
+# ╭──────────────────────────────────────╮
+# │             Max Obj                  │
+# ╰──────────────────────────────────────╯
+if(BUILD_MAX_OBJECT)
+    add_subdirectory(Sources/Max)
 endif()
