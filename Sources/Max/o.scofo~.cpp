@@ -62,6 +62,7 @@ static void oscofo_score(t_oscofo *x, t_symbol *s){
     }
     
 	x->ScoreLoaded = true;
+	x->Following = WasFollowing;
 	object_post((t_object *)x, "[o.scofo~] Score loaded");
 }
 
