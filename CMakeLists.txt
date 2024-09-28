@@ -48,7 +48,7 @@ find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 if(TREE_SITTER_EXECUTABLE)
   message(STATUS "Tree-sitter executable found at ${TREE_SITTER_EXECUTABLE}")
   execute_process(
-    COMMAND ${TREE_SITTER_EXECUTABLE} generate
+    COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
     WORKING_DIRECTORY
       ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score/
     RESULT_VARIABLE result
