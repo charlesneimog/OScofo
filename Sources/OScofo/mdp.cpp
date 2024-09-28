@@ -1,5 +1,6 @@
 #include "mdp.hpp"
 #include "log.hpp"
+#include <cmath>
 
 #include <boost/math/special_functions/bessel.hpp>
 
@@ -64,7 +65,7 @@ void MDP::UpdatePitchTemplate() {
         if (m_States[h].Type == NOTE) {
             // TODO: Implement CHORDS
             double Pitch = m_States[h].Freqs[0];
-            double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
+            double RootBinFreq = std::round(Pitch / (m_Sr / m_FFTSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
                 continue;
             }

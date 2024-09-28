@@ -1,0 +1,9 @@
+;; highlight.scm
+(EVENT) @keyword
+(ACTION) @function
+(LUA) @string
+(CONFIG) @constant
+(NOTE) @keyword
+(pitch) @number
+(duration) @string
+(COMMENT) @comment

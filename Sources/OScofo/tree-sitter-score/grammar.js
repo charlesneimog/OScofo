@@ -1,6 +1,5 @@
 module.exports = grammar({
   name: "score",
-
   rules: {
     source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
 
