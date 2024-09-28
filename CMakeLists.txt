@@ -4,6 +4,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES x86_64;arm64)  # Enable Apple silicon builds
 
+
+option(BUILD_PY_MODULE "Build Python Module" OFF)
+option(BUILD_PD_OBJECT "Build PureData Object" OFF)
+option(BUILD_MAX_OBJECT "Build Max Object" OFF)
+option(BUILD_ALL "Build Python Module and PureData Object" OFF)
+
+if(BUILD_ALL)
+  set(BUILD_PY_MODULE ON)
+  set(BUILD_PD_OBJECT ON)
+  set(BUILD_MAX_OBJECT ON)
+endif()
+
 # IF MAC, USE APPLE CLANG
 if(APPLE)
   set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
@@ -17,16 +29,6 @@ set(PDCMAKE_DIR
     CACHE PATH "Path to pd.cmake")
 include(${PDCMAKE_DIR}/pd.cmake)
 
-option(BUILD_PY_MODULE "Build Python Module" OFF)
-option(BUILD_PD_OBJECT "Build PureData Object" OFF)
-option(BUILD_MAX_OBJECT "Build Max Object" OFF)
-option(BUILD_ALL "Build Python Module and PureData Object" OFF)
-
-if(BUILD_ALL)
-  set(BUILD_PY_MODULE ON)
-  set(BUILD_PD_OBJECT ON)
-  set(BUILD_MAX_OBJECT ON)
-endif()
 
 # ╭──────────────────────────────────────╮
 # │                FFTW3                 │
@@ -72,7 +74,7 @@ else()
 endif()
 
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
-include_directories(Libraries/tree-sitter/include)
+target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
 
 # ╭──────────────────────────────────────╮
 # │                OScofo                │
@@ -82,12 +84,24 @@ list(APPEND SCofoSrc Sources/OScofo/mir.cpp)
 list(APPEND SCofoSrc Sources/OScofo/score.cpp)
 list(APPEND SCofoSrc Sources/OScofo/OScofo.cpp)
 add_library(OScofo STATIC ${SCofoSrc})
+
+target_include_directories(OScofo PUBLIC Sources/OScofo/tree-sitter-score/src)
+
+include_directories(
+  OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_link_libraries(OScofo PUBLIC fftw3)
 set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
-  OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
+  OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
+
+target_link_libraries(OScofo PUBLIC tree-sitter score_parser ${Boost_LIBRARIES})
+cmake_policy(SET CMP0167 NEW)
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
+
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
-target_link_libraries(OScofo PRIVATE tree-sitter score_parser)
+
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │

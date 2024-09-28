@@ -16,13 +16,13 @@
 #define PRODUCTION_ID_COUNT 1
 
 enum ts_symbol_identifiers {
-  anon_sym_delay = 1,
-  aux_sym_ACTION_token1 = 2,
-  anon_sym_execlua = 3,
-  anon_sym_LBRACE = 4,
-  aux_sym_LUA_token1 = 5,
-  anon_sym_RBRACE = 6,
-  anon_sym_BPM = 7,
+  anon_sym_BPM = 1,
+  aux_sym_CONFIG_token1 = 2,
+  anon_sym_delay = 3,
+  anon_sym_execlua = 4,
+  anon_sym_LBRACE = 5,
+  aux_sym_LUA_token1 = 6,
+  anon_sym_RBRACE = 7,
   anon_sym_NOTE = 8,
   anon_sym_POUND = 9,
   aux_sym_COMMENT_token1 = 10,
@@ -31,10 +31,10 @@ enum ts_symbol_identifiers {
   aux_sym_duration_token1 = 13,
   anon_sym_SLASH = 14,
   sym_source_file = 15,
-  sym_EVENT = 16,
+  sym_CONFIG = 16,
   sym_ACTION = 17,
   sym_LUA = 18,
-  sym_CONFIG = 19,
+  sym_EVENT = 19,
   sym_NOTE = 20,
   sym_COMMENT = 21,
   sym_pitch = 22,
@@ -45,13 +45,13 @@ enum ts_symbol_identifiers {
 
 static const char * const ts_symbol_names[] = {
   [ts_builtin_sym_end] = "end",
+  [anon_sym_BPM] = "BPM",
+  [aux_sym_CONFIG_token1] = "CONFIG_token1",
   [anon_sym_delay] = "delay",
-  [aux_sym_ACTION_token1] = "ACTION_token1",
   [anon_sym_execlua] = "exec lua",
   [anon_sym_LBRACE] = "{",
   [aux_sym_LUA_token1] = "LUA_token1",
   [anon_sym_RBRACE] = "}",
-  [anon_sym_BPM] = "BPM",
   [anon_sym_NOTE] = "NOTE",
   [anon_sym_POUND] = "#",
   [aux_sym_COMMENT_token1] = "COMMENT_token1",
@@ -60,10 +60,10 @@ static const char * const ts_symbol_names[] = {
   [aux_sym_duration_token1] = "duration_token1",
   [anon_sym_SLASH] = "/",
   [sym_source_file] = "source_file",
-  [sym_EVENT] = "EVENT",
+  [sym_CONFIG] = "CONFIG",
   [sym_ACTION] = "ACTION",
   [sym_LUA] = "LUA",
-  [sym_CONFIG] = "CONFIG",
+  [sym_EVENT] = "EVENT",
   [sym_NOTE] = "NOTE",
   [sym_COMMENT] = "COMMENT",
   [sym_pitch] = "pitch",
@@ -74,13 +74,13 @@ static const char * const ts_symbol_names[] = {
 
 static const TSSymbol ts_symbol_map[] = {
   [ts_builtin_sym_end] = ts_builtin_sym_end,
+  [anon_sym_BPM] = anon_sym_BPM,
+  [aux_sym_CONFIG_token1] = aux_sym_CONFIG_token1,
   [anon_sym_delay] = anon_sym_delay,
-  [aux_sym_ACTION_token1] = aux_sym_ACTION_token1,
   [anon_sym_execlua] = anon_sym_execlua,
   [anon_sym_LBRACE] = anon_sym_LBRACE,
   [aux_sym_LUA_token1] = aux_sym_LUA_token1,
   [anon_sym_RBRACE] = anon_sym_RBRACE,
-  [anon_sym_BPM] = anon_sym_BPM,
   [anon_sym_NOTE] = anon_sym_NOTE,
   [anon_sym_POUND] = anon_sym_POUND,
   [aux_sym_COMMENT_token1] = aux_sym_COMMENT_token1,
@@ -89,10 +89,10 @@ static const TSSymbol ts_symbol_map[] = {
   [aux_sym_duration_token1] = aux_sym_duration_token1,
   [anon_sym_SLASH] = anon_sym_SLASH,
   [sym_source_file] = sym_source_file,
-  [sym_EVENT] = sym_EVENT,
+  [sym_CONFIG] = sym_CONFIG,
   [sym_ACTION] = sym_ACTION,
   [sym_LUA] = sym_LUA,
-  [sym_CONFIG] = sym_CONFIG,
+  [sym_EVENT] = sym_EVENT,
   [sym_NOTE] = sym_NOTE,
   [sym_COMMENT] = sym_COMMENT,
   [sym_pitch] = sym_pitch,
@@ -106,12 +106,16 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = false,
     .named = true,
   },
-  [anon_sym_delay] = {
+  [anon_sym_BPM] = {
     .visible = true,
     .named = false,
   },
-  [aux_sym_ACTION_token1] = {
+  [aux_sym_CONFIG_token1] = {
     .visible = false,
+    .named = false,
+  },
+  [anon_sym_delay] = {
+    .visible = true,
     .named = false,
   },
   [anon_sym_execlua] = {
@@ -127,10 +131,6 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .named = false,
   },
   [anon_sym_RBRACE] = {
-    .visible = true,
-    .named = false,
-  },
-  [anon_sym_BPM] = {
     .visible = true,
     .named = false,
   },
@@ -166,7 +166,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [sym_EVENT] = {
+  [sym_CONFIG] = {
     .visible = true,
     .named = true,
   },
@@ -178,7 +178,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [sym_CONFIG] = {
+  [sym_EVENT] = {
     .visible = true,
     .named = true,
   },
@@ -260,8 +260,8 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
         'N', 4,
         'd', 38,
         'e', 39,
-        '{', 26,
-        '}', 29,
+        '{', 27,
+        '}', 30,
       );
       if (('\t' <= lookahead && lookahead <= '\r') ||
           lookahead == ' ') SKIP(0);
@@ -276,7 +276,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead == 'E') ADVANCE(31);
       END_STATE();
     case 3:
-      if (lookahead == 'M') ADVANCE(30);
+      if (lookahead == 'M') ADVANCE(22);
       END_STATE();
     case 4:
       if (lookahead == 'O') ADVANCE(6);
@@ -291,7 +291,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead == 'a') ADVANCE(16);
       END_STATE();
     case 8:
-      if (lookahead == 'a') ADVANCE(25);
+      if (lookahead == 'a') ADVANCE(26);
       END_STATE();
     case 9:
       if (lookahead == 'c') ADVANCE(1);
@@ -315,7 +315,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead == 'x') ADVANCE(11);
       END_STATE();
     case 16:
-      if (lookahead == 'y') ADVANCE(22);
+      if (lookahead == 'y') ADVANCE(25);
       END_STATE();
     case 17:
       if (('\t' <= lookahead && lookahead <= '\r') ||
@@ -326,10 +326,10 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 18:
       if (('\t' <= lookahead && lookahead <= '\r') ||
-          lookahead == ' ') ADVANCE(27);
+          lookahead == ' ') ADVANCE(28);
       if (lookahead != 0 &&
           lookahead != '{' &&
-          lookahead != '}') ADVANCE(28);
+          lookahead != '}') ADVANCE(29);
       END_STATE();
     case 19:
       if (('0' <= lookahead && lookahead <= '9')) ADVANCE(42);
@@ -350,42 +350,42 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       ACCEPT_TOKEN(ts_builtin_sym_end);
       END_STATE();
     case 22:
-      ACCEPT_TOKEN(anon_sym_delay);
+      ACCEPT_TOKEN(anon_sym_BPM);
       END_STATE();
     case 23:
-      ACCEPT_TOKEN(aux_sym_ACTION_token1);
+      ACCEPT_TOKEN(aux_sym_CONFIG_token1);
       if (lookahead == '.') ADVANCE(19);
       if (('0' <= lookahead && lookahead <= '9')) ADVANCE(23);
       END_STATE();
     case 24:
-      ACCEPT_TOKEN(aux_sym_ACTION_token1);
+      ACCEPT_TOKEN(aux_sym_CONFIG_token1);
       if (('0' <= lookahead && lookahead <= '9')) ADVANCE(24);
       END_STATE();
     case 25:
-      ACCEPT_TOKEN(anon_sym_execlua);
+      ACCEPT_TOKEN(anon_sym_delay);
       END_STATE();
     case 26:
-      ACCEPT_TOKEN(anon_sym_LBRACE);
+      ACCEPT_TOKEN(anon_sym_execlua);
       END_STATE();
     case 27:
-      ACCEPT_TOKEN(aux_sym_LUA_token1);
-      if (('\t' <= lookahead && lookahead <= '\r') ||
-          lookahead == ' ') ADVANCE(27);
-      if (lookahead != 0 &&
-          lookahead != '{' &&
-          lookahead != '}') ADVANCE(28);
+      ACCEPT_TOKEN(anon_sym_LBRACE);
       END_STATE();
     case 28:
       ACCEPT_TOKEN(aux_sym_LUA_token1);
+      if (('\t' <= lookahead && lookahead <= '\r') ||
+          lookahead == ' ') ADVANCE(28);
       if (lookahead != 0 &&
           lookahead != '{' &&
-          lookahead != '}') ADVANCE(28);
+          lookahead != '}') ADVANCE(29);
       END_STATE();
     case 29:
-      ACCEPT_TOKEN(anon_sym_RBRACE);
+      ACCEPT_TOKEN(aux_sym_LUA_token1);
+      if (lookahead != 0 &&
+          lookahead != '{' &&
+          lookahead != '}') ADVANCE(29);
       END_STATE();
     case 30:
-      ACCEPT_TOKEN(anon_sym_BPM);
+      ACCEPT_TOKEN(anon_sym_RBRACE);
       END_STATE();
     case 31:
       ACCEPT_TOKEN(anon_sym_NOTE);
@@ -488,12 +488,12 @@ static const TSLexMode ts_lex_modes[STATE_COUNT] = {
 static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
   [0] = {
     [ts_builtin_sym_end] = ACTIONS(1),
+    [anon_sym_BPM] = ACTIONS(1),
+    [aux_sym_CONFIG_token1] = ACTIONS(1),
     [anon_sym_delay] = ACTIONS(1),
-    [aux_sym_ACTION_token1] = ACTIONS(1),
     [anon_sym_execlua] = ACTIONS(1),
     [anon_sym_LBRACE] = ACTIONS(1),
     [anon_sym_RBRACE] = ACTIONS(1),
-    [anon_sym_BPM] = ACTIONS(1),
     [anon_sym_NOTE] = ACTIONS(1),
     [anon_sym_POUND] = ACTIONS(1),
     [anon_sym_SEMI] = ACTIONS(1),
@@ -503,8 +503,8 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
   },
   [1] = {
     [sym_source_file] = STATE(22),
-    [sym_EVENT] = STATE(6),
     [sym_CONFIG] = STATE(6),
+    [sym_EVENT] = STATE(6),
     [sym_NOTE] = STATE(5),
     [sym_COMMENT] = STATE(6),
     [aux_sym_source_file_repeat1] = STATE(6),
@@ -562,8 +562,8 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_POUND,
       anon_sym_SEMI,
     STATE(4), 4,
-      sym_EVENT,
       sym_CONFIG,
+      sym_EVENT,
       sym_COMMENT,
       aux_sym_source_file_repeat1,
   [65] = 5,
@@ -595,8 +595,8 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_POUND,
       anon_sym_SEMI,
     STATE(4), 4,
-      sym_EVENT,
       sym_CONFIG,
+      sym_EVENT,
       sym_COMMENT,
       aux_sym_source_file_repeat1,
   [109] = 2,
@@ -604,63 +604,63 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_SLASH,
     ACTIONS(40), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [122] = 1,
     ACTIONS(40), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [132] = 1,
     ACTIONS(44), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [142] = 1,
     ACTIONS(46), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [152] = 1,
     ACTIONS(48), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [162] = 1,
     ACTIONS(50), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
   [172] = 1,
     ACTIONS(52), 7,
       ts_builtin_sym_end,
+      anon_sym_BPM,
       anon_sym_delay,
       anon_sym_execlua,
-      anon_sym_BPM,
       anon_sym_NOTE,
       anon_sym_POUND,
       anon_sym_SEMI,
@@ -680,7 +680,7 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_SEMI,
   [198] = 3,
     ACTIONS(58), 1,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
     ACTIONS(60), 1,
       aux_sym_duration_token1,
     STATE(10), 1,
@@ -689,22 +689,22 @@ static const uint16_t ts_small_parse_table[] = {
     STATE(16), 1,
       sym_pitch,
     ACTIONS(62), 2,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
       aux_sym_pitch_token1,
   [216] = 2,
     ACTIONS(64), 1,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
     ACTIONS(66), 1,
       aux_sym_duration_token1,
   [223] = 1,
     ACTIONS(68), 1,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
   [227] = 1,
     ACTIONS(70), 1,
       anon_sym_LBRACE,
   [231] = 1,
     ACTIONS(72), 1,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
   [235] = 1,
     ACTIONS(74), 1,
       ts_builtin_sym_end,
@@ -716,7 +716,7 @@ static const uint16_t ts_small_parse_table[] = {
       aux_sym_LUA_token1,
   [247] = 1,
     ACTIONS(80), 1,
-      aux_sym_ACTION_token1,
+      aux_sym_CONFIG_token1,
   [251] = 1,
     ACTIONS(82), 1,
       anon_sym_RBRACE,

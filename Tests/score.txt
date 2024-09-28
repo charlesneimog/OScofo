@@ -1,6 +1,8 @@
 BPM 60
 NOTE C4 1
+	delay 400
 NOTE D4 0.5
+	delay 6000
 NOTE E4 1.5
 NOTE Bb4 0.5
 NOTE A4 0.5

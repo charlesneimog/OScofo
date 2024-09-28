@@ -3,8 +3,16 @@ module.exports = grammar({
   rules: {
     source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
 
-    EVENT: ($) => seq(choice($.NOTE), optional(repeat($.ACTION))),
+    //╭─────────────────────────────────────╮
+    //│            Score Config             │
+    //╰─────────────────────────────────────╯
+    CONFIG: ($) => choice(seq("BPM", /\d+/)),
+    // TODO: add score variance
+    // TODO: add score variance
 
+    //╭─────────────────────────────────────╮
+    //│               Actions               │
+    //╰─────────────────────────────────────╯
     ACTION: ($) =>
       choice(
         seq(
@@ -13,11 +21,13 @@ module.exports = grammar({
         ),
         $.LUA,
       ),
-
     LUA: ($) => seq("exec lua", "{", /[^{}]+/, "}"),
-    CONFIG: ($) => choice(seq("BPM", /\d+/)),
 
-    // Definição de eventos de sintaxe
+    //╭─────────────────────────────────────╮
+    //│               Events                │
+    //╰─────────────────────────────────────╯
+    EVENT: ($) => seq(choice($.NOTE), optional(repeat($.ACTION))),
+
     NOTE: ($) =>
       seq(
         "NOTE",
@@ -25,14 +35,15 @@ module.exports = grammar({
         $.duration, // O segundo token é a duração
       ),
 
+    //╭─────────────────────────────────────╮
+    //│              Comments               │
+    //╰─────────────────────────────────────╯
     COMMENT: ($) => choice(seq("#", /.*/), seq(";", /.*/)),
 
-    // Definir código Lua dentro de {}
-
-    // Tokens especiais
+    //╭─────────────────────────────────────╮
+    //│             music atoms             │
+    //╰─────────────────────────────────────╯
     pitch: ($) => choice(/[A-Ga-g][#b]?(\d)?/, /\d+/),
-
-    // Tokens permitidos, duração pode ser 1/3
     duration: ($) => choice(/\d+/, /\d+\.\d+/, seq(/\d+/, "/", /\d+/)),
   },
 });
