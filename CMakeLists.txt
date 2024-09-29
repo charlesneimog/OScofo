@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_ARCHITECTURES x86_64;arm64)  # Enable Apple silicon builds
-
+set(CMAKE_OSX_ARCHITECTURES x86_64;arm64) # Enable Apple silicon builds
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
@@ -22,13 +21,12 @@ if(APPLE)
   set(CMAKE_C_COMPILER "/usr/bin/clang")
 endif()
 
-project(OScofo  LANGUAGES C CXX)
+project(OScofo LANGUAGES C CXX)
 
 set(PDCMAKE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
     CACHE PATH "Path to pd.cmake")
 include(${PDCMAKE_DIR}/pd.cmake)
-
 
 # ╭──────────────────────────────────────╮
 # │                FFTW3                 │
@@ -74,7 +72,8 @@ else()
 endif()
 
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
-target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
+target_include_directories(score_parser
+                           PUBLIC Libraries/tree-sitter/lib/include)
 
 # ╭──────────────────────────────────────╮
 # │                OScofo                │
@@ -87,39 +86,36 @@ add_library(OScofo STATIC ${SCofoSrc})
 
 target_include_directories(OScofo PUBLIC Sources/OScofo/tree-sitter-score/src)
 
-include_directories(
-  OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
+include_directories(OScofo PUBLIC
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_link_libraries(OScofo PUBLIC fftw3)
 set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_include_directories(
-  OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
+target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
 
 target_link_libraries(OScofo PUBLIC tree-sitter score_parser ${Boost_LIBRARIES})
 cmake_policy(SET CMP0167 NEW)
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
-
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │
 # ╰──────────────────────────────────────╯
 if(BUILD_PY_MODULE)
-    add_subdirectory(Sources/Python)
+  add_subdirectory(Sources/Python)
 endif()
 
 # ╭──────────────────────────────────────╮
 # │           PureData Object            │
 # ╰──────────────────────────────────────╯
 if(BUILD_PD_OBJECT)
-    add_subdirectory(Sources/PureData)
+  add_subdirectory(Sources/PureData)
 endif()
 
 # ╭──────────────────────────────────────╮
 # │             Max Obj                  │
 # ╰──────────────────────────────────────╯
-if(BUILD_MAX_OBJECT)
-    add_subdirectory(Sources/Max)
+if(BUILD_MAX_OBJECT AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_subdirectory(Sources/Max)
 endif()
