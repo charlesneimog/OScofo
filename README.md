@@ -8,7 +8,7 @@
   <h4 align="center">OScofo: OpenScore Follower</h4>
 </p>
 
-`OScofo` is an open-source project designed to provide score following capabilities for contemporary music applications. Originally developed as a PureData (Pd) object, OScofo has now been expanded into a versatile C++ library that integrates seamlessly with multiple environments, including a Python package. Currently under development, OScofo is already functional and serves as a valuable tool for researchers and musicians.
+`OScofo` is an open-source project designed to provide score following capabilities for contemporary music applications. Originally developed as a PureData (Pd) object, OScofo has now been expanded into a versatile C++ library that integrates seamlessly with multiple environments, including a Max Object, Python package, and others comming. Currently under development, OScofo is already functional and serves as a valuable tool for researchers and musicians.
 
 ## Goal
 
@@ -16,7 +16,7 @@ The aim of *OScofo* is to provide a straightforward and accessible tool for real
 
 ## Collaboration and Contribution
 
-I invite composers, researchers and developers to contribute to the *OScofo* project. Not just with code, but with theory, math, etc. I am trying to make OScofo acessible via a Python implementation, to test it should be easy. By sharing the source code, I am trying to provide access to the theories and mathematical formulas that drive the software, all this come from the amazing research work of Arshia Cont and Philippe Cuvillier at IRCAM. This transparency is inspired by the amazing tools like IEM, SPARTA, and of course, PureData.
+I invite composers, researchers and developers to contribute to the *OScofo* project. Not just with code, but with theory, math, etc. I am trying to make OScofo acessible via a Python implementation, to test it should be easy. By sharing the source code, I am trying to provide access to the theories and mathematical formulas that drive the software, all this come from the amazing research work of Arshia Cont and Philippe Cuvillier at IRCAM. 
 
 ## Technical Foundations
 
@@ -41,6 +41,7 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 * `PDLIBDIR`: Where the Pd object will be installed
 * `BUILD_PY_MODULE`: Build or not the OScofo python module.
 * `BUILD_PD_OBJECT`: Build or not the Pd Object.
+* `BUILD_MAX_OBJECT`: Build or not the Max Object.
 
 ``` bash
 git clone https://github.com/charlesneimog/OScofo --recursive
@@ -49,4 +50,3 @@ cmake --build build
 ```
 
 To install use `cmake --install build`.
-
