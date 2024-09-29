@@ -30,6 +30,11 @@ void OScofo::SetHarmonics(int Harmonics) {
 }
 
 // ─────────────────────────────────────
+double OScofo::GetdBValue() {
+    return m_MIR.GetdB();
+}
+
+// ─────────────────────────────────────
 void OScofo::SetTimeCouplingStrength(double TimeCouplingStrength) {
     m_MDP.SetTimeCouplingStrength(TimeCouplingStrength);
 }

@@ -1,21 +1,23 @@
+#include <algorithm>
+#include <fstream>
+#include <math.h>
+
 #include <ext.h>		    // standard Max include, always required (except in Jitter)
 #include <ext_obex.h>		// required for "new" style objects
 #include <z_dsp.h>		    // required for MSP objects
 #include <ext_common.h>
 
-#include "../OScofo.hpp"
-
-#include <algorithm>
-#include <fstream>
-#include <math.h>
+#include <OScofo.hpp>
 
 static t_class *oscofo_class = NULL;
 
+class MaxOScofo {
+	public: 
+	t_pxobject Ob;		
 
-typedef struct _oscofo {
-	t_pxobject		ob;			// the object itself (t_pxobject in MSP instead of t_object)
-	double			offset; 	// the value of a property of our object
-	t_clock *Clock;
+	t_clock *ClockEvent;
+	t_clock *ClockInfo;
+
     OScofo::OScofo *OpenScofo;
 	int Event;
 	float Tempo;
@@ -23,25 +25,56 @@ typedef struct _oscofo {
 	bool Following;
 	std::string PatchDir;
 
-	// Position
 	int CurrentEvent;
 	bool ScoreLoaded;
+	std::vector<std::string> Info;
+	bool InfoLoaded = true;
 
 	// Audio
 	std::vector<double> inBuffer;
-	int FFTSize;
-	int HopSize;
-	int BlockSize;
+	float FFTSize;
+	float HopSize;
+	float BlockSize;
+	float Sr;
+
 	int BlockIndex;
-	int Sr;
 
 	// Outlet
 	void *EventOut;
 	void *TempoOut;
-	void *KappaOut;
-} t_oscofo;
+	void *InfoOut;
+};
 
-static void oscofo_score(t_oscofo *x, t_symbol *s){
+void oscofo_assist(MaxOScofo *x, void *b, long m, long a, char *s){
+    if (m == ASSIST_OUTLET)
+    {
+        switch (a)
+        {
+            case 0:
+				snprintf(s, 256, "Score Event Index");
+                break;
+                
+            case 1:
+				snprintf(s, 256, "Tempo in BPM of the current performance");
+                break;
+			case 2:
+				snprintf(s, 256, "List of values defined by @info attribute");
+				break;
+        }
+    }
+    else
+    {
+		switch (a)
+		{
+			case 0:
+				snprintf(s, 256, "Signal Input");
+				break;
+		}
+	}
+}
+
+
+static void oscofo_score(MaxOScofo *x, t_symbol *s){
     x->ScoreLoaded = false;
 	bool WasFollowing = x->Following;
 	x->Following = false;
@@ -50,28 +83,26 @@ static void oscofo_score(t_oscofo *x, t_symbol *s){
     CompletePath += s->s_name;
     std::ifstream file(CompletePath);
     if (!file) {
-        object_error((t_object *)x, "[o.scofo~] Score file not found");
+        object_error((t_object *)x, "Score file not found");
         return;
     }
     bool ok;
     try {
         ok = x->OpenScofo->ParseScore(CompletePath.c_str());
     } catch (std::exception &e) {
-        object_error((t_object *)x, "[o.scofo~] Error parsing score, %s.", e.what());
+        object_error((t_object *)x, "Error parsing score, %s.", e.what());
         return;
     }
     
 	x->ScoreLoaded = true;
 	x->Following = WasFollowing;
-	object_post((t_object *)x, "[o.scofo~] Score loaded");
+	object_post((t_object *)x, "Score loaded");
 }
 
 // this method is called when the object is created
-static void oscofo_set(t_oscofo *x, t_symbol *s, long argc, t_atom *argv)
-{
+static void oscofo_set(MaxOScofo *x, t_symbol *s, long argc, t_atom *argv){
     if (argv[0].a_type != A_SYM) {
-        object_error((t_object *)x, "[o.scofo~] First argument must be a symbol");
-		outlet_float(x->EventOut, 230);
+        object_error((t_object *)x, "First argument must be a symbol");
         return;
     }
 
@@ -96,15 +127,15 @@ static void oscofo_set(t_oscofo *x, t_symbol *s, long argc, t_atom *argv)
 		long f = atom_getlong(argv + 1);
         x->CurrentEvent = f;
         x->OpenScofo->SetCurrentEvent(f);
+		object_post((t_object *)x, "Event set to %d", (int)f);
     } else {
         object_error((t_object *)x, "[follower~] Unknown method");
-    }
-    
+    } 
 }
 
-static void oscofo_following(t_oscofo *x, long f) {
+static void oscofo_following(MaxOScofo *x, long f) {
 	if (!x->OpenScofo->ScoreIsLoaded()) {
-		object_error((t_object *)x, "[o.scofo~] Score not loaded");
+		object_error((t_object *)x, "Score not loaded");
 		return;
 	}
 	if (f == 1) {
@@ -116,10 +147,10 @@ static void oscofo_following(t_oscofo *x, long f) {
 	}
 }
 
-static void oscofo_start(t_oscofo *x) {
+static void oscofo_start(MaxOScofo *x) {
 	x->Following = false;
 	if (!x->OpenScofo->ScoreIsLoaded()) {
-        object_error((t_object *)x, "[o.scofo~] Score not loaded");
+        object_error((t_object *)x, "Score not loaded");
         return;
     }
     x->CurrentEvent = -1;
@@ -129,19 +160,35 @@ static void oscofo_start(t_oscofo *x) {
     x->Following = true;
 }
 
-
-
 // this is the tick method for the clock
-static void oscofo_tick(t_oscofo *x) {
+static void oscofo_tickevent(MaxOScofo *x) {
     if (x->Event != 0) {
 		outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
 		outlet_float(x->EventOut, x->Event);
     }
 }
 
+// this is the tick method for the clock
+static void oscofo_tickinfo(MaxOScofo *x) {
+
+	if (x->InfoLoaded) {
+		t_atom Info[x->Info.size()];
+		for (int i = 0; i < x->Info.size(); i++) {
+			double value = 0;
+			if (x->Info[i] == "kappa") {
+				value = x->OpenScofo->GetKappa();
+			} else if (x->Info[i] == "db") {
+				value = x->OpenScofo->GetdBValue();
+			} 
+			atom_setfloat(Info, value);
+		}
+		outlet_list(x->InfoOut, nullptr, x->Info.size(), Info);
+		return;
+	}
+}
 
 // this is the 64-bit perform method audio vectors
-static void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam)
+static void oscofo_perform64(MaxOScofo *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam)
 {
 	if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
 		return;
@@ -165,14 +212,13 @@ static void oscofo_perform64(t_oscofo *x, t_object *dsp64, double **ins, long nu
     }
     if (Event != x->Event) {
         x->Event = Event;
-        clock_delay(x->Clock, 0);
+        clock_delay(x->ClockEvent, 0);
     }
+	clock_delay(x->ClockInfo, 0);
 }
 
-
-
 // registers a function for the signal chain in Max
-static void oscofo_dsp64(t_oscofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
+static void oscofo_dsp64(MaxOScofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
 {
 	x->BlockSize = maxvectorsize;
     x->BlockIndex = 0;
@@ -180,50 +226,68 @@ static void oscofo_dsp64(t_oscofo *x, t_object *dsp64, short *count, double samp
 	object_method(dsp64, gensym("dsp_add64"), x, oscofo_perform64, 0, NULL);
 }
 
-
 static void *oscofo_new(t_symbol *s, long argc, t_atom *argv){
-	t_oscofo *x = (t_oscofo *)object_alloc(oscofo_class);
+	MaxOScofo *x = (MaxOScofo *)object_alloc(oscofo_class);
 	if (!x) {
-		object_error((t_object *)x, "[o.scofo~] Error creating object");
+		object_error((t_object *)x, "Error creating object");
 		return nullptr;
 	}
-	dsp_setup((t_pxobject *)x, 1);	// MSP inlets: arg is # of inlets and is REQUIRED!
+	double overlap = 4;
+	for (int i = 0; i < argc; i++) {
+        if (argv[i].a_type == A_SYM || argc >= i + 1) {
+            std::string argument = std::string(atom_getsym(&argv[i])->s_name);
+			if (argument == "@info") {
+				x->InfoOut = outlet_new(x, "list");
+				int k = 0;
+				for (int j = i + 1; j < argc; j++) {
+					if (argv[j].a_type == A_SYM) {
+						x->Info.push_back(atom_getsym(&argv[j])->s_name);
+					}
+					x->InfoLoaded = true;
+					k++;
+				}
+
+			}
+        }
+    }
+	dsp_setup((t_pxobject *)x, 1);
 	
 	x->TempoOut = outlet_new(x, "float");	// tempo outlet
-	x->EventOut = outlet_new(x, "int");
-	x->offset = 0.0;
-	x->Clock = clock_new(x, (method)oscofo_tick);
-	x->FFTSize = 4096;
-	x->HopSize = 512;
+	x->EventOut = outlet_new(x, "int");     // event outlet
+	x->ClockEvent = clock_new(x, (method)oscofo_tickevent);
+	x->ClockInfo = clock_new(x, (method)oscofo_tickinfo);
+	x->FFTSize = 4096.0f;
+	x->HopSize = 512.0f;
 	x->Sr = sys_getsr();
 	x->Following = false;
 	x->Event = -1;
 	
-	char patch_path[MAX_PATH_CHARS];
-	short path_id = path_getdefault();
-	path_toabsolutesystempath(path_id, NULL, patch_path);
-	x->PatchDir = patch_path;
+	char PatchPath[MAX_PATH_CHARS];
+	short PathId = path_getdefault();
+	path_toabsolutesystempath(PathId, NULL, PatchPath);
+	x->PatchDir = PatchPath;
 
-	object_post((t_object *)x, "[o.scofo~] Sr: %d | FFTSize: %d | HopSize: %d", x->Sr, x->FFTSize, x->HopSize);
-	//
 	x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
 	return (x);
 }
 
 
-static void oscofo_free(t_oscofo *x)
-{
+static void oscofo_free(MaxOScofo *x){
 	delete x->OpenScofo;
 }
 
 void ext_main(void *r){
-	t_class *c = class_new("o.scofo~", (method)oscofo_new, (method)dsp_free, (long)sizeof(t_oscofo), 0L, A_GIMME, 0);
+	t_class *c = class_new("o.scofo~", (method)oscofo_new, (method)dsp_free, (long)sizeof(MaxOScofo), 0L, A_GIMME, 0);
 
 	// message methods
 	class_addmethod(c, (method)oscofo_set, "set", A_GIMME, 0);
 	class_addmethod(c, (method)oscofo_score, "score", A_SYM, 0);
 	class_addmethod(c, (method)oscofo_following, "follow", A_LONG, 0);
 	class_addmethod(c, (method)oscofo_start, "start", A_NOTHING, 0);
+
+	// user methods
+	class_addmethod(c, (method)stdinletinfo, "inletinfo", A_CANT, 0);
+	class_addmethod(c, (method)oscofo_assist, "assist", A_CANT, 0);
 
 	// dsp methods
 	class_addmethod(c, (method)oscofo_dsp64, "dsp64", A_CANT, 0);

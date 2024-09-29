@@ -24,10 +24,12 @@ class MIR {
     void ResetElapsedTime();
     void UpdateTempoInEvent();
     double TimePrediction();
+
     void GetDescription(std::vector<double> &In, Description &Desc);
     void GetMidi(double Tunning);
     double GetEventTimeElapsed();
     double GetTempoInEvent();
+    double GetdB();
 
   private:
     // Helpers
@@ -43,7 +45,7 @@ class MIR {
     void GetFFTDescriptions(std::vector<double> &In, Description &Desc);
 
     // Env
-    double m_dBTreshold = -50;
+    double m_dBTreshold = -60;
     void GetRMS(std::vector<double> &In, Description &Desc);
 
     // Audio
@@ -51,6 +53,7 @@ class MIR {
     double m_BlockSize;
     double m_HopSize;
     double m_Sr;
+    double m_dB;
 
     // Time
     double m_EventTimeElapsed = 0.0; // ms

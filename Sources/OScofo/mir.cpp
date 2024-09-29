@@ -80,6 +80,11 @@ void MIR::SetdBTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
+// ─────────────────────────────────────
+double MIR::GetdB() {
+    return m_dB;
+}
+
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
@@ -142,13 +147,13 @@ void MIR::GetRMS(std::vector<double> &In, Description &Desc) {
         sumOfSquares += sample * sample;
     }
     double rms = std::sqrt(sumOfSquares / In.size());
-    double dB = 20.0 * std::log10(rms);
-    if (std::isinf(dB)) {
-        dB = -100;
+    m_dB = 20.0 * std::log10(rms);
+    if (std::isinf(m_dB)) {
+        m_dB = -1500;
     }
-    Desc.dB = dB;
-    Desc.Amp = 10 * std::pow(10, dB / 20);
-    if (dB < m_dBTreshold) {
+    Desc.dB = m_dB;
+    Desc.Amp = 10 * std::pow(10, m_dB / 20);
+    if (m_dB < m_dBTreshold) {
         Desc.Silence = true;
     } else {
         Desc.Silence = false;

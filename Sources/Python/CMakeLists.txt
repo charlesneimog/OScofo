@@ -17,7 +17,6 @@ if(NOT APPLE)
   target_link_options(_OScofo PRIVATE -static-libstdc++ -static-libgcc
                       -Wl,-allow-multiple-definition)
 endif()
-install(TARGETS _OScofo
-        DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Sources/Python/OScofo/)
+install(TARGETS _OScofo DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/OScofo/)
 
 target_include_directories(_OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <math.h>
 
-#include "../OScofo.hpp"
+#include <OScofo.hpp>
 
 #include <m_pd.h>
 

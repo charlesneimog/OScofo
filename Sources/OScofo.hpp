@@ -28,6 +28,7 @@ class OScofo {
     double GetLiveBPM();
     int GetEventIndex();
     double GetKappa();
+    double GetdBValue();
 
     // Main Functions
     bool ParseScore(std::string ScorePath);
