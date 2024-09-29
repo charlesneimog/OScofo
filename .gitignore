@@ -54,3 +54,7 @@ Tests/.ipynb_checkpoints
 Cargo.toml
 Makefile
 .DS_Store
+Tests/BWV-1013/result.csv
+Tests/Scale-C4/result.csv
+Tests/Scale-C5/result.csv
+Tests/Syrinx/result.csv

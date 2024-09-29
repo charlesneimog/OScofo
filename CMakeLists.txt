@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_ARCHITECTURES x86_64;arm64) # Enable Apple silicon builds
+set(CMAKE_OSX_ARCHITECTURES "arm64") # Prioritize ARM
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
