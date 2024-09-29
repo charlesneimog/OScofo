@@ -102,7 +102,7 @@ class MDP {
 
     // Markov and Probabilities
     double GetTransProbability(int i, int j);
-    double GetInitialDistribution(int CurrentState, int j);
+    void GetInitialDistribution(int CurrentState, int j);
     int GetMaxUForJ(MacroState &StateJ);
 
     // Pitch

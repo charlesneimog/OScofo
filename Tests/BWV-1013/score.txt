@@ -1,4 +1,4 @@
-﻿; Antescofo score generated using native importer
+; Antescofo score generated using native importer
 ; Copyright (c) IRCAM 2015
 ; Designed by Robert Piéchaud
 
@@ -12,7 +12,6 @@
 ; ----------- measure 1 --- beat 0 --- time signature 4/4
 
 BPM 80
-NOTE 0 1/4 measure1
 NOTE E5 1/4
 NOTE A5 1/4
 NOTE G#5 1/4

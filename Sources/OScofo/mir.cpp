@@ -30,7 +30,7 @@ MIR::MIR(float Sr, float FftSize, float HopSize) {
 
     m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
 
-    // blackman
+    // hanning window
     m_WindowingFunc.resize(m_FftSize);
     for (int i = 0; i < m_FftSize; i++) {
         m_WindowingFunc[i] = 0.5 * (1.0 - cos(2.0 * M_PI * i / (m_FftSize - 1)));
@@ -116,7 +116,6 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
         Desc.SpectralPower[i] = sqrt(Real * Real + Imag * Imag) / N; // Amp
-        Desc.TotalPower += Desc.SpectralPower[i];
         if (Desc.SpectralPower[i] > Desc.MaxAmp) {
             Desc.MaxAmp = Desc.SpectralPower[i];
         }
@@ -125,17 +124,17 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
 
     // Normalize Spectral Power
     for (int i = 0; i < NHalf; i++) {
-        ArithmeticMeanSum += Desc.SpectralPower[i];
         Desc.NormSpectralPower[i] = Desc.SpectralPower[i] / Desc.MaxAmp;
     }
+    /*
     ArithmeticMeanSum *= WindowHalfPlusOneRecip;
 
-    // Spectral Flatness
-    if (ArithmeticMeanSum <= 0) {
-        Desc.SpectralFlatness = -1;
-    } else {
-        Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
-    }
+        // Spectral Flatness
+        if (ArithmeticMeanSum <= 0) {
+            Desc.SpectralFlatness = -1;
+        } else {
+            Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
+        } */
 }
 
 // ╭─────────────────────────────────────╮
@@ -166,9 +165,9 @@ void MIR::GetRMS(std::vector<double> &In, Description &Desc) {
 void MIR::GetDescription(std::vector<double> &In, Description &Desc) {
     // apply windowing function
     for (int i = 0; i < m_FftSize; i++) {
-        In[i] *= m_WindowingFunc[i];
+        m_FFTIn[i] = In[i] * m_WindowingFunc[i];
     }
-
+    
     GetRMS(In, Desc);
     GetFFTDescriptions(In, Desc);
 }

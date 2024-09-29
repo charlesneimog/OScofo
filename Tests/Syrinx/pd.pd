@@ -1,10 +1,10 @@
 #N canvas 647 81 611 687 10;
-#X obj 13 232 nbx 3 24 -1e+37 1e+37 0 0 empty empty empty 0 -9 0 20 #fcfcfc #ff0400 #ff0400 0 256;
+#X obj 13 288 nbx 3 24 -1e+37 1e+37 0 0 empty empty empty 0 -9 0 20 #fcfcfc #ff0400 #ff0400 0 256;
 #X obj 13 77 readsf~;
 #X msg 13 18 open audio.wav \, 1;
 #X obj 47 149 dac~;
 #X msg 61 77 \; pd dsp 1;
-#X msg 46 171 score score.txt \, start;
+#X msg 52 207 score score.txt \, start;
 #X obj 190 72 metro 1;
 #X obj 190 94 int;
 #X obj 190 116 + 1;
@@ -13,11 +13,11 @@
 #X obj 190 159 * 0.001;
 #X msg 28 45 0;
 #X obj 47 125 *~ 0.2;
-#X obj 116 232 nbx 5 14 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #fcfcfc #000000 #000000 0 256;
-#X obj 13 208 o.scofo~ @info db, f 35;
-#X obj 220 253 print;
+#X obj 116 288 nbx 5 14 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10 #fcfcfc #000000 #000000 0 256;
+#X obj 13 264 o.scofo~ @info db, f 35;
+#X obj 13 207 *~ 6;
 #X connect 1 0 13 0;
-#X connect 1 0 15 0;
+#X connect 1 0 16 0;
 #X connect 2 0 1 0;
 #X connect 2 0 10 0;
 #X connect 5 0 15 0;
@@ -32,4 +32,4 @@
 #X connect 13 0 3 1;
 #X connect 15 0 0 0;
 #X connect 15 1 14 0;
-#X connect 15 2 16 0;
+#X connect 16 0 15 0;
