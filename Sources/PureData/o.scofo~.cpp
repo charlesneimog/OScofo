@@ -1,7 +1,3 @@
-#include <algorithm>
-#include <fstream>
-#include <math.h>
-
 #include <OScofo.hpp>
 
 #include <m_pd.h>
@@ -10,41 +6,64 @@ static t_class *OScofoObj;
 
 // ─────────────────────────────────────
 class PdOScofo {
-  public:
-    t_object xObj;
+	public: 
+	t_object PdObject;		
     t_sample Sample;
-    std::vector<double> inBuffer;
-    t_clock *Clock;
+
+	// Clock
+	t_clock *ClockEvent;
+	t_clock *ClockInfo;
+
+	// OScofo
     OScofo::OScofo *OpenScofo;
+	int Event;
+	float Tempo;
+	int EventIndex;
+	bool Following;
+	std::string PatchDir;
 
-    int Event;
-    std::string PatchDir;
+	int CurrentEvent;
+	bool ScoreLoaded;
+	std::vector<std::string> Info;
+	bool InfoLoaded = true;
 
-    // Testing
-    bool Testing = false;
+	// Audio
+	std::vector<double> inBuffer;
+	float FFTSize;
+	float HopSize;
+	float BlockSize;
+	float Sr;
+	unsigned BlockIndex;
 
-    // Score
-    bool ScoreLoaded = false;
-    bool Following = false;
-    int CurrentEvent = 0;
-    std::vector<double> PitchTemplate;
-
-    // Audio
-    double BlockIndex;
-    double BlockSize;
-    double HopSize;
-    double FFTSize;
-    double Sr;
-
-    t_outlet *EventIndex;
-    t_outlet *Tempo;
-    t_outlet *Kappa;
-    t_outlet *Debug;
+	// Outlet
+	t_outlet *EventOut;
+	t_outlet *TempoOut;
+	t_outlet *InfoOut;
 };
 
 // ─────────────────────────────────────
-static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
-    LOGE() << "PureData Set Methoda";
+static void oscofo_score(PdOScofo *x, t_symbol *s) {
+    x->ScoreLoaded = false;
+    std::string CompletePath = x->PatchDir;
+    CompletePath += "/";
+    CompletePath += s->s_name;
+    bool ok;
+    try {
+        ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+    } catch (std::exception &e) {
+        pd_error(nullptr, "[o.scofo~] Error parsing score, %s.", e.what());
+        return;
+    }
+    if (ok) {
+        x->ScoreLoaded = true;
+        post("[o.scofo~] Score loaded");
+    } else {
+        pd_error(nullptr, "[o.scofo~] Error loading score");
+    }
+}
+
+// ─────────────────────────────────────
+static void oscofo_set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
     if (argv[0].a_type != A_SYMBOL) {
         pd_error(x, "[follower~] First argument of set method must be a symbol");
         return;
@@ -70,55 +89,10 @@ static void Set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
     } else {
         pd_error(x, "[follower~] Unknown method");
     }
-    LOGE() << "PureData End Set Methoda";
 }
 
 // ─────────────────────────────────────
-static void Score(PdOScofo *x, t_symbol *s) {
-    LOGE() << "PureData Score Method";
-    x->ScoreLoaded = false;
-    std::string CompletePath = x->PatchDir;
-    CompletePath += "/";
-    CompletePath += s->s_name;
-    std::ifstream file(CompletePath);
-    if (!file) {
-        pd_error(nullptr, "[o.scofo~] Score file not found");
-        return;
-    }
-    bool ok;
-    try {
-        ok = x->OpenScofo->ParseScore(CompletePath.c_str());
-    } catch (std::exception &e) {
-        pd_error(nullptr, "[o.scofo~] Error parsing score, %s.", e.what());
-        return;
-    }
-    if (ok) {
-        x->ScoreLoaded = true;
-        post("[o.scofo~] Score loaded");
-    } else {
-        pd_error(nullptr, "[o.scofo~] Error loading score");
-    }
-    LOGE() << "PureData end Score Method";
-}
-
-// ─────────────────────────────────────
-static void Start(PdOScofo *x) {
-    LOGE() << "PureData Start Method";
-    if (!x->OpenScofo->ScoreIsLoaded()) {
-        pd_error(nullptr, "[o.scofo~] Score not loaded");
-        return;
-    }
-    x->CurrentEvent = -1;
-    x->OpenScofo->SetCurrentEvent(-1);
-    outlet_float(x->Tempo, x->OpenScofo->GetLiveBPM());
-    outlet_float(x->EventIndex, 0);
-    x->Following = true;
-
-    LOGE() << "PureData end Start Method";
-}
-
-// ─────────────────────────────────────
-static void Follow(PdOScofo *x, t_float f) {
+static void oscofo_following(PdOScofo *x, t_float f) {
     if (!x->OpenScofo->ScoreIsLoaded()) {
         pd_error(x, "[follower~] Score not loaded");
         return;
@@ -131,21 +105,46 @@ static void Follow(PdOScofo *x, t_float f) {
 }
 
 // ─────────────────────────────────────
-static void ClockTick(PdOScofo *x) {
-    LOGE() << "PureData ClockTick";
-    if (x->Event != 0) {
-        if (x->Kappa) {
-            outlet_float(x->Kappa, x->OpenScofo->GetKappa());
-        }
-        outlet_float(x->Tempo, x->OpenScofo->GetLiveBPM());
-        outlet_float(x->EventIndex, x->Event);
+static void oscofo_start(PdOScofo *x) {
+    if (!x->OpenScofo->ScoreIsLoaded()) {
+        pd_error(nullptr, "[o.scofo~] Score not loaded");
+        return;
     }
-
-    LOGE() << "PureData ClockTick end";
+    x->CurrentEvent = -1;
+    x->OpenScofo->SetCurrentEvent(-1);
+    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+    outlet_float(x->EventOut, 0);
+    x->Following = true;
 }
 
 // ─────────────────────────────────────
-static t_int *DspPerform(t_int *w) {
+static void oscofo_tickevent(PdOScofo *x) {
+    if (x->Event != 0) {
+        outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+        outlet_float(x->EventOut, x->Event);
+    }
+}
+
+// ─────────────────────────────────────
+static void oscofo_tickinfo(PdOScofo *x) {
+	if (x->InfoLoaded) {
+		t_atom Info[x->Info.size()];
+		for (int i = 0; i < x->Info.size(); i++) {
+			double value = 0;
+			if (x->Info[i] == "kappa") {
+				value = x->OpenScofo->GetKappa();
+			} else if (x->Info[i] == "db") {
+				value = x->OpenScofo->GetdBValue();
+			} 
+			SETFLOAT(&Info[i], value);
+		}
+		outlet_list(x->InfoOut, nullptr, x->Info.size(), Info);
+		return;
+	}
+}
+
+// ─────────────────────────────────────
+static t_int *oscofo_perform(t_int *w) {
     PdOScofo *x = (PdOScofo *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
@@ -173,85 +172,75 @@ static t_int *DspPerform(t_int *w) {
     }
     if (Event != x->Event) {
         x->Event = Event;
-        clock_delay(x->Clock, 0);
+        clock_delay(x->ClockEvent, 0);
     }
     return (w + 4);
 }
 
 // ─────────────────────────────────────
-static void AddDsp(PdOScofo *x, t_signal **sp) {
-    LOGE() << "AddDsp";
+static void oscofo_adddsp(PdOScofo *x, t_signal **sp) {
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
     x->inBuffer.resize(x->FFTSize, 0.0f);
-    dsp_add(DspPerform, 3, x, sp[0]->s_vec, sp[0]->s_n);
-    LOGE() << "AddDsp Successful";
+    dsp_add(oscofo_perform, 3, x, sp[0]->s_vec, sp[0]->s_n);
 }
 
 // ─────────────────────────────────────
-static void *NewOScofo(t_symbol *s, int argc, t_atom *argv) {
-    LOGE() << "NewOScofo";
-
+static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     PdOScofo *x = (PdOScofo *)pd_new(OScofoObj);
-    x->EventIndex = outlet_new(&x->xObj, &s_float);
-    x->Tempo = outlet_new(&x->xObj, &s_float);
-    x->FFTSize = 4096.0f;
-    x->HopSize = 1024.0f;
-    x->Sr = sys_getsr();
+    if (!x) {
+        pd_error(nullptr, "[o.scofo~] Error creating object");
+        return nullptr;
+    }
     double overlap = 4;
-    for (int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
             std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
-            if (argument == "-w") {
-                if (argv[i + 1].a_type == A_FLOAT) {
-                    x->FFTSize = atom_getfloat(&argv[i + 1]);
-                    i++;
-                }
-            }
-            if (argument == "-o") {
-                if (argv[i + 1].a_type == A_FLOAT) {
-                    overlap = atom_getfloat(&argv[i + 1]);
-                    i++;
-                }
-            }
-            if (argument == "-kappa") {
-                x->Kappa = outlet_new(&x->xObj, &s_float);
-                // TODO: Output value of SyncStrengh
-            }
+			if (argument == "@info") {
+                x->InfoOut = outlet_new(&x->PdObject, &s_list);
+				int k = 0;
+				for (int j = i + 1; j < argc; j++) {
+					if (argv[j].a_type == A_SYMBOL) {
+						x->Info.push_back(atom_getsymbol(&argv[j])->s_name);
+					}
+					x->InfoLoaded = true;
+					k++;
+				}
+
+			}
         }
     }
-    if (overlap != 4) {
-        x->HopSize = x->FFTSize / overlap;
-    }
-    t_canvas *canvas = canvas_getcurrent();
+
+    x->TempoOut = outlet_new(&x->PdObject, &s_float);	// tempo outlet
+	x->EventOut = outlet_new(&x->PdObject, &s_float);     // event outlet
+	x->ClockEvent = clock_new(x, (t_method)oscofo_tickevent);
+	x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
+	x->FFTSize = 4096.0f;
+	x->HopSize = 512.0f;
+	x->Sr = sys_getsr();
+	x->Following = false;
+	x->Event = -1;
+	
+	t_canvas *canvas = canvas_getcurrent();
     x->PatchDir = canvas_getdir(canvas)->s_name;
 
-    x->Clock = clock_new(x, (t_method)ClockTick);
-    x->Event = 0;
-
-    x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
-    x->Following = false;
-
-    LOGE() << "Returning NewOScofo";
-    return x;
+	x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
+	return (x);
 }
 
 // ─────────────────────────────────────
-static void *FreeOScofo(PdOScofo *x) {
-    LOGE() << "Start Free of NewOScofo";
+static void oscofo_free(PdOScofo *x) {
     delete x->OpenScofo;
-    LOGE() << "End Free of NewOScofo";
-    return nullptr;
 }
 
 // ─────────────────────────────────────
 extern "C" void setup_o0x2escofo_tilde(void) {
-    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)NewOScofo, (t_method)FreeOScofo, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
+    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)oscofo_new, (t_method)oscofo_free, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
 
     CLASS_MAINSIGNALIN(OScofoObj, PdOScofo, Sample);
-    class_addmethod(OScofoObj, (t_method)AddDsp, gensym("dsp"), A_CANT, 0);
-    class_addmethod(OScofoObj, (t_method)Score, gensym("score"), A_SYMBOL, 0);
-    class_addmethod(OScofoObj, (t_method)Start, gensym("start"), A_NULL, 0);
-    class_addmethod(OScofoObj, (t_method)Follow, gensym("follow"), A_FLOAT, 0);
-    class_addmethod(OScofoObj, (t_method)Set, gensym("set"), A_GIMME, 0);
+    class_addmethod(OScofoObj, (t_method)oscofo_adddsp, gensym("dsp"), A_CANT, 0);
+    class_addmethod(OScofoObj, (t_method)oscofo_score, gensym("score"), A_SYMBOL, 0);
+    class_addmethod(OScofoObj, (t_method)oscofo_start, gensym("start"), A_NULL, 0);
+    class_addmethod(OScofoObj, (t_method)oscofo_following, gensym("follow"), A_FLOAT, 0);
+    class_addmethod(OScofoObj, (t_method)oscofo_set, gensym("set"), A_GIMME, 0);
 }
