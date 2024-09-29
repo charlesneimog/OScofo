@@ -45,7 +45,7 @@ class MIR {
     void GetFFTDescriptions(std::vector<double> &In, Description &Desc);
 
     // Env
-    double m_dBTreshold = -60;
+    double m_dBTreshold = -50;
     void GetRMS(std::vector<double> &In, Description &Desc);
 
     // Audio

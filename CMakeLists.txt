@@ -116,6 +116,6 @@ endif()
 # ╭──────────────────────────────────────╮
 # │             Max Obj                  │
 # ╰──────────────────────────────────────╯
-if(BUILD_MAX_OBJECT AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(BUILD_MAX_OBJECT)
   add_subdirectory(Sources/Max)
 endif()

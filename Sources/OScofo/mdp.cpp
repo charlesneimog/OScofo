@@ -248,7 +248,7 @@ int MDP::FindMaxLookaheadIndex(int StateIndex) {
     double EventOnset = 0;
 
     for (int i = StateIndex; i < StatesSize; i++) {
-        if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
+        if ((EventOnset) > (m_BeatsAhead * m_PsiN) || MaxEvent == StateIndex + 10) {
             MaxEvent = m_States[i].ScorePos;
             if (MaxEvent == m_CurrentStateIndex) {
                 while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
