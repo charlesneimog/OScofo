@@ -71,6 +71,7 @@ static void oscofo_score(MaxOScofo *x, t_symbol *s){
     std::string CompletePath = x->PatchDir;
     CompletePath += "/";
     CompletePath += s->s_name;
+	object_post((t_object *)x, "Loading score %s", CompletePath.c_str());
     bool ok;
     try {
         ok = x->OpenScofo->ParseScore(CompletePath.c_str());

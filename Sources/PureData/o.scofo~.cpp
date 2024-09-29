@@ -47,6 +47,7 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     std::string CompletePath = x->PatchDir;
     CompletePath += "/";
     CompletePath += s->s_name;
+    post("[o.scofo~] Loading score %s", CompletePath.c_str());
     bool ok;
     try {
         ok = x->OpenScofo->ParseScore(CompletePath.c_str());
@@ -174,6 +175,7 @@ static t_int *oscofo_perform(t_int *w) {
         x->Event = Event;
         clock_delay(x->ClockEvent, 0);
     }
+    clock_delay(x->ClockInfo, 0);
     return (w + 4);
 }
 
@@ -192,11 +194,15 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         pd_error(nullptr, "[o.scofo~] Error creating object");
         return nullptr;
     }
+
+	x->EventOut = outlet_new(&x->PdObject, &s_float);   // event outlet
+    x->TempoOut = outlet_new(&x->PdObject, &s_float);	// tempo outlet
+    
     double overlap = 4;
 	for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
             std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
-			if (argument == "@info") {
+			if (argument == "-info" || argument == "@info") {
                 x->InfoOut = outlet_new(&x->PdObject, &s_list);
 				int k = 0;
 				for (int j = i + 1; j < argc; j++) {
@@ -211,8 +217,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         }
     }
 
-    x->TempoOut = outlet_new(&x->PdObject, &s_float);	// tempo outlet
-	x->EventOut = outlet_new(&x->PdObject, &s_float);     // event outlet
+    
 	x->ClockEvent = clock_new(x, (t_method)oscofo_tickevent);
 	x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
 	x->FFTSize = 4096.0f;
@@ -237,10 +242,13 @@ static void oscofo_free(PdOScofo *x) {
 extern "C" void setup_o0x2escofo_tilde(void) {
     OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)oscofo_new, (t_method)oscofo_free, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
 
-    CLASS_MAINSIGNALIN(OScofoObj, PdOScofo, Sample);
-    class_addmethod(OScofoObj, (t_method)oscofo_adddsp, gensym("dsp"), A_CANT, 0);
+    // message methods
     class_addmethod(OScofoObj, (t_method)oscofo_score, gensym("score"), A_SYMBOL, 0);
     class_addmethod(OScofoObj, (t_method)oscofo_start, gensym("start"), A_NULL, 0);
     class_addmethod(OScofoObj, (t_method)oscofo_following, gensym("follow"), A_FLOAT, 0);
     class_addmethod(OScofoObj, (t_method)oscofo_set, gensym("set"), A_GIMME, 0);
+
+    // dsp
+    CLASS_MAINSIGNALIN(OScofoObj, PdOScofo, Sample);
+    class_addmethod(OScofoObj, (t_method)oscofo_adddsp, gensym("dsp"), A_CANT, 0);
 }
