@@ -21,14 +21,7 @@ class MIR {
     ~MIR();
 
     void SetdBTreshold(double dB);
-    void ResetElapsedTime();
-    void UpdateTempoInEvent();
-    double TimePrediction();
-
     void GetDescription(std::vector<double> &In, Description &Desc);
-    void GetMidi(double Tunning);
-    double GetEventTimeElapsed();
-    double GetTempoInEvent();
     double GetdB();
 
   private:

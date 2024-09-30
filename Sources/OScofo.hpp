@@ -1,13 +1,13 @@
 #pragma once
 
-#include "OScofo/mdp.hpp"
-#include "OScofo/mir.hpp"
-#include "OScofo/score.hpp"
-#include "OScofo/states.hpp"
+#include <OScofo/mdp.hpp>
+#include <OScofo/mir.hpp>
+#include <OScofo/score.hpp>
+#include <OScofo/states.hpp>
 
 #define OSCOFO_VERSION_MAJOR 0
-#define OSCOFO_VERSION_MINOR 1
-#define OSCOFO_VERSION_PATCH 0
+#define OSCOFO_VERSION_MINOR 0
+#define OSCOFO_VERSION_PATCH 1
 
 namespace OScofo {
 

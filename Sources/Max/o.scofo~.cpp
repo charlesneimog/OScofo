@@ -150,9 +150,14 @@ static void oscofo_start(MaxOScofo *x) {
 
 // ─────────────────────────────────────
 static void oscofo_tickevent(MaxOScofo *x) {
+    int PrevEvent = x->Event;
+    x->Event = x->OpenScofo->GetEventIndex();
+    if (PrevEvent == x->Event) {
+        return;
+    }
     if (x->Event != 0) {
         outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
-        outlet_float(x->EventOut, x->Event);
+        outlet_float(x->EventOut, x->OpenScofo->GetEventIndex());
     }
 }
 
@@ -193,15 +198,9 @@ static void oscofo_perform64(MaxOScofo *x, t_object *dsp64, double **ins, long n
     if (!ok) {
         return;
     }
-    int Event = x->OpenScofo->GetEventIndex();
-    if (Event == 0) {
-        return;
-    }
-    if (Event != x->Event) {
-        x->Event = Event;
-        clock_delay(x->ClockEvent, 0);
-    }
+    clock_delay(x->ClockEvent, 0);
     clock_delay(x->ClockInfo, 0);
+    return;
 }
 
 // ─────────────────────────────────────

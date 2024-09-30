@@ -110,7 +110,7 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
     for (int i = 0; i < NHalf; i++) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
-        Desc.SpectralPower[i] = sqrt(Real * Real + Imag * Imag) / N; // Amp
+        Desc.SpectralPower[i] = (Real * Real + Imag * Imag) / N; // Amp
         Desc.TotalPower += Desc.SpectralPower[i];
         if (Desc.SpectralPower[i] > Desc.MaxAmp) {
             Desc.MaxAmp = Desc.SpectralPower[i];

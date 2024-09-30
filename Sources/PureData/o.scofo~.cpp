@@ -120,9 +120,14 @@ static void oscofo_start(PdOScofo *x) {
 
 // ─────────────────────────────────────
 static void oscofo_tickevent(PdOScofo *x) {
+    int PrevEvent = x->Event;
+    x->Event = x->OpenScofo->GetEventIndex();
+    if (PrevEvent == x->Event) {
+        return;
+    }
     if (x->Event != 0) {
         outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
-        outlet_float(x->EventOut, x->Event);
+        outlet_float(x->EventOut, x->OpenScofo->GetEventIndex());
     }
 }
 
@@ -161,20 +166,12 @@ static t_int *oscofo_perform(t_int *w) {
         return (w + 4);
     }
 
-    // process block
     x->BlockIndex = 0;
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {
         return (w + 4);
     }
-    int Event = x->OpenScofo->GetEventIndex();
-    if (Event == 0) {
-        return (w + 4);
-    }
-    if (Event != x->Event) {
-        x->Event = Event;
-        clock_delay(x->ClockEvent, 0);
-    }
+    clock_delay(x->ClockEvent, 0);
     clock_delay(x->ClockInfo, 0);
     return (w + 4);
 }
@@ -239,6 +236,8 @@ static void oscofo_free(PdOScofo *x) {
 // ─────────────────────────────────────
 extern "C" void setup_o0x2escofo_tilde(void) {
     OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)oscofo_new, (t_method)oscofo_free, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
+
+    post("[oscofo~] version %d.%d.%d, by Charles K. Neimog", OSCOFO_VERSION_MAJOR, OSCOFO_VERSION_MINOR, OSCOFO_VERSION_PATCH);
 
     // message methods
     class_addmethod(OScofoObj, (t_method)oscofo_score, gensym("score"), A_SYMBOL, 0);

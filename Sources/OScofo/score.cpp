@@ -283,8 +283,7 @@ States Score::Parse(std::string ScoreFile) {
     std::string input((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
     // Parse the input using Tree-sitter
-    //ParseInput(input);
-
+    // ParseInput(input);
     m_CurrentBPM = -1;
     m_LineCount = 0;
     m_MarkovIndex = 0;

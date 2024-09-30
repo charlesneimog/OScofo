@@ -32,13 +32,9 @@ void MDP::SetScoreStates(States ScoreStates) {
     m_States.clear();
     m_States = ScoreStates;
 
-    // double Value2 = StateJ.In[t] * StateJ.Forward[t - 1] + StateJ.Norm[t - 1];
-    // allocate memory for history
     for (int i = 0; i < m_States.size(); i++) {
         m_States[i].Obs.resize(BUFFER_SIZE + 1, 0);
         m_States[i].Forward.resize(BUFFER_SIZE + 1, 0);
-        // m_States[i].Norm.resize(BUFFER_SIZE + 1, 0);
-        // m_States[i].In.resize(BUFFER_SIZE + 1, 0);
     }
 
     m_CurrentStateIndex = -1;

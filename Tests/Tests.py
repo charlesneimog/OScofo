@@ -110,17 +110,17 @@ class OScofoTest(unittest.TestCase):
         self.save_csv(test_root)
         print()
 
-    # def test_1scaleC4(self):
-    #     self.ordinary_test("./Scale-C4", 48000, 4096, 512)
-    #
-    # def test_1scaleC5(self):
-    #     self.ordinary_test("./Scale-C5", 48000, 4096, 512)
+    def test_1scaleC4(self):
+        self.ordinary_test("./Scale-C4", 48000, 4096, 1024)
+
+    def test_1scaleC5(self):
+        self.ordinary_test("./Scale-C5", 48000, 4096, 1024)
 
     def test_2synrix(self):
-        self.ordinary_test("./Syrinx", 48000, 4096, 512)
+        self.ordinary_test("./Syrinx", 48000, 4096, 1024)
 
-    # def test_3bwv1013(self):
-    #     self.ordinary_test("./BWV-1013", 48000, 4096, 512)
+    def test_3bwv1013(self):
+        self.ordinary_test("./BWV-1013", 48000, 4096, 1024)
 
 
 if __name__ == "__main__":
