@@ -477,6 +477,7 @@ double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 int MDP::Inference(int CurrentState, int MaxState, int T) {
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
+    double sumForward = 0.0;
 
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
@@ -518,6 +519,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
                     MaxAlpha = std::max(MaxAlpha, MaxResult);
                 }
                 StateJ.Forward[bufferIndex] = Obs * MaxAlpha + 1e-100;
+                sumForward += StateJ.Forward[bufferIndex]; // Sum up the forward values
             }
 
         }
@@ -545,6 +547,17 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
         if (StateJ.Forward[bufferIndex] > MaxValue) {
             MaxValue = StateJ.Forward[bufferIndex];
             BestState = j;
+        }
+    }
+
+    if (sumForward > 0) {
+        for (int j = CurrentState; j <= MaxState; j++) {
+            if (j < 0)
+                continue;
+            MacroState &StateJ = m_States[j];
+            int bufferIndex = T % BUFFER_SIZE;
+            StateJ.Forward[bufferIndex] /= sumForward;
+            // printf("Forward: %d %.20f\n", j, StateJ.Forward[bufferIndex]);
         }
     }
 
