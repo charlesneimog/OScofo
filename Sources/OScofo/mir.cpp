@@ -30,7 +30,7 @@ MIR::MIR(float Sr, float FftSize, float HopSize) {
 
     m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
 
-    // hanning window
+    // blackman
     m_WindowingFunc.resize(m_FftSize);
     for (int i = 0; i < m_FftSize; i++) {
         m_WindowingFunc[i] = 0.5 * (1.0 - cos(2.0 * M_PI * i / (m_FftSize - 1)));
@@ -80,11 +80,6 @@ void MIR::SetdBTreshold(double dB) {
     m_dBTreshold = dB;
 }
 
-// ─────────────────────────────────────
-double MIR::GetdB() {
-    return m_dB;
-}
-
 // ╭─────────────────────────────────────╮
 // │          Pitch Observation          │
 // ╰─────────────────────────────────────╯
@@ -115,7 +110,8 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
     for (int i = 0; i < NHalf; i++) {
         Real = m_FFTOut[i][0];
         Imag = m_FFTOut[i][1];
-        Desc.SpectralPower[i] = sqrt(Real * Real + Imag * Imag) / N; // Amp
+        Desc.SpectralPower[i] = (Real * Real + Imag * Imag) / N; // Amp
+        Desc.TotalPower += Desc.SpectralPower[i];
         if (Desc.SpectralPower[i] > Desc.MaxAmp) {
             Desc.MaxAmp = Desc.SpectralPower[i];
         }
@@ -124,17 +120,17 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
 
     // Normalize Spectral Power
     for (int i = 0; i < NHalf; i++) {
+        ArithmeticMeanSum += Desc.SpectralPower[i];
         Desc.NormSpectralPower[i] = Desc.SpectralPower[i] / Desc.MaxAmp;
     }
-    /*
     ArithmeticMeanSum *= WindowHalfPlusOneRecip;
 
-        // Spectral Flatness
-        if (ArithmeticMeanSum <= 0) {
-            Desc.SpectralFlatness = -1;
-        } else {
-            Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
-        } */
+    // Spectral Flatness
+    if (ArithmeticMeanSum <= 0) {
+        Desc.SpectralFlatness = -1;
+    } else {
+        Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
+    }
 }
 
 // ╭─────────────────────────────────────╮
@@ -146,13 +142,13 @@ void MIR::GetRMS(std::vector<double> &In, Description &Desc) {
         sumOfSquares += sample * sample;
     }
     double rms = std::sqrt(sumOfSquares / In.size());
-    m_dB = 20.0 * std::log10(rms);
-    if (std::isinf(m_dB)) {
-        m_dB = -1500;
+    double dB = 20.0 * std::log10(rms);
+    if (std::isinf(dB)) {
+        dB = -100;
     }
-    Desc.dB = m_dB;
-    Desc.Amp = 10 * std::pow(10, m_dB / 20);
-    if (m_dB < m_dBTreshold) {
+    Desc.dB = dB;
+    Desc.Amp = 10 * std::pow(10, dB / 20);
+    if (dB < m_dBTreshold) {
         Desc.Silence = true;
     } else {
         Desc.Silence = false;
@@ -165,9 +161,9 @@ void MIR::GetRMS(std::vector<double> &In, Description &Desc) {
 void MIR::GetDescription(std::vector<double> &In, Description &Desc) {
     // apply windowing function
     for (int i = 0; i < m_FftSize; i++) {
-        m_FFTIn[i] = In[i] * m_WindowingFunc[i];
+        In[i] *= m_WindowingFunc[i];
     }
-    
+
     GetRMS(In, Desc);
     GetFFTDescriptions(In, Desc);
 }

@@ -1,10 +1,9 @@
 #include "mdp.hpp"
 #include "log.hpp"
-#include <cmath>
 
 #include <boost/math/special_functions/bessel.hpp>
 
-#define BUFFER_SIZE 500
+#define BUFFER_SIZE 1000
 
 namespace OScofo {
 
@@ -25,7 +24,7 @@ MDP::MDP(float Sr, float FFTSize, float HopSize) {
     m_BlockDur = (1 / m_Sr) * HopSize;
     m_TimeInPrevEvent = 0;
 
-    SetTunning(442);
+    SetTunning(440);
 }
 
 // ─────────────────────────────────────
@@ -65,7 +64,7 @@ void MDP::UpdatePitchTemplate() {
         if (m_States[h].Type == NOTE) {
             // TODO: Implement CHORDS
             double Pitch = m_States[h].Freqs[0];
-            double RootBinFreq = std::round(Pitch / (m_Sr / m_FFTSize));
+            double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
                 continue;
             }
@@ -243,12 +242,13 @@ double MDP::ModPhases(double Phase) {
 
 // ─────────────────────────────────────
 int MDP::FindMaxLookaheadIndex(int StateIndex) {
+    // BUG: NOT WORKING
     int StatesSize = m_States.size();
     int MaxEvent = StateIndex;
     double EventOnset = 0;
 
     for (int i = StateIndex; i < StatesSize; i++) {
-        if ((EventOnset) > (m_BeatsAhead * m_PsiN) || MaxEvent == StateIndex + 10) {
+        if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
             MaxEvent = m_States[i].ScorePos;
             if (MaxEvent == m_CurrentStateIndex) {
                 while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
@@ -402,7 +402,7 @@ double MDP::GetPitchSimilarity(MacroState &State, Description &Desc) {
     return KLDiv;
 }
 // ─────────────────────────────────────
-void MDP::GetInitialDistribution(int CurrentState, int j) {
+double MDP::GetInitialDistribution(int CurrentState, int j) {
     int Size = m_MaxScoreState - CurrentState;
     std::vector<double> InitialProb(Size);
 
@@ -410,34 +410,22 @@ void MDP::GetInitialDistribution(int CurrentState, int j) {
     double Dur = 0;
     double Sum = 0;
     for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
-        if (i < 0) {
-            continue;
-        }
         int index = i - m_CurrentStateIndex;
         double DurProb = exp(-0.5 * (Dur / m_BeatsAhead));
         double LastDur = Dur / m_BeatsAhead;
-        MacroState &StateI = m_States[i];
-        StateI.InitProb = DurProb;
+        InitialProb[index] = DurProb;
         Dur += m_States[j].Duration;
         Sum += DurProb;
     }
 
     // normalize
-    double sum = 0;
-    for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
-        if (i < 0) {
-            continue;
-        }
-        MacroState &StateI = m_States[i];
-        StateI.InitProb /= Sum;
-        sum += StateI.InitProb;
+    for (int i = 0; i < Size; i++) {
+        InitialProb[i] /= Sum;
     }
-    // check if it is equal 1 for 10 decimal places
 
-    if (std::fabs(sum - 1) > 1e-10) {
-        printf("Error: Initial Distribution not normalized: %.10f\n", sum);
-    }
-    return;
+    int index = j - m_CurrentStateIndex;
+
+    return InitialProb[index];
 }
 
 // ─────────────────────────────────────
@@ -477,7 +465,6 @@ double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 int MDP::Inference(int CurrentState, int MaxState, int T) {
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
-    double sumForward = 0.0;
 
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
@@ -511,6 +498,8 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
                             int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
                         } else {
+                            // TODO: Criar subdescrições do evento atual
+
                             int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
                         }
@@ -518,10 +507,8 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
                     double MaxResult = ProbPrevObs * Sur * MaxTrans;
                     MaxAlpha = std::max(MaxAlpha, MaxResult);
                 }
-                StateJ.Forward[bufferIndex] = Obs * MaxAlpha + 1e-100;
-                sumForward += StateJ.Forward[bufferIndex]; // Sum up the forward values
+                StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
             }
-
         }
 
         // ╭─────────────────────────────────────╮
@@ -547,17 +534,6 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
         if (StateJ.Forward[bufferIndex] > MaxValue) {
             MaxValue = StateJ.Forward[bufferIndex];
             BestState = j;
-        }
-    }
-
-    if (sumForward > 0) {
-        for (int j = CurrentState; j <= MaxState; j++) {
-            if (j < 0)
-                continue;
-            MacroState &StateJ = m_States[j];
-            int bufferIndex = T % BUFFER_SIZE;
-            StateJ.Forward[bufferIndex] /= sumForward;
-            // printf("Forward: %d %.20f\n", j, StateJ.Forward[bufferIndex]);
         }
     }
 
@@ -591,7 +567,11 @@ int MDP::GetEvent(Description &Desc) {
     // ╰─────────────────────────────────────╯
 
     if (m_Tau == 0) {
-        GetInitialDistribution(m_CurrentStateIndex, m_MaxScoreState);
+        double AlphaSum = 0;
+        for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
+            MacroState &StateJ = m_States[j];
+            StateJ.InitProb = GetInitialDistribution(m_CurrentStateIndex, j);
+        }
     }
 
     int StateIndex = Inference(m_CurrentStateIndex, m_MaxScoreState, m_Tau);

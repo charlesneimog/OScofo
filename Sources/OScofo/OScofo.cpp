@@ -31,7 +31,7 @@ void OScofo::SetHarmonics(int Harmonics) {
 
 // ─────────────────────────────────────
 double OScofo::GetdBValue() {
-    return m_MIR.GetdB();
+    return 0;
 }
 
 // ─────────────────────────────────────
