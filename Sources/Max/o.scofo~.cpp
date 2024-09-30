@@ -265,6 +265,7 @@ static void oscofo_free(MaxOScofo *x) {
 void ext_main(void *r) {
     t_class *c = class_new("o.scofo~", (method)oscofo_new, (method)dsp_free, (long)sizeof(MaxOScofo), 0L, A_GIMME, 0);
 
+    object_post(nullptr, "[oscofo~] version %d.%d.%d, by Charles K. Neimog", OSCOFO_VERSION_MAJOR, OSCOFO_VERSION_MINOR, OSCOFO_VERSION_PATCH);
     // message methods
     class_addmethod(c, (method)oscofo_set, "set", A_GIMME, 0);
     class_addmethod(c, (method)oscofo_score, "score", A_SYM, 0);
