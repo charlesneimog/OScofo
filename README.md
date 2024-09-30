@@ -29,19 +29,27 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 
 ## Building
 
-#### Requirements
+### Requirements
 
-* cmake and ninja;
+* cmake and ninja (`pip install cmake ninja`)
+* boost (`brew install boost`, `apt install boost`, `pacman -S mingw-w64-x86_64-boost`)
+* On Windows, you need `mingw64`.
+
+#### Optional
 * treesitter (`npm install tree-sitter`) (If you want to change/update score syntax)
 * pybind11 (optional): To build Python package.
 * PureData (optional): To build the Pd Object.
 
 #### Building Options
 
-* `PDLIBDIR`: Where the Pd object will be installed
+* `BUILD_ALL`: Build all OScofo modules (Python, Pd, Max).
 * `BUILD_PY_MODULE`: Build or not the OScofo python module.
 * `BUILD_PD_OBJECT`: Build or not the Pd Object.
 * `BUILD_MAX_OBJECT`: Build or not the Max Object.
+
+* `PDLIBDIR`: Where the Pd object will be installed
+
+#### Building Steps
 
 ``` bash
 git clone https://github.com/charlesneimog/OScofo --recursive
