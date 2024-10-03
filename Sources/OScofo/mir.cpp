@@ -28,7 +28,7 @@ MIR::MIR(float Sr, float FftSize, float HopSize) {
         throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_complex failed");
     }
 
-    m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_MEASURE);
+    m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_ESTIMATE);
 
     // blackman
     m_WindowingFunc.resize(m_FftSize);
