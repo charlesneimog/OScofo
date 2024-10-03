@@ -53,8 +53,9 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 
 ``` bash
 git clone https://github.com/charlesneimog/OScofo --recursive
-cmake . -B build -DBUILD_PY_MODULE=ON -DBUILD_PD_OBJECT=ON -G Ninja 
+cmake . -B build -DBUILD_ALL=ON -G Ninja 
 cmake --build build
 ```
 
 To install use `cmake --install build`.
+

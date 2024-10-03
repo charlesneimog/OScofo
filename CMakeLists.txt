@@ -9,11 +9,20 @@ option(BUILD_PD_OBJECT "Build PureData Object" OFF)
 option(BUILD_MAX_OBJECT "Build Max Object" OFF)
 option(BUILD_ALL "Build Python Module and PureData Object" OFF)
 
+# check if it is EMSCRIPTEN
+if(EMSCRIPTEN)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_BOOST_HEADERS=1")
+endif()
+
 if(BUILD_ALL)
   set(BUILD_PY_MODULE ON)
   set(BUILD_PD_OBJECT ON)
   set(BUILD_MAX_OBJECT ON)
 endif()
+
+message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
+message(STATUS "BUILD_PD_OBJECT: ${BUILD_PD_OBJECT}")
+message(STATUS "BUILD_MAX_OBJECT: ${BUILD_MAX_OBJECT}")
 
 # IF MAC, USE APPLE CLANG
 if(APPLE)
@@ -52,6 +61,8 @@ set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # │             Tree-Sitter              │
 # ╰──────────────────────────────────────╯
 set(BUILD_SHARED_LIBS OFF)
+
+
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
@@ -72,6 +83,13 @@ else()
 endif()
 
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
+
+if(EMSCRIPTEN)
+	target_compile_options(score_parser PUBLIC -matomics -mbulk-memory)
+	target_compile_options(tree-sitter PUBLIC -matomics -mbulk-memory)
+endif()
+
+
 target_include_directories(score_parser
                            PUBLIC Libraries/tree-sitter/lib/include)
 
@@ -91,11 +109,15 @@ include_directories(OScofo PUBLIC
 target_link_libraries(OScofo PUBLIC fftw3)
 set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
+target_link_libraries(OScofo PUBLIC tree-sitter score_parser)
 
-target_link_libraries(OScofo PUBLIC tree-sitter score_parser ${Boost_LIBRARIES})
-cmake_policy(SET CMP0167 NEW)
-find_package(Boost REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
+# Boost Libraries
+if(NOT EMSCRIPTEN)
+  target_link_libraries(OScofo PUBLIC ${Boost_LIBRARIES})
+  cmake_policy(SET CMP0167 NEW)
+  find_package(Boost REQUIRED)
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
 
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
 
@@ -112,6 +134,7 @@ endif()
 if(BUILD_PD_OBJECT)
   add_subdirectory(Sources/PureData)
 endif()
+
 
 # ╭──────────────────────────────────────╮
 # │             Max Obj                  │

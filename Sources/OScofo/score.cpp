@@ -1,10 +1,11 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
-#include "log.hpp"
 #include "score.hpp"
+#include "tree_sitter/api.h"
 
 extern "C" TSLanguage *tree_sitter_score();
 
@@ -101,7 +102,7 @@ double Score::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) {
+MacroState Score::AddNote(std::vector<std::string> Tokens) {
     double Midi;
     bool isRest = false;
 
@@ -109,7 +110,7 @@ MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
     NoteState.Line = m_LineCount;
     NoteState.Type = NOTE;
     NoteState.Markov = SEMIMARKOV;
-    NoteState.Index = ScoreStates.size();
+    NoteState.Index = m_ScoreStates.size();
     NoteState.ScorePos = m_ScorePosition;
 
     if (m_MarkovIndex != 0) {
@@ -159,8 +160,8 @@ MacroState Score::AddNote(States &ScoreStates, std::vector<std::string> Tokens) 
 
     if (NoteState.Index != 0) {
         int Index = NoteState.Index;
-        double PsiK = 60.0f / ScoreStates[Index - 1].BPMExpected;
-        double Tn = ScoreStates[Index - 1].OnsetExpected;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
         double Tn1 = NoteState.OnsetExpected;
         double PhiN0 = NoteState.PhaseExpected;
         double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
@@ -238,40 +239,54 @@ void Score::PrintTreeSitterNode(TSNode node, int indent) {
 }
 
 // ─────────────────────────────────────
-void Score::ParseInput(const std::string &input) {
-    TSParser *Parser = ts_parser_new();
-    ts_parser_set_language(Parser, tree_sitter_score());
-    TSTree *Tree = ts_parser_parse_string(Parser, nullptr, input.c_str(), input.size());
-    TSNode RootNode = ts_tree_root_node(Tree);
-    PrintTreeSitterNode(RootNode);
+std::string Score::GetCodeStr(TSNode Node) {
+    int start = ts_node_start_byte(Node);
+    int end = ts_node_end_byte(Node);
+    return std::string(std::string_view(m_TxtInput.data() + start, end - start));
+}
 
-    // núcleo
-    uint32_t child_count = ts_node_child_count(RootNode);
+// ─────────────────────────────────────
+int Score::ProcessNote(TSNode Node) {
+    TSNode pitchNode = ts_node_child_by_field_name(Node, "midi", 4);
+    TSNode durationNode = ts_node_child_by_field_name(Node, "duration", 8);
+    if (ts_node_is_null(pitchNode)) {
+        throw std::runtime_error("Pitch definition not found");
+    } else if (ts_node_is_null(durationNode)) {
+        throw std::runtime_error("Duration definition not found");
+    }
+    std::string notetype = ts_node_type(pitchNode);
+    std::string durtype = ts_node_type(durationNode);
+    printf("note type: %s\n", notetype.c_str());
+    printf("duration type: %s\n", durtype.c_str());
+
+    return 0;
+}
+
+// ─────────────────────────────────────
+void Score::ParseInput() {
+    TSParser *parser = ts_parser_new();
+    ts_parser_set_language(parser, tree_sitter_score());
+    TSTree *tree = ts_parser_parse_string(parser, nullptr, m_TxtInput.c_str(), m_TxtInput.size());
+    TSNode rootNode = ts_tree_root_node(tree);
+    PrintTreeSitterNode(rootNode, 0);
+
+    uint32_t child_count = ts_node_child_count(rootNode);
     for (uint32_t i = 0; i < child_count; i++) {
-        TSNode child = ts_node_child(RootNode, i);
-        std::string Type = ts_node_type(child);
-
-        // Verifica se é um nó de erro
-        if (Type == "ERROR") {
-            std::cerr << "Erro de sintaxe encontrado: " << ts_node_string(child) << std::endl;
-        } else if (Type == "EVENT") {
-            TSNode Event = ts_node_child(RootNode, i);
-            std::string EventType = ts_node_type(Event);
-            if (EventType == "NOTE") {
-            }
+        TSNode child = ts_node_child(rootNode, i);
+        std::string type = ts_node_type(child);
+        if (type == "note_declaration") {
+            ProcessNote(child);
         }
     }
 
-    // Limpeza
-    ts_tree_delete(Tree);
-    ts_parser_delete(Parser);
+    // Cleanup
+    ts_tree_delete(tree);
+    ts_parser_delete(parser);
 }
 
 // ─────────────────────────────────────
 States Score::Parse(std::string ScoreFile) {
-    LOGE() << "start OScofoScore::Parse";
-
-    States NewStates;
+    m_ScoreStates.clear();
 
     // Open the score file for reading
     std::ifstream File(ScoreFile);
@@ -279,11 +294,11 @@ States Score::Parse(std::string ScoreFile) {
         throw std::runtime_error("Score File not found");
     }
 
-    std::ifstream file(ScoreFile);
-    std::string input((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    m_TxtInput = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
 
     // Parse the input using Tree-sitter
-    // ParseInput(input);
+    // ParseInput();
+
     m_CurrentBPM = -1;
     m_LineCount = 0;
     m_MarkovIndex = 0;
@@ -295,7 +310,10 @@ States Score::Parse(std::string ScoreFile) {
     double LastOnset = 0;
     double PreviousDuration = 0;
 
-    // Process Score
+    // for test
+    File.clear();
+    File.seekg(0, std::ios::beg);
+
     while (std::getline(File, Line)) {
         m_LineCount++;
 
@@ -315,14 +333,13 @@ States Score::Parse(std::string ScoreFile) {
         if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
             AddAction(Tokens);
         } else {
-            // Initial Silence
             if (m_ScorePosition == 1) {
             }
 
             // Actually Score
             if (Tokens[0] == "NOTE") {
-                MacroState NewNote = AddNote(NewStates, Tokens);
-                NewStates.push_back(NewNote);
+                MacroState NewNote = AddNote(Tokens);
+                m_ScoreStates.push_back(NewNote);
             } else if (Tokens[0] == "BPM") {
                 m_CurrentBPM = std::stof(Tokens[1]);
                 MacroState Implicity;
@@ -332,14 +349,13 @@ States Score::Parse(std::string ScoreFile) {
                 Implicity.ScorePos = 0;
                 Implicity.Duration = 0;
                 Implicity.Index = 0;
-                NewStates.push_back(Implicity);
+                m_ScoreStates.push_back(Implicity);
             }
             m_MarkovIndex++;
         }
     }
 
     m_ScoreLoaded = true;
-    LOGE() << "end OScofoScore::Parse | There are " << NewStates.size() << " events";
-    return NewStates;
+    return m_ScoreStates;
 }
 } // namespace OScofo

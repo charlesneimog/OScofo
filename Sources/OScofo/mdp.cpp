@@ -29,6 +29,11 @@ MDP::MDP(float Sr, float FFTSize, float HopSize) {
 
 // ─────────────────────────────────────
 void MDP::SetScoreStates(States ScoreStates) {
+    if (ScoreStates.size() == 0) {
+        throw std::runtime_error("ScoreStates is empty");
+        return;
+    }
+
     m_States.clear();
     m_States = ScoreStates;
 
@@ -58,7 +63,6 @@ void MDP::UpdatePitchTemplate() {
 
     for (int h = 0; h < StateSize; h++) {
         if (m_States[h].Type == NOTE) {
-            // TODO: Implement CHORDS
             double Pitch = m_States[h].Freqs[0];
             double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
             if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
@@ -66,6 +70,8 @@ void MDP::UpdatePitchTemplate() {
             }
             m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
             double Sigma = m_PitchTemplateSigma;
+            // make Sigma
+
             for (int k = 1; k <= m_Harmonics; ++k) {
                 double harmonicFreqBin = RootBinFreq * k;
                 for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)

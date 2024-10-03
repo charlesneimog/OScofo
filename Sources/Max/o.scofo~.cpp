@@ -222,7 +222,7 @@ static void *oscofo_new(t_symbol *s, long argc, t_atom *argv) {
     for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYM || argc >= i + 1) {
             std::string argument = std::string(atom_getsym(&argv[i])->s_name);
-            if (argument == "@info") {
+            if (argument == "@info" || argument == "-info") {
                 x->InfoOut = outlet_new(x, "list");
                 int k = 0;
                 for (int j = i + 1; j < argc; j++) {

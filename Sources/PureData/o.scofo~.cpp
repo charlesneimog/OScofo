@@ -22,7 +22,6 @@ class PdOScofo {
     bool Following;
     std::string PatchDir;
 
-    int CurrentEvent;
     bool ScoreLoaded;
     std::vector<std::string> Info;
     bool InfoLoaded = true;
@@ -85,7 +84,7 @@ static void oscofo_set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
 
     } else if (method == "event") {
         int f = atom_getint(argv + 1);
-        x->CurrentEvent = f;
+        x->Event = f;
         x->OpenScofo->SetCurrentEvent(f);
     } else {
         pd_error(x, "[follower~] Unknown method");
@@ -111,7 +110,6 @@ static void oscofo_start(PdOScofo *x) {
         pd_error(nullptr, "[o.scofo~] Score not loaded");
         return;
     }
-    x->CurrentEvent = -1;
     x->OpenScofo->SetCurrentEvent(-1);
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
