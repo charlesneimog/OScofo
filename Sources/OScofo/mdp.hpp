@@ -123,5 +123,11 @@ class MDP {
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(int j, int T);
     double Markov(int j, int T);
+
+    // Cache for pitch similarity values
+    std::unordered_map<int, double> m_PitchSimilarityCache;
+
+    // Method to calculate pitch similarity
+    double CalculatePitchSimilarity(MacroState &State, Description &Desc);
 };
 } // namespace OScofo
