@@ -377,6 +377,18 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
 
 // ─────────────────────────────────────
 double MDP::GetPitchSimilarity(MacroState &State, Description &Desc) {
+    int stateIndex = State.Index;
+    if (m_PitchSimilarityCache.find(stateIndex) != m_PitchSimilarityCache.end()) {
+        return m_PitchSimilarityCache[stateIndex];
+    } else {
+        double similarity = CalculatePitchSimilarity(State, Desc);
+        m_PitchSimilarityCache[stateIndex] = similarity;
+        return similarity;
+    }
+}
+
+// ─────────────────────────────────────
+double MDP::CalculatePitchSimilarity(MacroState &State, Description &Desc) {
     double KLDiv = 0.0;
 
     // TODO: Implement CHORDS
@@ -403,6 +415,7 @@ double MDP::GetPitchSimilarity(MacroState &State, Description &Desc) {
 
     return KLDiv;
 }
+
 // ─────────────────────────────────────
 double MDP::GetInitialDistribution(int CurrentState, int j) {
     int Size = m_MaxScoreState - CurrentState;
