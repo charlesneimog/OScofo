@@ -1,0 +1,9 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: Klippel Neimog
+  given-names: Charles
+orcid: https://orcid.org/0000-0002-9780-0041
+title: OScofo, an Open-Source Score Follower
+version: 0.0.0-alpha
+date-released: 2024-10-29
