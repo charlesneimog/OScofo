@@ -131,6 +131,9 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
     } else {
         Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
     }
+
+    // Spectral Flux
+    // RMS
 }
 
 // ╭─────────────────────────────────────╮

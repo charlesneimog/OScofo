@@ -46,7 +46,7 @@ class MDP {
     int GetEvent(Description &Desc);
 
     // Python For Research
-    std::vector<double> GetPitchTemplate(double Freq, int Harmonics, double Sigma);
+    std::unordered_map<double, PitchTemplateArray> GetPitchTemplate();
 
     // Set Variables
     void SetTunning(double Tunning);
@@ -118,7 +118,7 @@ class MDP {
     // Markov
     bool m_EventDetected = false;
     double GetBestEvent(Description &Desc);
-    double GetPitchSimilarity(MacroState &NextPossibleState, Description &Desc);
+    double GetPitchSimilarity(double Freq, Description &Desc);
     int FindMaxLookaheadIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(int j, int T);

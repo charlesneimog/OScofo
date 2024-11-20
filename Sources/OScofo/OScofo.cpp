@@ -100,8 +100,8 @@ States OScofo::GetStates() {
 }
 
 // ─────────────────────────────────────
-std::vector<double> OScofo::GetPitchTemplate(double Freq, int Harmonics, double Sigma) {
-    return m_MDP.GetPitchTemplate(Freq, Harmonics, Sigma);
+std::unordered_map<double, PitchTemplateArray> OScofo::GetPitchTemplate() {
+    return m_MDP.GetPitchTemplate();
 }
 
 // ─────────────────────────────────────

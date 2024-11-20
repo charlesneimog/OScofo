@@ -62,23 +62,26 @@ void MDP::UpdatePitchTemplate() {
     m_PitchTemplates.clear();
 
     for (int h = 0; h < StateSize; h++) {
-        if (m_States[h].Type == NOTE) {
-            double Pitch = m_States[h].Freqs[0];
-            double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
-            if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
-                continue;
-            }
-            m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
-            double Sigma = m_PitchTemplateSigma;
-            // make Sigma
+        if (m_States[h].Type == NOTE || m_States[h].Type == TRILL) {
+            for (auto Pitch : m_States[h].Freqs) {
+                double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
+                if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
+                    continue;
+                }
+                m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
+                double Sigma = m_PitchTemplateSigma;
 
-            for (int k = 1; k <= m_Harmonics; ++k) {
-                double harmonicFreqBin = RootBinFreq * k;
-                for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)
-                    double gaussian = (1 / std::sqrt(2 * M_PI * Sigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * Sigma * Sigma));
-                    double envelope = 1 / (std::pow(2, k)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
-                    double noise = 0.00001 * (rand() % 100) / 100.0;
-                    m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
+                for (int k = 1; k <= m_Harmonics; ++k) {
+                    double harmonicFreqBin = RootBinFreq * k;
+                    double harmonicFreqHz = harmonicFreqBin * (m_Sr / m_FFTSize);
+                    // make sigma be constant for all harmonics (from logarithm to linear)
+                    double HSigma = Sigma;
+                    for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)
+                        double gaussian = (1 / std::sqrt(2 * M_PI * HSigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * HSigma * HSigma));
+                        double envelope = 1 / (std::pow(2, k)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
+                        double noise = 0.00001 * (rand() % 100) / 100.0;
+                        m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
+                    }
                 }
             }
         }
@@ -86,22 +89,11 @@ void MDP::UpdatePitchTemplate() {
 }
 
 // ─────────────────────────────────────
-std::vector<double> MDP::GetPitchTemplate(double Freq, int Harmonics, double Sigma) {
-    double Pitch = Freq;
-    double RootBinFreq = Pitch / (m_Sr / m_FFTSize);        // Fundamental frequency bin
-    std::vector<double> PitchTemplates(m_FFTSize / 2, 0.0); // Initialize with zero
-
-    for (int k = 1; k <= Harmonics; ++k) {
-        double harmonicFreqBin = RootBinFreq * k;
-        for (size_t i = 0; i < m_FFTSize / 2; ++i) { // FFT bin loop (i)
-            double gaussian = (1 / std::sqrt(2 * M_PI * Sigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * Sigma * Sigma));
-            double envelope = 1 / (std::pow(2, k)); // TODO: FIX THE AMP IN THE SIMILARY FUNCTION
-            double noise = 0.00001 * (rand() % 100) / 100.0;
-            PitchTemplates[i] += (envelope * gaussian) + noise;
-        }
+std::unordered_map<double, PitchTemplateArray> MDP::GetPitchTemplate() {
+    if (m_PitchTemplates.size() == 0) {
+        throw std::runtime_error("PitchTemplates is empty");
     }
-
-    return PitchTemplates;
+    return m_PitchTemplates;
 }
 
 // ─────────────────────────────────────
@@ -245,13 +237,15 @@ double MDP::ModPhases(double Phase) {
 // ─────────────────────────────────────
 int MDP::FindMaxLookaheadIndex(int StateIndex) {
     // BUG: NOT WORKING
+    //
+    //
     int StatesSize = m_States.size();
     int MaxEvent = StateIndex;
     double EventOnset = 0;
 
     for (int i = StateIndex; i < StatesSize; i++) {
         if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
-            MaxEvent = m_States[i].ScorePos;
+            MaxEvent = m_States[i].Index;
             if (MaxEvent == m_CurrentStateIndex) {
                 while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
                     MaxEvent++;
@@ -367,26 +361,35 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
         MacroState &StateJ = m_States[j];
         int BufferIndex = (T % BUFFER_SIZE);
         if (StateJ.Type == NOTE) {
-            double KL = GetPitchSimilarity(StateJ, Desc);
+            double KL = GetPitchSimilarity(StateJ.Freqs[0], Desc);
             StateJ.Obs[BufferIndex] = KL;
         } else if (StateJ.Type == REST) {
             StateJ.Obs[BufferIndex] = 1 - Desc.Amp;
+        } else if (StateJ.Type == TRILL) {
+            double bestProb = 0;
+            for (int i = 0; i < StateJ.Freqs.size(); i++) {
+                double KL = GetPitchSimilarity(StateJ.Freqs[i], Desc);
+                if (KL > bestProb) {
+                    bestProb = KL;
+                }
+            }
+            StateJ.Obs[BufferIndex] = bestProb;
         }
     }
 }
 
 // ─────────────────────────────────────
-double MDP::GetPitchSimilarity(MacroState &State, Description &Desc) {
+double MDP::GetPitchSimilarity(double Freq, Description &Desc) {
     double KLDiv = 0.0;
 
     // TODO: Implement CHORDS
-    double RootBinFreq = round(State.Freqs[0] / (m_Sr / m_FFTSize));
+    double RootBinFreq = round(Freq / (m_Sr / m_FFTSize));
     PitchTemplateArray PitchTemplate;
 
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        throw std::runtime_error("PitchTemplate not found for " + std::to_string(State.Freqs[0]) + ", this should not happen, please report");
+        throw std::runtime_error("PitchTemplate not found for " + std::to_string(Freq) + ", this should not happen, please report");
     }
 
     for (size_t i = 0; i < m_FFTSize / 2; i++) {
@@ -500,8 +503,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
                             int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
                         } else {
-                            // TODO: Criar subdescrições do evento atual
-
+                            // TODO: Using the concept of semimarkov of Guédon, maybe here we can create sub-audio-descriptions
                             int PrevIndex = (T - u) % BUFFER_SIZE;
                             MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
                         }
@@ -533,6 +535,16 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
             }
         }
 
+        // ╭─────────────────────────────────────╮
+        // │          should not happen          │
+        // ╰─────────────────────────────────────╯
+        else {
+            throw std::runtime_error("StateJ.Markov is unknow, this should not happen");
+        }
+
+        // ╭─────────────────────────────────────╮
+        // │             max result              │
+        // ╰─────────────────────────────────────╯
         if (StateJ.Forward[bufferIndex] > MaxValue) {
             MaxValue = StateJ.Forward[bufferIndex];
             BestState = j;
@@ -550,7 +562,7 @@ int MDP::GetEvent(Description &Desc) {
     // ╭─────────────────────────────────────╮
     // │       Get Audio Observations        │
     // ╰─────────────────────────────────────╯
-    GetAudioObservations(Desc, m_CurrentStateIndex - 1, m_MaxScoreState, m_Tau);
+    GetAudioObservations(Desc, m_CurrentStateIndex, m_MaxScoreState, m_Tau);
 
     // ╭─────────────────────────────────────╮
     // │    Do nothing if thereis silence    │
@@ -590,6 +602,7 @@ int MDP::GetEvent(Description &Desc) {
     if (m_CurrentStateIndex == StateIndex) {
         return m_States[StateIndex].ScorePos;
     } else {
+        printf("new\n");
         m_CurrentStateIndex = StateIndex;
         return m_States[StateIndex].ScorePos;
     }

@@ -103,9 +103,8 @@ double Score::ModPhases(double Phase) {
 
 // ─────────────────────────────────────
 MacroState Score::AddNote(std::vector<std::string> Tokens) {
+    m_ScorePosition++;
     double Midi;
-    bool isRest = false;
-
     MacroState NoteState;
     NoteState.Line = m_LineCount;
     NoteState.Type = NOTE;
@@ -132,9 +131,7 @@ MacroState Score::AddNote(std::vector<std::string> Tokens) {
         Midi = Name2Midi(noteName);
     } else {
         Midi = std::stof(Tokens[1]);
-        if (Midi == 0) {
-            isRest = true;
-        } else if (Midi > 127) {
+        if (Midi > 127) {
             Midi = Midi * 0.01;
         }
     }
@@ -181,12 +178,171 @@ MacroState Score::AddNote(std::vector<std::string> Tokens) {
     // Add values
     m_PrevDuration = NoteState.Duration;
     m_LastOnset = NoteState.OnsetExpected;
+    return NoteState;
+}
 
-    if (!isRest) {
-        m_ScorePosition++;
+// ─────────────────────────────────────
+MacroState Score::AddTrill(std::vector<std::string> Tokens) {
+    m_ScorePosition++;
+    double Midi;
+    MacroState TrillState;
+    TrillState.Line = m_LineCount;
+    TrillState.Type = TRILL;
+    TrillState.Markov = SEMIMARKOV;
+    TrillState.Index = m_ScoreStates.size();
+    TrillState.ScorePos = m_ScorePosition;
+
+    if (m_MarkovIndex != 0) {
+        TrillState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
+    } else {
+        TrillState.OnsetExpected = 0;
     }
 
-    return NoteState;
+    if (m_CurrentBPM == -1) {
+        throw std::runtime_error("BPM is not defined");
+    }
+    if (Tokens.size() < 3) {
+        throw std::runtime_error("Invalid trill on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
+    }
+
+    // check if Tokens[1][0] is a parenthesis
+    int TimeIndex = 1;
+    if (Tokens[1][0] == '(') {
+        for (int i = 1; i < Tokens.size(); i++) {
+            std::string str = Tokens[i];
+            str.erase(std::remove_if(str.begin(), str.end(), [](char c) { return c == '(' || c == ')'; }), str.end());
+            std::string pitch = str;
+            if (!std::isdigit(pitch[0])) {
+                std::string noteName = pitch;
+                Midi = Name2Midi(noteName);
+            } else {
+                Midi = std::stof(pitch);
+                if (Midi > 127) {
+                    Midi = Midi * 0.01;
+                }
+            }
+            TrillState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
+            if (Tokens[i].find(')') != std::string::npos) {
+                TimeIndex = i + 1;
+                break;
+            }
+        }
+    }
+
+    // Duration and tempo
+    bool isRatio = Tokens[TimeIndex].find('/') != std::string::npos;
+
+    if (isRatio) {
+        std::string ratio = Tokens[TimeIndex];
+        std::replace(ratio.begin(), ratio.end(), '/', ' ');
+        std::istringstream iss(ratio);
+        std::vector<std::string> ratioTokens;
+        std::string token;
+        while (std::getline(iss, token, ' ')) {
+            ratioTokens.push_back(token);
+        }
+        double numerator = std::stof(ratioTokens[0]);
+        double denominator = std::stof(ratioTokens[1]);
+        TrillState.Duration = numerator / denominator;
+    } else {
+        TrillState.Duration = std::stof(Tokens[TimeIndex]);
+    }
+
+    printf("trill duration %f\n", TrillState.Duration);
+
+    if (TrillState.Index != 0) {
+        int Index = TrillState.Index;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = TrillState.OnsetExpected;
+        double PhiN0 = TrillState.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        TrillState.PhaseExpected = PhiN1;
+        TrillState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        TrillState.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        TrillState.PhaseExpected = 0;
+        TrillState.IOIHatPhiN = 0;
+        TrillState.IOIPhiN = 0;
+    }
+
+    // time phase
+    TrillState.BPMExpected = m_CurrentBPM;
+
+    // Add values
+    m_PrevDuration = TrillState.Duration;
+    m_LastOnset = TrillState.OnsetExpected;
+    return TrillState;
+}
+
+// ─────────────────────────────────────
+MacroState Score::AddRest(std::vector<std::string> Tokens) {
+    double Midi;
+
+    MacroState RestState;
+    RestState.Line = m_LineCount;
+    RestState.Type = REST;
+    RestState.Markov = SEMIMARKOV;
+    RestState.Index = m_ScoreStates.size();
+    RestState.ScorePos = m_ScorePosition;
+
+    if (m_MarkovIndex != 0) {
+        RestState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
+    } else {
+        RestState.OnsetExpected = 0;
+    }
+
+    if (m_CurrentBPM == -1) {
+        throw std::runtime_error("BPM is not defined");
+    }
+    if (Tokens.size() < 2) {
+        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
+    }
+
+    // Duration and tempo
+    bool isRatio = Tokens[1].find('/') != std::string::npos;
+    if (isRatio) {
+        std::string ratio = Tokens[1];
+        std::replace(ratio.begin(), ratio.end(), '/', ' ');
+        std::istringstream iss(ratio);
+        std::vector<std::string> ratioTokens;
+        std::string token;
+        while (std::getline(iss, token, ' ')) {
+            ratioTokens.push_back(token);
+        }
+        double numerator = std::stof(ratioTokens[0]);
+        double denominator = std::stof(ratioTokens[1]);
+        RestState.Duration = numerator / denominator;
+    } else {
+        RestState.Duration = std::stof(Tokens[1]);
+    }
+
+    if (RestState.Index != 0) {
+        int Index = RestState.Index;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = RestState.OnsetExpected;
+        double PhiN0 = RestState.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        RestState.PhaseExpected = PhiN1;
+        RestState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        RestState.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        RestState.PhaseExpected = 0;
+        RestState.IOIHatPhiN = 0;
+        RestState.IOIPhiN = 0;
+    }
+
+    // time phase
+    RestState.BPMExpected = m_CurrentBPM;
+
+    // Add values
+    m_PrevDuration = RestState.Duration;
+    m_LastOnset = RestState.OnsetExpected;
+
+    return RestState;
 }
 
 // ─────────────────────────────────────
@@ -195,11 +351,6 @@ MacroState Score::AddNote(std::vector<std::string> Tokens) {
 //     return;
 // }
 //
-// // ─────────────────────────────────────
-// MacroState OScofoScore::AddTrill(States &ScoreStates, std::vector<std::string> Tokens) {
-//     // TODO:
-//     return;
-// }
 //
 // // ─────────────────────────────────────
 // MacroState OScofoScore::AddMulti(States &ScoreStates, std::vector<std::string> Tokens) {
@@ -302,7 +453,7 @@ States Score::Parse(std::string ScoreFile) {
     m_CurrentBPM = -1;
     m_LineCount = 0;
     m_MarkovIndex = 0;
-    m_ScorePosition = 1;
+    m_ScorePosition = 0;
     m_LastOnset = 0;
     m_PrevDuration = 0;
 
@@ -342,14 +493,13 @@ States Score::Parse(std::string ScoreFile) {
                 m_ScoreStates.push_back(NewNote);
             } else if (Tokens[0] == "BPM") {
                 m_CurrentBPM = std::stof(Tokens[1]);
-                MacroState Implicity;
-                Implicity.Type = REST;
-                Implicity.Markov = MARKOV;
-                Implicity.BPMExpected = m_CurrentBPM;
-                Implicity.ScorePos = 0;
-                Implicity.Duration = 0;
-                Implicity.Index = 0;
-                m_ScoreStates.push_back(Implicity);
+                // add first Silence event
+            } else if (Tokens[0] == "REST") {
+                // MacroState NewRest = AddRest(Tokens);
+                // m_ScoreStates.push_back(NewRest);
+            } else if (Tokens[0] == "TRILL") {
+                MacroState NewTrill = AddTrill(Tokens);
+                m_ScoreStates.push_back(NewTrill);
             }
             m_MarkovIndex++;
         }
