@@ -17,7 +17,7 @@ endif()
 if(BUILD_ALL)
   set(BUILD_PY_MODULE ON)
   set(BUILD_PD_OBJECT ON)
-  set(BUILD_MAX_OBJECT ON)
+  # set(BUILD_MAX_OBJECT ON)
 endif()
 
 message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
@@ -62,7 +62,6 @@ set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # ╰──────────────────────────────────────╯
 set(BUILD_SHARED_LIBS OFF)
 
-
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
@@ -85,10 +84,9 @@ endif()
 add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
 
 if(EMSCRIPTEN)
-	target_compile_options(score_parser PUBLIC -matomics -mbulk-memory)
-	target_compile_options(tree-sitter PUBLIC -matomics -mbulk-memory)
+  target_compile_options(score_parser PUBLIC -matomics -mbulk-memory)
+  target_compile_options(tree-sitter PUBLIC -matomics -mbulk-memory)
 endif()
-
 
 target_include_directories(score_parser
                            PUBLIC Libraries/tree-sitter/lib/include)
@@ -133,8 +131,8 @@ endif()
 # ╰──────────────────────────────────────╯
 if(BUILD_PD_OBJECT)
   add_subdirectory(Sources/PureData)
+  target_compile_options(o.scofo_tilde PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
 endif()
-
 
 # ╭──────────────────────────────────────╮
 # │             Max Obj                  │
