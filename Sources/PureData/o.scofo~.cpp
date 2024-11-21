@@ -1,5 +1,6 @@
 #include <OScofo.hpp>
 
+#include <filesystem>
 #include <m_pd.h>
 
 static t_class *OScofoObj;
@@ -8,6 +9,7 @@ static t_class *OScofoObj;
 class PdOScofo {
   public:
     t_object PdObject;
+    t_canvas *Canvas;
     t_sample Sample;
 
     // Clock
@@ -43,13 +45,11 @@ class PdOScofo {
 // ─────────────────────────────────────
 static void oscofo_score(PdOScofo *x, t_symbol *s) {
     x->ScoreLoaded = false;
-    std::string CompletePath = x->PatchDir;
-    CompletePath += "/";
-    CompletePath += s->s_name;
-    post("[o.scofo~] Loading score %s", CompletePath.c_str());
+    std::string scorePath = x->PatchDir + "/" + s->s_name;
     bool ok;
     try {
-        ok = x->OpenScofo->ParseScore(CompletePath.c_str());
+        ok = x->OpenScofo->ParseScore(scorePath);
+
     } catch (std::exception &e) {
         pd_error(nullptr, "[o.scofo~] Error parsing score, %s.", e.what());
         return;
@@ -114,6 +114,7 @@ static void oscofo_start(PdOScofo *x) {
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
     x->Following = true;
+    post("[o.scofo~] Start following");
 }
 
 // ─────────────────────────────────────
@@ -219,8 +220,8 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->Following = false;
     x->Event = -1;
 
-    t_canvas *canvas = canvas_getcurrent();
-    x->PatchDir = canvas_getdir(canvas)->s_name;
+    x->Canvas = canvas_getcurrent();
+    x->PatchDir = canvas_getdir(x->Canvas)->s_name;
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     return (x);

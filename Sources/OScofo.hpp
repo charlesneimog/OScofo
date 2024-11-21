@@ -36,7 +36,7 @@ class OScofo {
 
     // Python Function for Research
     States GetStates();
-    std::vector<double> GetPitchTemplate(double Freq, int Harmonics, double Sigma);
+    std::unordered_map<double, PitchTemplateArray> GetPitchTemplate();
     std::vector<double> GaussianProbTimeOnset(int j, double Sigma);
 
     // Helpers Functions
