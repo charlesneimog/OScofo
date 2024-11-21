@@ -248,8 +248,6 @@ MacroState Score::AddTrill(std::vector<std::string> Tokens) {
         TrillState.Duration = std::stof(Tokens[TimeIndex]);
     }
 
-    printf("trill duration %f\n", TrillState.Duration);
-
     if (TrillState.Index != 0) {
         int Index = TrillState.Index;
         double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
@@ -277,13 +275,25 @@ MacroState Score::AddTrill(std::vector<std::string> Tokens) {
 }
 
 // ─────────────────────────────────────
-MacroState Score::AddRest(std::vector<std::string> Tokens) {
+MacroState Score::AddDumpSilence() {
     double Midi;
-
     MacroState RestState;
     RestState.Line = m_LineCount;
     RestState.Type = REST;
-    RestState.Markov = SEMIMARKOV;
+    RestState.Markov = MARKOV;
+    RestState.Index = m_ScoreStates.size();
+    RestState.ScorePos = m_ScorePosition;
+    RestState.Duration = 0;
+    return RestState;
+}
+
+// ─────────────────────────────────────
+MacroState Score::AddRest(std::vector<std::string> Tokens) {
+    double Midi;
+    MacroState RestState;
+    RestState.Line = m_LineCount;
+    RestState.Type = REST;
+    RestState.Markov = MARKOV;
     RestState.Index = m_ScoreStates.size();
     RestState.ScorePos = m_ScorePosition;
 
@@ -366,10 +376,11 @@ MacroState Score::AddRest(std::vector<std::string> Tokens) {
 //
 // ─────────────────────────────────────
 void Score::AddAction(std::vector<std::string> Tokens) {
-
+    MacroState CurrentState = m_ScoreStates[m_ScoreStates.size() - 1];
+    std::vector<std::string> Action;
     for (auto Token : Tokens) {
-        // printf("%s ", Token.c_str());
     }
+
     printf("\n");
 }
 
@@ -480,7 +491,6 @@ States Score::Parse(std::string ScoreFile) {
             Tokens.push_back(Token);
         }
 
-        // check if line is a tab line (for actions)
         if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
             AddAction(Tokens);
         } else {
@@ -491,8 +501,13 @@ States Score::Parse(std::string ScoreFile) {
             if (Tokens[0] == "NOTE") {
                 MacroState NewNote = AddNote(Tokens);
                 m_ScoreStates.push_back(NewNote);
+                // MacroState DummyRest = AddDumpSilence();
+                // m_ScoreStates.push_back(DummyRest);
+
             } else if (Tokens[0] == "BPM") {
                 m_CurrentBPM = std::stof(Tokens[1]);
+                MacroState NewRest = AddRest({"REST", "0"});
+                m_ScoreStates.push_back(NewRest);
                 // add first Silence event
             } else if (Tokens[0] == "REST") {
                 // MacroState NewRest = AddRest(Tokens);
@@ -500,6 +515,8 @@ States Score::Parse(std::string ScoreFile) {
             } else if (Tokens[0] == "TRILL") {
                 MacroState NewTrill = AddTrill(Tokens);
                 m_ScoreStates.push_back(NewTrill);
+                // MacroState DummyRest = AddDumpSilence();
+                // m_ScoreStates.push_back(DummyRest);
             }
             m_MarkovIndex++;
         }

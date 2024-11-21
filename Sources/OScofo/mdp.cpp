@@ -236,15 +236,13 @@ double MDP::ModPhases(double Phase) {
 
 // ─────────────────────────────────────
 int MDP::FindMaxLookaheadIndex(int StateIndex) {
-    // BUG: NOT WORKING
-    //
-    //
     int StatesSize = m_States.size();
     int MaxEvent = StateIndex;
     double EventOnset = 0;
 
     for (int i = StateIndex; i < StatesSize; i++) {
-        if ((EventOnset) > (m_BeatsAhead * m_PsiN)) {
+        // use m_BeatsAhead to get the max event to be look ahead, if the MaxEvent
+        if ((EventOnset - m_CurrentStateOnset) > (m_BeatsAhead * m_PsiN)) {
             MaxEvent = m_States[i].Index;
             if (MaxEvent == m_CurrentStateIndex) {
                 while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
@@ -407,6 +405,28 @@ double MDP::GetPitchSimilarity(double Freq, Description &Desc) {
     return KLDiv;
 }
 // ─────────────────────────────────────
+std::vector<double> MDP::GetInitialDistribution() {
+    int Size = m_MaxScoreState - m_CurrentStateIndex;
+    std::vector<double> InitialProb(Size);
+
+    double Dur = 0;
+    double Sum = 0;
+
+    for (int i = 0; i < Size; i++) {
+        double DurProb = exp(-0.5 * (Dur / m_BeatsAhead));
+        InitialProb[i] = DurProb;
+        Dur += m_States[m_CurrentStateIndex + i].Duration; // Accumulate duration
+        Sum += DurProb;
+    }
+
+    // Normalize
+    for (int i = 0; i < Size; i++) {
+        InitialProb[i] /= Sum;
+    }
+
+    return InitialProb;
+}
+
 double MDP::GetInitialDistribution(int CurrentState, int j) {
     int Size = m_MaxScoreState - CurrentState;
     std::vector<double> InitialProb(Size);
@@ -427,7 +447,6 @@ double MDP::GetInitialDistribution(int CurrentState, int j) {
     for (int i = 0; i < Size; i++) {
         InitialProb[i] /= Sum;
     }
-
     int index = j - m_CurrentStateIndex;
 
     return InitialProb[index];
@@ -468,14 +487,15 @@ double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 
 // ─────────────────────────────────────
 int MDP::Inference(int CurrentState, int MaxState, int T) {
+
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
 
+    int bufferIndex = T % BUFFER_SIZE; // Circular buffer index
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
             continue;
         MacroState &StateJ = m_States[j];
-        int bufferIndex = T % BUFFER_SIZE; // Circular buffer index
 
         // ╭─────────────────────────────────────╮
         // │          Handle SemiMarkov          │
@@ -493,6 +513,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
                         ProbPrevObs *= StateJ.Obs[PrevIndex];
                     }
                     double Sur = GetSojournTime(StateJ, u);
+
                     double MaxTrans = -std::numeric_limits<double>::infinity();
                     for (int i = CurrentState; i <= j; i++) {
                         if (i < 0) {
@@ -519,6 +540,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
         // │            Handle Markov            │
         // ╰─────────────────────────────────────╯
         else if (StateJ.Markov == MARKOV) {
+            printf("inside markov u: %d\n", T);
             if (T == 0) {
                 StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
             } else {
@@ -557,12 +579,14 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
 // ─────────────────────────────────────
 int MDP::GetEvent(Description &Desc) {
     // OScofo always look ahead m_SecondsAhead;
-    m_MaxScoreState = FindMaxLookaheadIndex(m_CurrentStateIndex);
+    m_MaxScoreState = m_CurrentStateIndex + 2;
 
     // ╭─────────────────────────────────────╮
     // │       Get Audio Observations        │
     // ╰─────────────────────────────────────╯
-    GetAudioObservations(Desc, m_CurrentStateIndex, m_MaxScoreState, m_Tau);
+    GetAudioObservations(Desc, m_CurrentStateIndex - 1, m_MaxScoreState, m_Tau);
+
+    // OScofo always look ahead m_SecondsAhead;
 
     // ╭─────────────────────────────────────╮
     // │    Do nothing if thereis silence    │
@@ -581,16 +605,15 @@ int MDP::GetEvent(Description &Desc) {
     // ╰─────────────────────────────────────╯
 
     if (m_Tau == 0) {
-        double AlphaSum = 0;
+        std::vector<double> InitialProb = GetInitialDistribution();
         for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
             MacroState &StateJ = m_States[j];
-            StateJ.InitProb = GetInitialDistribution(m_CurrentStateIndex, j);
+            StateJ.InitProb = InitialProb[j - m_CurrentStateIndex];
         }
     }
 
     int StateIndex = Inference(m_CurrentStateIndex, m_MaxScoreState, m_Tau);
     if (StateIndex == -1) {
-        // don't need to do anything
         return 0;
     }
 
@@ -600,9 +623,9 @@ int MDP::GetEvent(Description &Desc) {
     // │        Return the best event        │
     // ╰─────────────────────────────────────╯
     if (m_CurrentStateIndex == StateIndex) {
+        m_CurrentStateIndex = StateIndex;
         return m_States[StateIndex].ScorePos;
     } else {
-        printf("new\n");
         m_CurrentStateIndex = StateIndex;
         return m_States[StateIndex].ScorePos;
     }

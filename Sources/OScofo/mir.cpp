@@ -132,8 +132,22 @@ void MIR::GetFFTDescriptions(std::vector<double> &In, Description &Desc) {
         Desc.SpectralFlatness = GeometricMeanProduct / ArithmeticMeanSum;
     }
 
-    // Spectral Flux
-    // RMS
+    // calculate
+}
+
+// ╭─────────────────────────────────────╮
+// │              Loudness               │
+// ╰─────────────────────────────────────╯
+void MIR::GetLoudness(std::vector<double> &In, Description &Desc) {
+    return;
+    double totalEnergy = 0.0;
+    for (double sample : In) {
+        totalEnergy += sample * sample; // Sum of squared amplitudes
+    }
+
+    double threshold = 1e-6;
+    double loudness = totalEnergy / In.size();
+    Desc.Loudness = loudness;
 }
 
 // ╭─────────────────────────────────────╮
@@ -167,6 +181,7 @@ void MIR::GetDescription(std::vector<double> &In, Description &Desc) {
         In[i] *= m_WindowingFunc[i];
     }
 
+    GetLoudness(In, Desc);
     GetRMS(In, Desc);
     GetFFTDescriptions(In, Desc);
 }

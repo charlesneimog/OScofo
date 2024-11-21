@@ -34,6 +34,9 @@ class MacroState {
     HMMType Markov;
     int MarkovIndex = -1;
 
+    // States Actions
+    std::vector<std::vector<std::string>> Actions;
+
     // Forward Algorithm
     double InitProb;
     std::vector<double> Obs;
@@ -89,5 +92,6 @@ class Description {
     double TotalPower;
     double MaxAmp;
     double SpectralFlatness;
+    double Loudness;
 };
 } // namespace OScofo

@@ -22,6 +22,7 @@ class MIR {
 
     void SetdBTreshold(double dB);
     void GetDescription(std::vector<double> &In, Description &Desc);
+    void GetLoudness(std::vector<double> &In, Description &Desc);
     double GetdB();
 
   private:

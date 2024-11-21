@@ -42,6 +42,7 @@ class Score {
     MacroState AddChord(std::vector<std::string> Tokens);
     MacroState AddTrill(std::vector<std::string> Tokens);
     MacroState AddMulti(std::vector<std::string> Tokens);
+    MacroState AddDumpSilence();
     MacroState AddRest(std::vector<std::string> Tokens);
     void AddAction(std::vector<std::string> Tokens);
 
