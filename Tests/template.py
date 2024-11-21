@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import scipy.signal as signal
 
 # Generate 4096 samples of a sine wave
-sampling_rate = 44100  # Hz
+sampling_rate = 48000  # Hz
 num_samples = 4096
-frequency = 440  # Hz
+frequency = 220  # Hz
 
 time = np.linspace(0, num_samples / sampling_rate, num_samples)
 sine_wave = np.sin(2 * np.pi * frequency * time)

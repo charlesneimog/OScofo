@@ -11,7 +11,7 @@ def d1(u, state_onset, sigma):
 
 # Path setup
 root = os.path.dirname(os.path.abspath(__file__))
-SCORE_FILE = root + "/Test0.txt"
+SCORE_FILE = root + "/score.txt"
 
 # Constants
 BLOCKS_TO_COMPUTE = 500
@@ -29,6 +29,10 @@ OpenScofo.ParseScore(SCORE_FILE)
 
 # Get states and timing details
 states = OpenScofo.GetStates()
+print(dir(states[0]))
+
+
+exit()
 states_len = len(states) - 1
 bpm = states[states_len].BPMExpected
 max_time = states[states_len].OnsetExpected + ((60 / bpm) * states[states_len].Duration)
