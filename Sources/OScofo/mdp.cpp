@@ -235,26 +235,24 @@ double MDP::ModPhases(double Phase) {
 }
 
 // ─────────────────────────────────────
-int MDP::FindMaxLookaheadIndex(int StateIndex) {
-    int StatesSize = m_States.size();
-    int MaxEvent = StateIndex;
-    double EventOnset = 0;
-
-    for (int i = StateIndex; i < StatesSize; i++) {
-        // use m_BeatsAhead to get the max event to be look ahead, if the MaxEvent
-        if ((EventOnset - m_CurrentStateOnset) > (m_BeatsAhead * m_PsiN)) {
-            MaxEvent = m_States[i].Index;
-            if (MaxEvent == m_CurrentStateIndex) {
-                while (MaxEvent < StateIndex + 1 && MaxEvent < StatesSize) {
-                    MaxEvent++;
-                }
-            }
-            break;
-        }
-        EventOnset += m_States[i].Duration * m_PsiN;
-        MaxEvent = i;
+int MDP::GetMaxJIndex(int StateIndex) {
+    if (StateIndex == -1) {
+        return 1;
     }
-    return MaxEvent;
+
+    int StatesSize = m_States.size();
+    double TimeInCurrEvt = m_States[StateIndex].Duration - (m_TimeInPrevEvent + m_BlockDur);
+    double EventOnset = TimeInCurrEvt;
+    int MaxJ = StateIndex + 1;
+    for (int i = StateIndex + 1; i < m_States.size(); i++) {
+        if (EventOnset > m_SecondsAhead) {
+            MaxJ = i;
+            break;
+        } else {
+            EventOnset += m_States[i].Duration;
+        }
+    }
+    return MaxJ;
 }
 
 // ─────────────────────────────────────
@@ -362,7 +360,7 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
             double KL = GetPitchSimilarity(StateJ.Freqs[0], Desc);
             StateJ.Obs[BufferIndex] = KL;
         } else if (StateJ.Type == REST) {
-            StateJ.Obs[BufferIndex] = 1 - Desc.Amp;
+            StateJ.Obs[BufferIndex] = Desc.Amp;
         } else if (StateJ.Type == TRILL) {
             double bestProb = 0;
             for (int i = 0; i < StateJ.Freqs.size(); i++) {
@@ -486,123 +484,95 @@ double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 }
 
 // ─────────────────────────────────────
-int MDP::Inference(int CurrentState, int MaxState, int T) {
+void MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
+    if (T == 0) {
+        StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
+    } else {
+        double Obs = StateJ.Obs[bufferIndex];
+        double MaxAlpha = -std::numeric_limits<double>::infinity();
+        for (int u = 1; u <= std::min(T, GetMaxUForJ(StateJ)); u++) {
+            double ProbPrevObs = 1.0;
+            for (int v = 1; v < u; v++) {
+                int PrevIndex = (bufferIndex - v + BUFFER_SIZE) % BUFFER_SIZE;
+                ProbPrevObs *= StateJ.Obs[PrevIndex];
+            }
+            double Sur = GetSojournTime(StateJ, u);
+            double MaxTrans = -std::numeric_limits<double>::infinity();
+            for (int i = CurrentState; i <= j; i++) {
+                if (i < 0) {
+                    continue;
+                }
+                MacroState &StateI = m_States[i];
+                if (i != j) {
+                    int PrevIndex = (T - u) % BUFFER_SIZE;
+                    MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
+                } else {
+                    // TODO: Using the concept of semimarkov of Guédon, maybe here we can create sub-audio-descriptions
+                    int PrevIndex = (T - u) % BUFFER_SIZE;
+                    MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
+                }
+            }
+            double MaxResult = ProbPrevObs * Sur * MaxTrans;
+            MaxAlpha = std::max(MaxAlpha, MaxResult);
+        }
+        StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
+    }
+}
 
+// ─────────────────────────────────────
+void MDP::Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
+    if (T == 0) {
+        StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
+    } else {
+        double Obs = StateJ.Obs[bufferIndex];
+        double MaxAlpha = -std::numeric_limits<double>::infinity();
+        for (int i = CurrentState; i <= j; i++) {
+            if (i >= 0) {
+                int prevIndex = (bufferIndex - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+                double Value = GetTransProbability(i, j) * m_States[i].Forward[prevIndex];
+                MaxAlpha = std::max(MaxAlpha, Value);
+            }
+        }
+        StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
+    }
+}
+
+// ─────────────────────────────────────
+int MDP::Inference(int CurrentState, int MaxState, int T) {
     double MaxValue = -std::numeric_limits<double>::infinity();
     int BestState = CurrentState;
+    int bufferIndex = T % BUFFER_SIZE;
 
-    int bufferIndex = T % BUFFER_SIZE; // Circular buffer index
     for (int j = CurrentState; j <= MaxState; j++) {
         if (j < 0)
             continue;
         MacroState &StateJ = m_States[j];
 
-        // ╭─────────────────────────────────────╮
-        // │          Handle SemiMarkov          │
-        // ╰─────────────────────────────────────╯
         if (StateJ.Markov == SEMIMARKOV) {
-            if (T == 0) {
-                StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
-            } else {
-                double Obs = StateJ.Obs[bufferIndex];
-                double MaxAlpha = -std::numeric_limits<double>::infinity();
-                for (int u = 1; u <= std::min(T, GetMaxUForJ(StateJ)); u++) {
-                    double ProbPrevObs = 1.0;
-                    for (int v = 1; v < u; v++) {
-                        int PrevIndex = (bufferIndex - v + BUFFER_SIZE) % BUFFER_SIZE;
-                        ProbPrevObs *= StateJ.Obs[PrevIndex];
-                    }
-                    double Sur = GetSojournTime(StateJ, u);
-
-                    double MaxTrans = -std::numeric_limits<double>::infinity();
-                    for (int i = CurrentState; i <= j; i++) {
-                        if (i < 0) {
-                            continue;
-                        }
-                        MacroState &StateI = m_States[i];
-                        if (i != j) {
-                            int PrevIndex = (T - u) % BUFFER_SIZE;
-                            MaxTrans = std::max(MaxTrans, GetTransProbability(i, j) * StateI.Forward[PrevIndex]);
-                        } else {
-                            // TODO: Using the concept of semimarkov of Guédon, maybe here we can create sub-audio-descriptions
-                            int PrevIndex = (T - u) % BUFFER_SIZE;
-                            MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
-                        }
-                    }
-                    double MaxResult = ProbPrevObs * Sur * MaxTrans;
-                    MaxAlpha = std::max(MaxAlpha, MaxResult);
-                }
-                StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
-            }
+            SemiMarkov(StateJ, CurrentState, j, T, bufferIndex);
+        } else if (StateJ.Markov == MARKOV) {
+            Markov(StateJ, CurrentState, j, T, bufferIndex);
         }
 
-        // ╭─────────────────────────────────────╮
-        // │            Handle Markov            │
-        // ╰─────────────────────────────────────╯
-        else if (StateJ.Markov == MARKOV) {
-            printf("inside markov u: %d\n", T);
-            if (T == 0) {
-                StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
-            } else {
-                double Obs = StateJ.Obs[bufferIndex];
-                double MaxAlpha = -std::numeric_limits<double>::infinity();
-                for (int i = CurrentState; i <= j; i++) {
-                    if (i >= 0) {
-                        int prevIndex = (bufferIndex - 1 + BUFFER_SIZE) % BUFFER_SIZE;
-                        double Value = GetTransProbability(i, j) * m_States[i].Forward[prevIndex];
-                        MaxAlpha = std::max(MaxAlpha, Value);
-                    }
-                }
-                StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
-            }
-        }
-
-        // ╭─────────────────────────────────────╮
-        // │          should not happen          │
-        // ╰─────────────────────────────────────╯
-        else {
-            throw std::runtime_error("StateJ.Markov is unknow, this should not happen");
-        }
-
-        // ╭─────────────────────────────────────╮
-        // │             max result              │
-        // ╰─────────────────────────────────────╯
         if (StateJ.Forward[bufferIndex] > MaxValue) {
             MaxValue = StateJ.Forward[bufferIndex];
             BestState = j;
         }
     }
-
     return BestState;
 }
 
 // ─────────────────────────────────────
 int MDP::GetEvent(Description &Desc) {
-    // OScofo always look ahead m_SecondsAhead;
-    m_MaxScoreState = m_CurrentStateIndex + 2;
-
-    // ╭─────────────────────────────────────╮
-    // │       Get Audio Observations        │
-    // ╰─────────────────────────────────────╯
+    m_MaxScoreState = GetMaxJIndex(m_CurrentStateIndex);
     GetAudioObservations(Desc, m_CurrentStateIndex - 1, m_MaxScoreState, m_Tau);
 
-    // OScofo always look ahead m_SecondsAhead;
-
-    // ╭─────────────────────────────────────╮
-    // │    Do nothing if thereis silence    │
-    // │     (need to thing about this)      │
-    // ╰─────────────────────────────────────╯
     if (Desc.Silence || m_CurrentStateIndex == m_States.size()) {
         if (m_CurrentStateIndex == -1) {
             return 0;
         }
-        // TODO: Future I will rethink this
         return m_States[m_CurrentStateIndex].ScorePos;
     }
-
-    // ╭─────────────────────────────────────╮
-    // │           Get Best Event            │
-    // ╰─────────────────────────────────────╯
 
     if (m_Tau == 0) {
         std::vector<double> InitialProb = GetInitialDistribution();
@@ -612,16 +582,14 @@ int MDP::GetEvent(Description &Desc) {
         }
     }
 
+    // Inference
     int StateIndex = Inference(m_CurrentStateIndex, m_MaxScoreState, m_Tau);
     if (StateIndex == -1) {
         return 0;
     }
+    m_PsiN = UpdatePsiN(StateIndex); // Time Update
 
-    m_PsiN = UpdatePsiN(StateIndex);
-
-    // ╭─────────────────────────────────────╮
-    // │        Return the best event        │
-    // ╰─────────────────────────────────────╯
+    // Return Score Position
     if (m_CurrentStateIndex == StateIndex) {
         m_CurrentStateIndex = StateIndex;
         return m_States[StateIndex].ScorePos;

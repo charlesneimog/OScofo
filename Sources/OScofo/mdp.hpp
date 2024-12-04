@@ -121,9 +121,9 @@ class MDP {
     bool m_EventDetected = false;
     double GetBestEvent(Description &Desc);
     double GetPitchSimilarity(double Freq, Description &Desc);
-    int FindMaxLookaheadIndex(int StateIndex);
+    int GetMaxJIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
-    double SemiMarkov(int j, int T);
-    double Markov(int j, int T);
+    void SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+    void Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
 };
 } // namespace OScofo
