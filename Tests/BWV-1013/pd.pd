@@ -1,4 +1,4 @@
-#N canvas 963 23 951 1016 10;
+#N canvas 1282 23 632 1016 10;
 #X obj 13 224 nbx 3 24 -1e+37 1e+37 0 0 empty empty empty 0 -9 0 20 #fcfcfc #ff0400 #ff0400 0 256;
 #X obj 13 77 readsf~;
 #X msg 13 18 open audio.wav \, 1;
@@ -17,8 +17,10 @@
 #X obj 13 275 print;
 #X msg 65 76 \; pd dsp \$1;
 #X obj 65 53 tgl 18 0 empty empty empty 0 -9 0 10 #fcfcfc #000000 #000000 0 1;
+#X obj 27 117 dac~;
 #X connect 0 0 14 0;
 #X connect 1 0 12 0;
+#X connect 1 0 18 0;
 #X connect 2 0 1 0;
 #X connect 2 0 8 0;
 #X connect 3 0 12 0;
