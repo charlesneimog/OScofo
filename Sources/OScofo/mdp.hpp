@@ -123,7 +123,7 @@ class MDP {
     double GetPitchSimilarity(double Freq, Description &Desc);
     int GetMaxJIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
-    void SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
-    void Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+    double SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+    double Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
 };
 } // namespace OScofo

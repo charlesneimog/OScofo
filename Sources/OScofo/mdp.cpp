@@ -37,9 +37,13 @@ void MDP::SetScoreStates(States ScoreStates) {
     m_States.clear();
     m_States = ScoreStates;
 
-    for (int i = 0; i < m_States.size(); i++) {
-        m_States[i].Obs.resize(BUFFER_SIZE + 1, 0);
-        m_States[i].Forward.resize(BUFFER_SIZE + 1, 0);
+    for (MacroState &State : m_States) {
+        State.Obs.resize(BUFFER_SIZE + 1, 0);
+        State.Forward.resize(BUFFER_SIZE + 1, 0);
+        for (SubState &MicroState : State.SubStates) {
+            MicroState.Obs.resize(BUFFER_SIZE + 1, 0);
+            MicroState.Forward.resize(BUFFER_SIZE + 1, 0);
+        }
     }
 
     m_CurrentStateIndex = -1;
@@ -350,10 +354,13 @@ double MDP::UpdatePsiN(int StateIndex) {
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
 void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T) {
+    // Create some kind of dict where I save the frequencies are analised, to reuse its values
+
     for (int j = FirstStateIndex; j <= LastStateIndex; j++) {
         if (j < 0) {
             continue;
         }
+
         MacroState &StateJ = m_States[j];
         int BufferIndex = (T % BUFFER_SIZE);
         if (StateJ.Type == NOTE) {
@@ -484,9 +491,9 @@ double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
 }
 
 // ─────────────────────────────────────
-void MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
+double MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
     if (T == 0) {
-        StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
+        return StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
     } else {
         double Obs = StateJ.Obs[bufferIndex];
         double MaxAlpha = -std::numeric_limits<double>::infinity();
@@ -496,7 +503,9 @@ void MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int buf
                 int PrevIndex = (bufferIndex - v + BUFFER_SIZE) % BUFFER_SIZE;
                 ProbPrevObs *= StateJ.Obs[PrevIndex];
             }
+
             double Sur = GetSojournTime(StateJ, u);
+
             double MaxTrans = -std::numeric_limits<double>::infinity();
             for (int i = CurrentState; i <= j; i++) {
                 if (i < 0) {
@@ -512,17 +521,18 @@ void MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int buf
                     MaxTrans = std::max(MaxTrans, StateJ.Forward[PrevIndex]);
                 }
             }
+
             double MaxResult = ProbPrevObs * Sur * MaxTrans;
             MaxAlpha = std::max(MaxAlpha, MaxResult);
         }
-        StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
+        return Obs * MaxAlpha;
     }
 }
 
 // ─────────────────────────────────────
-void MDP::Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
+double MDP::Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
     if (T == 0) {
-        StateJ.Forward[bufferIndex] = StateJ.Obs[bufferIndex] * StateJ.InitProb;
+        return StateJ.Obs[bufferIndex] * StateJ.InitProb;
     } else {
         double Obs = StateJ.Obs[bufferIndex];
         double MaxAlpha = -std::numeric_limits<double>::infinity();
@@ -533,7 +543,7 @@ void MDP::Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferI
                 MaxAlpha = std::max(MaxAlpha, Value);
             }
         }
-        StateJ.Forward[bufferIndex] = Obs * MaxAlpha;
+        return Obs * MaxAlpha;
     }
 }
 
@@ -549,7 +559,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
         MacroState &StateJ = m_States[j];
 
         if (StateJ.Markov == SEMIMARKOV) {
-            SemiMarkov(StateJ, CurrentState, j, T, bufferIndex);
+            StateJ.Forward[bufferIndex] = SemiMarkov(StateJ, CurrentState, j, T, bufferIndex);
         } else if (StateJ.Markov == MARKOV) {
             Markov(StateJ, CurrentState, j, T, bufferIndex);
         }

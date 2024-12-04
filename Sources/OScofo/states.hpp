@@ -22,7 +22,7 @@ class SubState {
     HMMType Markov;
     double Freq;
     std::vector<double> Obs;
-    std::vector<double> AlphaT;
+    std::vector<double> Forward;
 };
 
 // ─────────────────────────────────────
@@ -36,6 +36,7 @@ class MacroState {
 
     // States Actions
     std::vector<std::vector<std::string>> Actions;
+    std::vector<SubState> SubStates;
 
     // Forward Algorithm
     double InitProb;
