@@ -16,7 +16,7 @@ enum EventType {
 enum HMMType { SEMIMARKOV, MARKOV };
 
 // ─────────────────────────────────────
-class SubState {
+class AudioState {
   public:
     EventType Type;
     HMMType Markov;
@@ -36,7 +36,7 @@ class MacroState {
 
     // States Actions
     std::vector<std::vector<std::string>> Actions;
-    std::vector<SubState> SubStates;
+    std::vector<AudioState> SubStates;
 
     // Forward Algorithm
     double InitProb;

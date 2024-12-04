@@ -135,7 +135,19 @@ MacroState Score::AddNote(std::vector<std::string> Tokens) {
             Midi = Midi * 0.01;
         }
     }
-    NoteState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
+
+    // Add before note
+    AudioState Silence;
+    Silence.Type = REST;
+    Silence.Markov = MARKOV;
+    NoteState.SubStates.push_back(Silence);
+
+    // NoteState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
+    AudioState SubState;
+    SubState.Type = NOTE;
+    SubState.Markov = MARKOV;
+    SubState.Freq = (m_Tunning * std::pow(2, (Midi - 69) / 12));
+    NoteState.SubStates.push_back(SubState);
 
     // Duration and tempo
     bool isRatio = Tokens[2].find('/') != std::string::npos;
@@ -209,6 +221,7 @@ MacroState Score::AddTrill(std::vector<std::string> Tokens) {
     int TimeIndex = 1;
     if (Tokens[1][0] == '(') {
         for (int i = 1; i < Tokens.size(); i++) {
+
             std::string str = Tokens[i];
             str.erase(std::remove_if(str.begin(), str.end(), [](char c) { return c == '(' || c == ')'; }), str.end());
             std::string pitch = str;
@@ -221,7 +234,14 @@ MacroState Score::AddTrill(std::vector<std::string> Tokens) {
                     Midi = Midi * 0.01;
                 }
             }
-            TrillState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
+
+            AudioState SubState;
+            SubState.Type = NOTE;
+            SubState.Markov = MARKOV;
+            SubState.Freq = (m_Tunning * std::pow(2, (Midi - 69) / 12));
+            TrillState.SubStates.push_back(SubState);
+
+            // TrillState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
             if (Tokens[i].find(')') != std::string::npos) {
                 TimeIndex = i + 1;
                 break;
