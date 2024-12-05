@@ -661,7 +661,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
     double entropy = calculateEntropy(Probs);
     double maxEntropy = log(Probs.size());
     double confidence = 1.0 - (entropy / maxEntropy);
-    if (confidence > 0.02) {
+    if (confidence > 0.019) {
         return BestState;
     } else {
         return CurrentState;
