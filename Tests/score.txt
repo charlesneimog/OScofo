@@ -1,3 +1,2 @@
 BPM 60
 NOTE 50 1
-NOTE C4 1/4

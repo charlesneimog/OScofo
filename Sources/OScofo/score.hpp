@@ -34,8 +34,18 @@ class Score {
     void PrintTreeSitterNode(TSNode node, int indent = 0);
 
     void ProcessEvent(TSNode Event);
-    int ProcessNote(TSNode Note);
+    void ProcessConfig(TSNode Event);
+
+    void ProcessNote(TSNode Note);
+
+    // Get TreeSitter Values
     std::string GetCodeStr(TSNode Node);
+    double GetFreqsFromNode(TSNode Node);
+    double GetDurationFromNode(TSNode Node);
+
+    // Events
+    MacroState NoteEvent(TSNode Node);
+    MacroState TrillEvent(TSNode Node);
 
     // Add events
     MacroState AddNote(std::vector<std::string> Tokens);

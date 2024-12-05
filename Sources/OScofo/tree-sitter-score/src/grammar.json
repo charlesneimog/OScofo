@@ -25,106 +25,30 @@
       "type": "CHOICE",
       "members": [
         {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
-              "value": "BPM"
-            },
-            {
-              "type": "PATTERN",
-              "value": "\\d+"
-            }
-          ]
-        }
-      ]
-    },
-    "ACTION": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
-              "value": "delay"
-            },
-            {
-              "type": "PATTERN",
-              "value": "\\d+"
-            }
-          ]
-        },
-        {
           "type": "SYMBOL",
-          "name": "LUA"
+          "name": "BPM"
         }
       ]
     },
-    "LUA": {
+    "BPM": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "exec lua"
+          "value": "BPM"
         },
-        {
-          "type": "STRING",
-          "value": "{"
-        },
-        {
-          "type": "PATTERN",
-          "value": "[^{}]+"
-        },
-        {
-          "type": "STRING",
-          "value": "}"
-        }
-      ]
-    },
-    "EVENT": {
-      "type": "SEQ",
-      "members": [
         {
           "type": "CHOICE",
           "members": [
             {
               "type": "SYMBOL",
-              "name": "NOTE"
-            }
-          ]
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "REPEAT",
-              "content": {
-                "type": "SYMBOL",
-                "name": "ACTION"
-              }
+              "name": "float"
             },
             {
-              "type": "BLANK"
+              "type": "SYMBOL",
+              "name": "integer"
             }
           ]
-        }
-      ]
-    },
-    "NOTE": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "NOTE"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "pitch"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "duration"
         }
       ]
     },
@@ -159,48 +83,198 @@
         }
       ]
     },
+    "EVENT": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "NOTE"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "TRILL"
+        }
+      ]
+    },
+    "NOTE": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "NOTE"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "pitch"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "duration"
+        }
+      ]
+    },
+    "TRILL": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "TRILL"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "pitches"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "duration"
+        }
+      ]
+    },
+    "TYPE": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "NOTE"
+        },
+        {
+          "type": "STRING",
+          "value": "TRILL"
+        }
+      ]
+    },
+    "pitches": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "open_parenthesis"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "pitch"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": " "
+              },
+              {
+                "type": "SYMBOL",
+                "name": "pitch"
+              }
+            ]
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "close_parenthesis"
+        }
+      ]
+    },
     "pitch": {
       "type": "CHOICE",
       "members": [
         {
-          "type": "PATTERN",
-          "value": "[A-Ga-g][#b]?(\\d)?"
+          "type": "SYMBOL",
+          "name": "pitchname"
         },
         {
-          "type": "PATTERN",
-          "value": "\\d+"
+          "type": "SYMBOL",
+          "name": "midi"
         }
       ]
+    },
+    "pitchname": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "pitchclass"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "alteration"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "octave"
+        }
+      ]
+    },
+    "midi": {
+      "type": "PATTERN",
+      "value": "([0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])"
+    },
+    "pitchclass": {
+      "type": "PATTERN",
+      "value": "[A-Ga-g]"
+    },
+    "alteration": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "#"
+        },
+        {
+          "type": "STRING",
+          "value": "b"
+        },
+        {
+          "type": "STRING",
+          "value": "##"
+        },
+        {
+          "type": "STRING",
+          "value": "bb"
+        }
+      ]
+    },
+    "octave": {
+      "type": "PATTERN",
+      "value": "[0-9]"
     },
     "duration": {
       "type": "CHOICE",
       "members": [
         {
-          "type": "PATTERN",
-          "value": "\\d+"
+          "type": "SYMBOL",
+          "name": "float"
         },
         {
-          "type": "PATTERN",
-          "value": "\\d+\\.\\d+"
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "PATTERN",
-              "value": "\\d+"
-            },
-            {
-              "type": "STRING",
-              "value": "/"
-            },
-            {
-              "type": "PATTERN",
-              "value": "\\d+"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "integer"
         }
       ]
+    },
+    "float": {
+      "type": "PATTERN",
+      "value": "\\d+\\.\\d+"
+    },
+    "integer": {
+      "type": "PATTERN",
+      "value": "\\d+"
+    },
+    "open_parenthesis": {
+      "type": "STRING",
+      "value": "("
+    },
+    "close_parenthesis": {
+      "type": "STRING",
+      "value": ")"
     }
   },
   "extras": [

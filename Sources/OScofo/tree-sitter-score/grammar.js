@@ -3,47 +3,46 @@ module.exports = grammar({
   rules: {
     source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
 
-    //╭─────────────────────────────────────╮
-    //│            Score Config             │
-    //╰─────────────────────────────────────╯
-    CONFIG: ($) => choice(seq("BPM", /\d+/)),
-    // TODO: add score variance
-    // TODO: add score variance
+    // config keys
+    CONFIG: ($) => choice($.BPM),
 
-    //╭─────────────────────────────────────╮
-    //│               Actions               │
-    //╰─────────────────────────────────────╯
-    ACTION: ($) =>
-      choice(
-        seq(
-          "delay",
-          /\d+/, // Definindo a ação como um atraso
-        ),
-        $.LUA,
-      ),
-    LUA: ($) => seq("exec lua", "{", /[^{}]+/, "}"),
+    BPM: ($) => seq("BPM", choice($.float, $.integer)),
 
-    //╭─────────────────────────────────────╮
-    //│               Events                │
-    //╰─────────────────────────────────────╯
-    EVENT: ($) => seq(choice($.NOTE), optional(repeat($.ACTION))),
+    // Comments
+    COMMENT: () => choice(seq("#", /.*/), seq(";", /.*/)),
 
-    NOTE: ($) =>
+    // Events
+    EVENT: ($) => choice($.NOTE, $.TRILL),
+    NOTE: ($) => seq("NOTE", $.pitch, $.duration),
+    TRILL: ($) => seq("TRILL", $.pitches, $.duration),
+    TYPE: () => choice("NOTE", "TRILL"),
+
+    // Pitch
+    pitches: ($) =>
       seq(
-        "NOTE",
-        $.pitch, // O primeiro token é o pitch
-        $.duration, // O segundo token é a duração
+        $.open_parenthesis,
+        $.pitch,
+        repeat(seq(" ", $.pitch)),
+        $.close_parenthesis,
       ),
+    pitch: ($) => choice($.pitchname, $.midi),
+    pitchname: ($) => seq($.pitchclass, optional($.alteration), $.octave),
+    midi: () => /([0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])/,
+    pitchclass: () => /[A-Ga-g]/,
+    alteration: () => choice("#", "b", "##", "bb"),
+    octave: () => /[0-9]/,
 
-    //╭─────────────────────────────────────╮
-    //│              Comments               │
-    //╰─────────────────────────────────────╯
-    COMMENT: ($) => choice(seq("#", /.*/), seq(";", /.*/)),
+    // Duration
+    duration: ($) =>
+      choice(
+        $.float, // Matches float durations (e.g., 1.5, 0.25)
+        $.integer, // Matches integer durations (e.g., 1, 2)
+      ),
+    float: () => /\d+\.\d+/, // Matches float numbers (e.g., 1.5, 0.25)
+    integer: () => /\d+/, // Matches integer numbers (e.g., 1, 2)
 
-    //╭─────────────────────────────────────╮
-    //│             music atoms             │
-    //╰─────────────────────────────────────╯
-    pitch: ($) => choice(/[A-Ga-g][#b]?(\d)?/, /\d+/),
-    duration: ($) => choice(/\d+/, /\d+\.\d+/, seq(/\d+/, "/", /\d+/)),
+    // Tokens
+    open_parenthesis: () => "(",
+    close_parenthesis: () => ")",
   },
 });
