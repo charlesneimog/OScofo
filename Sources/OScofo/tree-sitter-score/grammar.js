@@ -3,19 +3,16 @@ module.exports = grammar({
   rules: {
     source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
 
-    // config keys
+    // Things
     CONFIG: ($) => choice($.BPM),
-
     BPM: ($) => seq("BPM", choice($.float, $.integer)),
-
-    // Comments
     COMMENT: () => choice(seq("#", /.*/), seq(";", /.*/)),
+    EVENT: ($) => choice($.NOTE, $.TRILL, $.REST),
 
     // Events
-    EVENT: ($) => choice($.NOTE, $.TRILL),
     NOTE: ($) => seq("NOTE", $.pitch, $.duration),
     TRILL: ($) => seq("TRILL", $.pitches, $.duration),
-    TYPE: () => choice("NOTE", "TRILL"),
+    REST: ($) => seq("REST", $.duration),
 
     // Pitch
     pitches: ($) =>

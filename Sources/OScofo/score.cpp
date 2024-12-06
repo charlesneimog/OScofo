@@ -44,12 +44,7 @@ bool Score::ScoreIsLoaded() {
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-bool Score::SpaceTab(const std::string &line, int numSpaces) {
-    std::string spaces(numSpaces, ' ');
-    return line.find(spaces) != std::string::npos;
-}
 
-// ─────────────────────────────────────
 int Score::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
@@ -114,27 +109,17 @@ double Score::ModPhases(double Phase) {
     return NewPhase - M_PI;
 }
 
-// ─────────────────────────────────────
-void Score::AddAction(std::vector<std::string> Tokens) {
-    MacroState CurrentState = m_ScoreStates[m_ScoreStates.size() - 1];
-    std::vector<std::string> Action;
-    for (auto Token : Tokens) {
-    }
-
-    printf("\n");
-}
-
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-std::string Score::GetCodeStr(TSNode Node) {
+std::string Score::GetCodeStr(const std::string &Score, TSNode Node) {
     int start = ts_node_start_byte(Node);
     int end = ts_node_end_byte(Node);
-    return std::string(std::string_view(m_TxtInput.data() + start, end - start));
+    return std::string(std::string_view(Score.data() + start, end - start));
 }
 
 // ─────────────────────────────────────
-double Score::GetFreqsFromNode(TSNode Node) {
+double Score::GetFreqsFromNode(const std::string &Score, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
         throw std::runtime_error("Invalid pitch count");
@@ -143,20 +128,22 @@ double Score::GetFreqsFromNode(TSNode Node) {
     TSNode pitch = ts_node_child(Node, 0);
     std::string pitch_type = ts_node_type(pitch);
     if (pitch_type == "midi") {
-        std::string midi = GetCodeStr(pitch);
+        std::string midi = GetCodeStr(Score, pitch);
         double freq = m_Tunning * std::pow(2, (std::stof(midi) - 69) / 12);
+        printf("midi: %s, freq: %f\n", midi.c_str(), freq);
         return freq;
     } else if (pitch_type == "pitchname") {
-        std::string pitchname = GetCodeStr(pitch);
+        std::string pitchname = GetCodeStr(Score, pitch);
         float midi = Name2Midi(pitchname);
         double freq = m_Tunning * std::pow(2, (midi - 69) / 12);
+        printf("midi: %f, freq: %f\n", midi, freq);
         return freq;
     }
     throw std::runtime_error("Invalid pitch type");
 }
 
 // ─────────────────────────────────────
-double Score::GetDurationFromNode(TSNode Node) {
+double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
         throw std::runtime_error("Invalid duration count");
@@ -165,14 +152,14 @@ double Score::GetDurationFromNode(TSNode Node) {
     TSNode dur = ts_node_child(Node, 0);
     std::string dur_type = ts_node_type(dur);
     if (dur_type == "float" || dur_type == "integer") {
-        std::string dur_str = GetCodeStr(dur);
+        std::string dur_str = GetCodeStr(Score, dur);
         return std::stof(dur_str);
     }
     throw std::runtime_error("Invalid duration type");
 }
 
 // ─────────────────────────────────────
-MacroState Score::NoteEvent(TSNode Node) {
+MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
 
     double Midi;
@@ -193,10 +180,10 @@ MacroState Score::NoteEvent(TSNode Node) {
             AudioState SubState;
             SubState.Type = NOTE;
             SubState.Markov = MARKOV;
-            SubState.Freq = GetFreqsFromNode(child);
+            SubState.Freq = GetFreqsFromNode(Score, child);
             Note.SubStates.push_back(SubState);
         } else if (type == "duration") {
-            double duration = GetDurationFromNode(child);
+            double duration = GetDurationFromNode(Score, child);
             Note.Duration = duration;
         } else {
             throw std::runtime_error("Invalid note event");
@@ -206,7 +193,7 @@ MacroState Score::NoteEvent(TSNode Node) {
 }
 
 // ─────────────────────────────────────
-MacroState Score::TrillEvent(TSNode Node) {
+MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
 
     MacroState Trill;
@@ -232,12 +219,12 @@ MacroState Score::TrillEvent(TSNode Node) {
                     AudioState SubState;
                     SubState.Type = NOTE;
                     SubState.Markov = MARKOV;
-                    SubState.Freq = GetFreqsFromNode(pitch);
+                    SubState.Freq = GetFreqsFromNode(Score, pitch);
                     Trill.SubStates.push_back(SubState);
                 }
             }
         } else if (type == "duration") {
-            double duration = GetDurationFromNode(child);
+            double duration = GetDurationFromNode(Score, child);
             Trill.Duration = duration;
         } else {
             throw std::runtime_error("Invalid trill event");
@@ -247,19 +234,20 @@ MacroState Score::TrillEvent(TSNode Node) {
 }
 
 // ─────────────────────────────────────
-void Score::ProcessEvent(TSNode Node) {
+void Score::ProcessEvent(const std::string &Score, TSNode Node) {
     MacroState Event;
     uint32_t child_count = ts_node_child_count(Node);
 
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
+        unsigned start_row, start_column;
 
         if (type == "NOTE") {
-            Event = NoteEvent(child);
+            Event = NoteEvent(Score, child);
             m_MarkovIndex++;
         } else if (type == "TRILL") {
-            Event = TrillEvent(child);
+            Event = TrillEvent(Score, child);
             m_MarkovIndex++;
         } else if (type == "REST") {
             // NOT IMPLEMENTED
@@ -284,6 +272,8 @@ void Score::ProcessEvent(TSNode Node) {
             Event.IOIHatPhiN = 0;
             Event.IOIPhiN = 0;
         }
+        // TSPoint Pos = ts_node_start_point(child);
+        // Event.Line = Pos.row + 1;
 
         Event.BPMExpected = m_CurrentBPM;
         m_PrevDuration = Event.Duration;
@@ -293,25 +283,39 @@ void Score::ProcessEvent(TSNode Node) {
 }
 
 // ─────────────────────────────────────
-void Score::ProcessConfig(TSNode Node) {
+void Score::ProcessConfig(const std::string &Score, TSNode Node) {
     MacroState Event;
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
         if (type == "BPM") {
-            TSNode bpm = ts_node_child(child, 1);
-            m_CurrentBPM = std::stof(GetCodeStr(bpm));
+            // BPM: ("BPM")
+            // float: (float)
+            uint32_t count = ts_node_child_count(child);
+            for (uint32_t i = 0; i < count; i++) {
+                TSNode bpm = ts_node_child(child, i);
+                std::string bpm_type = ts_node_type(bpm);
+                if (bpm_type == "float") {
+                    std::string bpm_str = GetCodeStr(Score, bpm);
+                    m_CurrentBPM = std::stof(bpm_str);
+                } else if (bpm_type == "integer") {
+                    std::string bpm_str = GetCodeStr(Score, bpm);
+                    m_CurrentBPM = std::stof(bpm_str);
+                }
+            }
+
+            // m_CurrentBPM = std::stof(GetCodeStr(bpm));
         } else if (type == "transpose" || type == "TRANSPOSE") {
         }
     }
 }
 
 // ─────────────────────────────────────
-void Score::ParseInput() {
+void Score::ParseInput(const std::string &Score) {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_score());
-    TSTree *tree = ts_parser_parse_string(parser, nullptr, m_TxtInput.c_str(), m_TxtInput.size());
+    TSTree *tree = ts_parser_parse_string(parser, nullptr, Score.c_str(), Score.size());
     TSNode rootNode = ts_tree_root_node(tree);
 
     uint32_t child_count = ts_node_child_count(rootNode);
@@ -322,9 +326,9 @@ void Score::ParseInput() {
             if (m_CurrentBPM == -1) {
                 throw std::runtime_error("BPM is not defined");
             }
-            ProcessEvent(child);
+            ProcessEvent(Score, child);
         } else if (type == "CONFIG") {
-            ProcessConfig(child);
+            ProcessConfig(Score, child);
         }
     }
 
@@ -342,7 +346,6 @@ States Score::Parse(std::string ScoreFile) {
     if (!File) {
         throw std::runtime_error("Score File not found");
     }
-    m_TxtInput = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
 
     m_CurrentBPM = -1;
     m_LineCount = 0;
@@ -354,7 +357,10 @@ States Score::Parse(std::string ScoreFile) {
     double LastOnset = 0;
     double PreviousDuration = 0;
 
-    ParseInput();
+    // read and process score
+    std::string Score = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+    ParseInput(Score);
+
     m_ScoreLoaded = true;
     return m_ScoreStates;
 }

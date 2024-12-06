@@ -29,23 +29,23 @@ class Score {
     double ModPhases(double Phase);
     MacroState AddTransState(MacroState &State, int ScoreEvent, int BPM);
     int Name2Midi(std::string note);
-    bool SpaceTab(const std::string &line, int numSpaces);
-    void ParseInput();
+    // bool SpaceTab(const std::string &line, int numSpaces);
+    void ParseInput(const std::string &Score);
     void PrintTreeSitterNode(TSNode node, int indent = 0);
 
-    void ProcessEvent(TSNode Event);
-    void ProcessConfig(TSNode Event);
+    void ProcessEvent(const std::string &Score, TSNode Event);
+    void ProcessConfig(const std::string &Score, TSNode Node);
 
     void ProcessNote(TSNode Note);
 
     // Get TreeSitter Values
-    std::string GetCodeStr(TSNode Node);
-    double GetFreqsFromNode(TSNode Node);
-    double GetDurationFromNode(TSNode Node);
+    std::string GetCodeStr(const std::string &Score, TSNode Node);
+    double GetFreqsFromNode(const std::string &Score, TSNode Node);
+    double GetDurationFromNode(const std::string &Score, TSNode Node);
 
     // Events
-    MacroState NoteEvent(TSNode Node);
-    MacroState TrillEvent(TSNode Node);
+    MacroState NoteEvent(const std::string &Score, TSNode Node);
+    MacroState TrillEvent(const std::string &Score, TSNode Node);
 
     // Add events
     MacroState AddNote(std::vector<std::string> Tokens);
@@ -57,7 +57,6 @@ class Score {
     void AddAction(std::vector<std::string> Tokens);
 
     // Variables
-    std::string m_TxtInput;
     int m_ScorePosition = 1;
     int m_LineCount = 0;
     int m_MarkovIndex = 0;

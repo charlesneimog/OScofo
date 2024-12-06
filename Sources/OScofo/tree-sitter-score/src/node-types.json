@@ -51,6 +51,10 @@
           "named": true
         },
         {
+          "type": "REST",
+          "named": true
+        },
+        {
           "type": "TRILL",
           "named": true
         }
@@ -71,6 +75,21 @@
         },
         {
           "type": "pitch",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "REST",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "duration",
           "named": true
         }
       ]
@@ -229,6 +248,10 @@
   },
   {
     "type": "NOTE",
+    "named": false
+  },
+  {
+    "type": "REST",
     "named": false
   },
   {

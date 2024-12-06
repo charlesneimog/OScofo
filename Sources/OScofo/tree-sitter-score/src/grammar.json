@@ -93,6 +93,10 @@
         {
           "type": "SYMBOL",
           "name": "TRILL"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "REST"
         }
       ]
     },
@@ -130,16 +134,16 @@
         }
       ]
     },
-    "TYPE": {
-      "type": "CHOICE",
+    "REST": {
+      "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "NOTE"
+          "value": "REST"
         },
         {
-          "type": "STRING",
-          "value": "TRILL"
+          "type": "SYMBOL",
+          "name": "duration"
         }
       ]
     },
