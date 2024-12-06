@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tree-sitter Syntax Highlighting</title>
+    <script src="tree-sitter.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      const Parser = window.TreeSitter;
+      var ScofoParser = null;
+
+      async function setScofoParse() {
+        const scoreScofo = await Parser.Language.load("tree-sitter-score.wasm");
+        ScofoParser.setLanguage(scoreScofo);
+      }
+
+      Parser.init().then(() => {
+        ScofoParser = new Parser();
+        setScofoParse(ScofoParser);
+      });
+    </script>
+  </head>
+  <body>
+    <h1 style="text-align: center">OScofo Score Editor</h1>
+    <div
+      style="display: flex; align-items: flex-start; width: 100%; height: auto"
+    >
+      <div style="width: 60%" class="editor-container">
+        <div id="line-numbers" class="line-numbers"></div>
+        <div id="highlight-layer" class="highlight-layer"></div>
+        <div id="editor" class="editor" contenteditable="true"></div>
+      </div>
+      <button onclick="downloadScore()">Download Score</button>
+      <button>Import Musicxml</button>
+      <button>Import Midi</button>
+    </div>
+
+    <script>
+      const editor = document.getElementById("editor");
+      const lineNumbers = document.getElementById("line-numbers");
+      let scoretext = "";
+
+      function getNodeText(text, node) {
+        if (node !== null && node !== undefined) {
+          let start = node.startIndex;
+          let end = node.endIndex;
+          return text.slice(start, end);
+        }
+        return "";
+      }
+
+      function highlighting(editor, text, node) {
+        let innerHTMLText = "";
+        function highlightNode(text, node) {
+          for (let child of node.children) {
+            let nodeText = getNodeText(text, child);
+            if (child.type === "ERROR") {
+              innerHTMLText += "<span class='error'>" + nodeText + "</span>";
+            } else if (nodeText === "NOTE") {
+              innerHTMLText += "<span class='note'>" + nodeText + "</span>";
+            } else if (child.type === "pitch") {
+              innerHTMLText += "<span class='pitch'>" + nodeText + "</span>";
+            } else if (child.type === "duration") {
+              innerHTMLText += "<span class='duration'>" + nodeText + "</span>";
+            }
+
+            if (child.children.length > 0) {
+              highlightNode(nodeText, child);
+            }
+          }
+        }
+      }
+
+      function downloadScore() {
+        const sourceCode = editor.innerText;
+        const blob = new Blob([sourceCode], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "score.scofo";
+        a.click();
+        a.remove();
+      }
+
+      function syncScroll() {
+        highlightLayer.scrollTop = editor.scrollTop;
+      }
+
+      function updateLineNumbers(text) {
+        const lines = text.split("\n");
+        let lineNumberHTML = "";
+        if (lines.length === 1) {
+          lineNumberHTML += "1\n";
+        } else {
+          for (let i = 1; i < lines.length; i++) {
+            lineNumberHTML += i + "\n";
+          }
+        }
+        lineNumbers.textContent = lineNumberHTML;
+      }
+
+      editor.addEventListener("keydown", function (event) {
+        let key = event.key;
+        if (key === "Tab") {
+          event.preventDefault();
+          scoretext += "    ";
+        }
+      });
+
+      // editor.addEventListener("scroll", syncScroll);
+      editor.addEventListener("input", function () {
+        const sourceCode = editor.innerText;
+        const tree = ScofoParser.parse(sourceCode);
+        const rootNode = tree.rootNode;
+        highlighting(editor, sourceCode, rootNode);
+        // updateLineNumbers(sourceCode);
+      });
+
+      let placeholderText = "// Type your score here";
+      editor.innerText = placeholderText;
+      // updateLineNumbers(placeholderText);
+      editor.addEventListener("focus", function () {
+        if (editor.innerText === placeholderText) {
+          editor.innerText = "";
+        }
+      });
+
+      editor.addEventListener("blur", function () {
+        if (editor.innerText.trim() === "") {
+          editor.innerText = placeholderText;
+        }
+      });
+    </script>
+  </body>
+</html>

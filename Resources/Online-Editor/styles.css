@@ -1,0 +1,93 @@
+.editor-container {
+  display: flex;
+  align-items: flex-start;
+}
+
+.editor {
+  margin-right: 20px;
+  width: 90%;
+  max-width: 100%;
+  min-height: 400px;
+  font-size: 16px;
+  font-family: "FiraCodeNerdFont", "Courier New", monospace;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.editor:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.line-numbers {
+  width: 10%;
+  padding: 10px;
+  margin-right: 10px;
+  font-family: "FiraCodeNerdFont", "Courier New", monospace;
+  font-size: 16px;
+  color: #888;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-width: 40px;
+  text-align: right;
+  /* border-right: 1px solid #ccc; */
+}
+
+button {
+  margin-left: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  background-color: #4caf50;
+  color: white;
+  cursor: pointer;
+  transition:
+    background-color 0.3s ease,
+    transform 0.2s ease;
+}
+
+/* Hover effect for the button */
+button:hover {
+  background-color: #45a049; /* Slightly darker green on hover */
+  transform: scale(1.05); /* Slightly scale up the button */
+}
+
+/* Active effect for the button */
+button:active {
+  background-color: #388e3c; /* Even darker green when clicked */
+  transform: scale(0.98); /* Slightly scale down when clicked */
+}
+
+.note {
+  color: blue;
+  font-weight: bold;
+}
+
+.pitch {
+  color: green;
+}
+
+.duration {
+  color: red;
+}
+
+.error {
+  color: red;
+}
+
+/* Define the custom font */
+@font-face {
+  font-family: "FiraCodeNerdFont";
+  src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
