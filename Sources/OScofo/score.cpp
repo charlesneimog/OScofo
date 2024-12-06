@@ -130,13 +130,11 @@ double Score::GetFreqsFromNode(const std::string &Score, TSNode Node) {
     if (pitch_type == "midi") {
         std::string midi = GetCodeStr(Score, pitch);
         double freq = m_Tunning * std::pow(2, (std::stof(midi) - 69) / 12);
-        printf("midi: %s, freq: %f\n", midi.c_str(), freq);
         return freq;
     } else if (pitch_type == "pitchname") {
         std::string pitchname = GetCodeStr(Score, pitch);
         float midi = Name2Midi(pitchname);
         double freq = m_Tunning * std::pow(2, (midi - 69) / 12);
-        printf("midi: %f, freq: %f\n", midi, freq);
         return freq;
     }
     throw std::runtime_error("Invalid pitch type");
@@ -193,6 +191,28 @@ MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
+void Score::ProcessEventTime(MacroState &Event) {
+    // Time
+    if (Event.Index != 0) {
+        int Index = Event.Index;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = Event.OnsetExpected;
+        double PhiN0 = Event.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        Event.PhaseExpected = PhiN1;
+        Event.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        Event.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        Event.PhaseExpected = 0;
+        Event.IOIHatPhiN = 0;
+        Event.IOIPhiN = 0;
+    }
+
+    Event.BPMExpected = m_CurrentBPM;
+}
+// ─────────────────────────────────────
 MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
 
@@ -235,49 +255,32 @@ MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
 
 // ─────────────────────────────────────
 void Score::ProcessEvent(const std::string &Score, TSNode Node) {
-    MacroState Event;
     uint32_t child_count = ts_node_child_count(Node);
 
     for (uint32_t i = 0; i < child_count; i++) {
+        MacroState Event;
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
         unsigned start_row, start_column;
+        TSPoint Pos = ts_node_start_point(child);
 
         if (type == "NOTE") {
             Event = NoteEvent(Score, child);
+            ProcessEventTime(Event);
             m_MarkovIndex++;
         } else if (type == "TRILL") {
             Event = TrillEvent(Score, child);
+            ProcessEventTime(Event);
             m_MarkovIndex++;
         } else if (type == "REST") {
-            // NOT IMPLEMENTED
+            continue;
         } else {
             std::runtime_error("Invalid event type");
         }
-
-        // Time
-        if (Event.Index != 0) {
-            int Index = Event.Index;
-            double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
-            double Tn = m_ScoreStates[Index - 1].OnsetExpected;
-            double Tn1 = Event.OnsetExpected;
-            double PhiN0 = Event.PhaseExpected;
-            double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-            PhiN1 = ModPhases(PhiN1);
-            Event.PhaseExpected = PhiN1;
-            Event.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-            Event.IOIPhiN = (Tn1 - Tn) / PsiK;
-        } else {
-            Event.PhaseExpected = 0;
-            Event.IOIHatPhiN = 0;
-            Event.IOIPhiN = 0;
-        }
-        // TSPoint Pos = ts_node_start_point(child);
-        // Event.Line = Pos.row + 1;
-
-        Event.BPMExpected = m_CurrentBPM;
+        Event.Line = Pos.row + 1;
         m_PrevDuration = Event.Duration;
         m_LastOnset = Event.OnsetExpected;
+
         m_ScoreStates.push_back(Event);
     }
 }

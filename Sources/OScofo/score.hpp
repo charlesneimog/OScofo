@@ -34,6 +34,7 @@ class Score {
     void PrintTreeSitterNode(TSNode node, int indent = 0);
 
     void ProcessEvent(const std::string &Score, TSNode Event);
+    void ProcessEventTime(MacroState &Event);
     void ProcessConfig(const std::string &Score, TSNode Node);
 
     void ProcessNote(TSNode Note);
