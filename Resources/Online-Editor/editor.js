@@ -153,7 +153,6 @@ class ScofoHighlighter {
         }
 
         let currentMeasure = this.musicxmlScore[0];
-        // score += "\n\n; Measure number " + currentMeasure[0].measureNumber + "";
         let lastMeasureNumber = 0;
         for (let i = 0; i < allNotes.length; i++) {
             let note = allNotes[i];
@@ -198,7 +197,6 @@ class ScofoHighlighter {
                 }
                 score += `) ${duration}`;
             } else if (note.tied) {
-                score += "; Tied note\n";
                 score += "NOTE ";
                 let pitchclass = note.step;
                 if (note.alter) {
@@ -227,7 +225,7 @@ class ScofoHighlighter {
                     }
                     i++;
                 }
-                score += `${pitchclass} ${duration}`;
+                score += `${pitchclass} ${duration} ; tied`;
             } else {
                 score += `NOTE ${note.step}`;
                 if (note.alter) {
