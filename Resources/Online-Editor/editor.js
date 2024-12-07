@@ -41,11 +41,9 @@ class ScofoHighlighter {
             let lastPosition = node.startIndex;
             node.namedChildren.forEach((child) => {
                 const line = input.slice(0, child.startIndex).split("\n").length;
-
                 if (child.type === "ERROR") {
                     errors[line] = true;
                 }
-
                 const nodeTxtStrNoSpace = input.slice(lastPosition, child.startIndex).trim();
                 if (nodeTxtStrNoSpace.length > 0 && keywords.includes(nodeTxtStrNoSpace)) {
                     highlightedText += `<span class="KEYWORD">${nodeTxtStrNoSpace}</span>`;
@@ -56,16 +54,18 @@ class ScofoHighlighter {
                 } else {
                     highlightedText += input.slice(lastPosition, child.startIndex);
                 }
-
                 highlightedText += this.highlightCode(input, child, errors);
                 lastPosition = child.endIndex;
             });
             highlightedText += input.slice(lastPosition, node.endIndex);
         } else {
-            const nodeTxtStrNoSpace = input.slice(node.startIndex, node.endIndex).trim();
+            let nodeTxtStrNoSpace = input.slice(node.startIndex, node.endIndex).trim();
             if (keywords.includes(nodeTxtStrNoSpace)) {
                 highlightedText += `<span class="KEYWORD">${nodeTxtStrNoSpace}</span>`;
             } else {
+                if (node.type == "COMMENT") {
+                    nodeTxtStrNoSpace = input.slice(node.startIndex, node.endIndex);
+                }
                 highlightedText += `<span class="${node.type}">${nodeTxtStrNoSpace}</span>`;
             }
         }
@@ -137,13 +137,17 @@ class ScofoHighlighter {
     }
 
     click() {
+        if (this.textInput.value === "// Edit your score here") {
+            this.textInput.value = "";
+        }
+
         this.textInput.focus();
         this.updateHighlightOutput();
     }
 
     generateOScofoScore() {
         let score = "";
-        score += `BPM ${this.musicxmlScore[0][0].bpm}\n`;
+        score += `BPM ${this.musicxmlScore[0][0].bpm}`;
         let allNotes = [];
         for (let i = 0; i < this.musicxmlScore.length; i++) {
             const currentMeasure = this.musicxmlScore[i];
@@ -152,7 +156,6 @@ class ScofoHighlighter {
             }
         }
 
-        let currentMeasure = this.musicxmlScore[0];
         let lastMeasureNumber = 0;
         for (let i = 0; i < allNotes.length; i++) {
             let note = allNotes[i];
@@ -174,9 +177,6 @@ class ScofoHighlighter {
                     if (note === undefined) {
                         break;
                     }
-                    if (note.tremolo && note.tremolo == false) {
-                        break;
-                    }
                     if (duration > 0) {
                         score += " ";
                     }
@@ -193,6 +193,9 @@ class ScofoHighlighter {
                     }
                     score += `${note.octave}`;
                     duration += parseInt(note.duration);
+                    if (note.tremolo == false) {
+                        break;
+                    }
                     i++;
                 }
                 score += `) ${duration}`;
@@ -277,6 +280,9 @@ class ScofoHighlighter {
                     if (tremolo[0].getAttribute("type") == "start") {
                         isTremolo = true;
                     }
+                    if (tremolo[0].getAttribute("type") == "stop") {
+                        isTremolo = false;
+                    }
                 }
                 if (tied.length > 0) {
                     if (tied[0].getAttribute("type") == "start") {
@@ -318,11 +324,7 @@ class ScofoHighlighter {
                 if (rest) {
                     noteObj["rest"] = true;
                 }
-                if (tremolo.length > 0) {
-                    if (tremolo[0].getAttribute("type") == "stop") {
-                        isTremolo = false;
-                    }
-                }
+
                 measureNotes.push(noteObj);
             }
             this.musicxmlScore.push(measureNotes);
@@ -411,12 +413,12 @@ class ScofoHighlighter {
             uploadButtom.addEventListener("click", () => this.uploadScore());
         }
 
-        // Load the saved (not working yet)
-        window.addEventListener("load", function () {
-            const recoveredValue = getCookie("textInputValue");
-            this.textInput.value = recoveredValue;
-            this.updateHighlightOutput();
-        });
+        const recoveredValue = this.getCookie("textInputValue");
+        this.textInput.value = recoveredValue;
+        if (!recoveredValue) {
+            this.textInput.value = "// Edit your score here";
+        }
+        this.updateHighlightOutput();
     }
 }
 

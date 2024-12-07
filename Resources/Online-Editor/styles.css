@@ -9,6 +9,7 @@
     box-sizing: border-box; /* Ensure padding doesn't cause overflow */
     font-size: 16px;
     transition: box-shadow 0.3s ease-in-out; /* Smooth transition */
+    line-height: 1.5; /* Adjust line height for the entire container */
 }
 
 .container:hover {
@@ -30,6 +31,7 @@
     font-size: 16px;
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
+    line-height: 1.5; /* Increase space between lines in line numbers */
 }
 
 .text-input {
@@ -43,6 +45,7 @@
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     font-size: 16px;
     white-space: pre-wrap; /* Keep text formatting */
+    line-height: 1.5; /* Increase space between lines in text input */
 }
 
 .highlight-output {
@@ -56,6 +59,7 @@
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     font-size: 16px;
     white-space: pre-wrap; /* Preserve line breaks and spaces */
+    line-height: 1.5; /* Increase space between lines in highlighted output */
 }
 
 .highlight-selection {
@@ -75,6 +79,22 @@ button {
     transition:
         background-color 0.3s ease,
         transform 0.2s ease;
+}
+
+.h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+.h2 {
+    font-size: 1.5em;
+    margin: 0.83em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+.h3 {
+    font-size: 1.17em;
+    margin: 1em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
 }
 
 /* Hover effect for the button */
@@ -109,11 +129,15 @@ button:active {
 .COMMENT {
     color: #a0a1a7; /* Light gray */
     font-style: italic;
+    font-weight: lighter;
 }
+
 .ERROR {
     color: #e45649; /* Red */
     text-decoration: underline;
+    text-decoration-style: wavy; /* Subline ondulada */
 }
+
 .octave {
     color: #50a14f; /* Green */
 }
@@ -176,6 +200,7 @@ button:active {
     .COMMENT {
         color: rgb(220, 220, 220); /* Dark gray */
         font-style: italic;
+        font-weight: lighter;
     }
     .ERROR {
         color: #e06c75; /* Red */
