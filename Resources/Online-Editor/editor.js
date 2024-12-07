@@ -5,6 +5,7 @@ class ScofoHighlighter {
         this.Parser = window.TreeSitter;
         this.ScofoParser = null;
         this.parserLanguageUrl = parserLanguageUrl;
+        this.htmlFormatterCode = "";
 
         // Initialize the parser and setup event listeners
         this.initParser().then(() => {
@@ -23,33 +24,50 @@ class ScofoHighlighter {
         this.ScofoParser.setLanguage(scoreScofo);
     }
 
-    highlightKeywords(text) {
-        return text
-            .replace(/NOTE/g, '<span class="keyword-blue">NOTE</span>')
-            .replace(/C5/g, '<span class="keyword-red">C5</span>');
+    applySelection(text, selectionStart, selectionEnd) {
+        const selectedText = text.slice(selectionStart, selectionEnd);
+
+        return `<span class="highlight-selection">${selectedText}</span>`;
     }
 
-    applySelection(text, selectionStart, selectionEnd) {
-        const beforeSelection = text.slice(0, selectionStart);
-        const selectedText = text.slice(selectionStart, selectionEnd);
-        const afterSelection = text.slice(selectionEnd);
+    highlightCode(input, node) {
+        const styles = {
+            open_parenthesis: "color: black; font-weight: bold;",
+            close_parenthesis: "color: black; font-weight: bold;",
+            ERROR: "color: red; font-weight: bold; text-decoration: underline;", // Added underline
+            NOTE: "color: red; font-weight: bold;",
+            octave: "color: green; font-weight: bold;",
+            pitchclass: "color: green; font-weight: bold;",
+            midi: "color: green; font-weight: bold;",
+            integer: "color: blue; font-weight: bold;",
+        };
 
-        return (
-            this.highlightKeywords(beforeSelection) +
-            `<span class="highlight-selection">${this.highlightKeywords(selectedText)}</span>` +
-            this.highlightKeywords(afterSelection)
-        );
+        let highlightedText = "";
+        if (node.namedChildCount > 0) {
+            let lastPosition = node.startIndex;
+            node.namedChildren.forEach((child) => {
+                highlightedText += input.slice(lastPosition, child.startIndex);
+                highlightedText += this.highlightCode(input, child);
+                lastPosition = child.endIndex;
+            });
+            highlightedText += input.slice(lastPosition, node.endIndex);
+        } else {
+            const nodeTypeStyle = styles[node.type] || "";
+            if (styles.hasOwnProperty(node.type)) {
+                highlightedText += `<span style="${nodeTypeStyle}">${input.slice(node.startIndex, node.endIndex)}</span>`;
+            } else {
+                highlightedText += `<span style="${nodeTypeStyle}">${input.slice(node.startIndex, node.endIndex)}</span>`;
+                console.log(node.type);
+            }
+        }
+        return highlightedText;
     }
 
     updateHighlightOutput() {
         const value = this.textInput.value;
-        this.highlightOutput.innerHTML = this.highlightKeywords(value);
-
-        console.log(this.highlightKeywords(value));
-
-        // print tree-sitter output string
         const tree = this.ScofoParser.parse(value);
-        console.log(tree.rootNode.toString());
+        const styledCode = this.highlightCode(value, tree.rootNode);
+        this.highlightOutput.innerHTML = styledCode;
     }
 
     simulateSelection() {
