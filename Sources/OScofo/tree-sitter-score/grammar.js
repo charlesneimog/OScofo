@@ -4,15 +4,42 @@ module.exports = grammar({
     source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
 
     // Things
-    CONFIG: ($) => choice($.BPM),
-    BPM: ($) => seq("BPM", choice($.float, $.integer)),
-    COMMENT: () => choice(seq("#", /.*/), seq(";", /.*/)),
-    EVENT: ($) => choice($.NOTE, $.TRILL, $.REST),
+    CONFIG: ($) =>
+      choice(
+        seq("BPM", choice($.float, $.integer)),
+        seq("TRANSPOSE", choice($.float, $.integer)),
+      ),
+
+    // Comments
+    COMMENT: () => choice(seq("#", /.*/), seq(";", /.*/), seq("//", /.*/)),
 
     // Events
-    NOTE: ($) => seq("NOTE", $.pitch, $.duration),
-    TRILL: ($) => seq("TRILL", $.pitches, $.duration),
-    REST: ($) => seq("REST", $.duration),
+    EVENT: ($) => choice($.NOTE, $.TRILL, $.REST),
+
+    NOTE: ($) =>
+      seq(
+        "NOTE",
+        $.pitch,
+        $.duration,
+        optional(repeat($.ACTION)),
+        optional($.COMMENT),
+      ),
+    TRILL: ($) =>
+      seq(
+        "TRILL",
+        $.pitches,
+        $.duration,
+        optional(repeat($.ACTION)),
+        optional($.COMMENT),
+      ),
+    REST: ($) =>
+      seq("REST", $.duration, optional(repeat($.ACTION)), optional($.COMMENT)),
+
+    // Actions
+    ACTION: ($) =>
+      seq(choice($.two_spaces, $.four_spaces, $.tab), choice($.delay)),
+
+    delay: ($) => seq("delay", $.integer),
 
     // Pitch
     pitches: ($) =>
@@ -26,7 +53,7 @@ module.exports = grammar({
     pitchname: ($) => seq($.pitchclass, optional($.alteration), $.octave),
     midi: () => /([0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])/,
     pitchclass: () => /[A-Ga-g]/,
-    alteration: () => choice("#", "b", "##", "bb"),
+    alteration: () => choice("#", "b"),
     octave: () => /[0-9]/,
 
     // Duration
@@ -41,5 +68,13 @@ module.exports = grammar({
     // Tokens
     open_parenthesis: () => "(",
     close_parenthesis: () => ")",
+
+    two_spaces: () => "  ", // Match exactly two spaces
+    four_spaces: () => "    ", // Match exactly four spaces
+    tab: () => "\t", // Match tabs
   },
+  extras: ($) => [
+    /\s|\\\r?\n/, // Espaços em branco e quebras de linha
+    $.COMMENT, // Comentários
+  ],
 });
