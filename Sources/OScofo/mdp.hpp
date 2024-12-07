@@ -22,7 +22,7 @@ class MDP {
 
     // Init Functions
     void SetScoreStates(States States);
-    void UpdatePitchTemplate();
+    void UpdateAudioTemplate();
     void UpdatePhaseValues();
 
     // Config Functions
@@ -60,8 +60,9 @@ class MDP {
     double m_Sr;
     double m_FFTSize;
     double m_HopSize;
-    double m_Harmonics = 10;
+    double m_Harmonics = 5;
     double m_dBTreshold = -55;
+    int m_BufferSize = 1000;
 
     // Events
     double m_Tunning = 440;
@@ -110,7 +111,7 @@ class MDP {
     // Pitch
     std::vector<MacroState> m_States;
     std::vector<double> m_PitchTemplate;
-    double m_PitchTemplateSigma = 1;
+    double m_PitchTemplateSigma = 0.35;
     double m_PitchScalingFactor = 0.5; // TODO: How should I call this?
     std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
 
@@ -123,7 +124,7 @@ class MDP {
     double GetPitchSimilarity(double Freq, Description &Desc);
     int GetMaxJIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
-    void SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
-    void Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+    double SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+    double Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
 };
 } // namespace OScofo

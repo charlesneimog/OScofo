@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tree-sitter Syntax Highlighting</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" />
+        <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+        <script src="tree-sitter.js"></script>
+        <link rel="stylesheet" href="styles.css" />
+        <script></script>
+    </head>
+    <body>
+        <h1 style="text-align: center">OScofo Score Editor</h1>
+        <h3 style="text-align: center">Charles K. Neimog</h3>
+        <div style="display: flex; align-items: flex-start; width: 100%; height: auto">
+            <div class="container" style="width: 50%">
+                <div class="line-numbers"></div>
+                <textarea class="text-input"></textarea>
+                <div class="highlight-output"></div>
+            </div>
+            <div style="width: 50%; margin-left: 2%; margin-right: 2%">
+                <button id="upload-score"><i class="fa-solid fa-file-arrow-up"></i> Import Musicxml</button>
+                <button id="download-score"><i class="fa-solid fa-download"></i> Download Score</button>
+                <input type="file" id="fileInput" accept=".xml, .musicxml, .mxl" style="display: none" />
+                <hr />
+                <p
+                    style="
+                        margin-top: 1em;
+                        text-align: justify;
+                        top: 15%;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        line-height: 1.5;
+                    "
+                >
+                    OScofo also provides support for importing MusicXML scores, which can be seamlessly integrated with
+                    the
+                    <code>o.scofo~</code> object in Max or PureData (Pd). This allows users to load standardized musical
+                    scores and use them in real-time score-following applications, offering flexibility and ease of use
+                    for musicians and researchers working with contemporary music. By importing MusicXML, OScofo enables
+                    a smooth workflow, where the score can be easily parsed and synchronized with live performances or
+                    rehearsals, all within the Max or Pd environments.
+                </p>
+            </div>
+        </div>
+        <script src="editor.js"></script>
+        <script></script>
+    </body>
+</html>

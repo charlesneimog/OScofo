@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 
 #include "score.hpp"
 #include "tree_sitter/api.h"
@@ -11,12 +11,19 @@ extern "C" TSLanguage *tree_sitter_score();
 
 namespace OScofo {
 
-// clang-format off
-// TODO: Add SECTION word, for example, "SECTION B" will start a score after the SECTION B event
-// TODO: Add EVENT (This must get a duration) and output one timer with it, for example, in 10000ms, a timer from 0 to 10000ms
-// TODO: ADD CHORD, MULTI, etc.
-// TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
-// clang-format on
+// ─────────────────────────────────────
+void Score::PrintTreeSitterNode(TSNode node, int indent) {
+    const char *type = ts_node_type(node);
+    std::string text = ts_node_string(node);
+    if (indent != 0) {
+        std::cout << std::string(indent, ' ') << type << ": " << text << std::endl;
+    }
+
+    uint32_t child_count = ts_node_child_count(node);
+    for (uint32_t i = 0; i < child_count; i++) {
+        PrintTreeSitterNode(ts_node_child(node, i), indent + 4);
+    }
+}
 
 // ─────────────────────────────────────
 void Score::SetTunning(double Tunning) {
@@ -31,12 +38,6 @@ bool Score::ScoreIsLoaded() {
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-bool Score::SpaceTab(const std::string &line, int numSpaces) {
-    std::string spaces(numSpaces, ' ');
-    return line.find(spaces) != std::string::npos;
-}
-
-// ─────────────────────────────────────
 int Score::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
@@ -66,13 +67,15 @@ int Score::Name2Midi(std::string note) {
         throw std::runtime_error("Invalid note name for " + note);
     }
 
+    int endAcc = 1;
     if (note[1] == '#' || note[1] == 'b') {
-        noteName = note[1];
-        if (noteName == '#') {
+        char acc = note[1];
+        if (acc == '#') {
             classNote++;
         } else {
             classNote--;
         }
+
         if (std::isdigit(note[2])) {
             int octave = std::stoi(note.substr(2));
             int midi = classNote + 12 + (12 * octave);
@@ -81,8 +84,8 @@ int Score::Name2Midi(std::string note) {
             throw std::runtime_error("Invalid note name for " + note);
         }
     } else {
-        if (std::isdigit(note[1])) {
-            int octave = std::stoi(note.substr(1));
+        if (std::isdigit(note[endAcc])) {
+            int octave = std::stoi(note.substr(endAcc));
             int midi = classNote + 12 + (12 * octave);
             return midi;
         } else {
@@ -101,343 +104,224 @@ double Score::ModPhases(double Phase) {
     return NewPhase - M_PI;
 }
 
-// ─────────────────────────────────────
-MacroState Score::AddNote(std::vector<std::string> Tokens) {
-    m_ScorePosition++;
-    double Midi;
-    MacroState NoteState;
-    NoteState.Line = m_LineCount;
-    NoteState.Type = NOTE;
-    NoteState.Markov = SEMIMARKOV;
-    NoteState.Index = m_ScoreStates.size();
-    NoteState.ScorePos = m_ScorePosition;
-
-    if (m_MarkovIndex != 0) {
-        NoteState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
-    } else {
-        NoteState.OnsetExpected = 0;
-    }
-
-    if (m_CurrentBPM == -1) {
-        throw std::runtime_error("BPM is not defined");
-    }
-    if (Tokens.size() < 3) {
-        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
-    }
-
-    // check if pitch is a number os a string
-    if (!std::isdigit(Tokens[1][0])) {
-        std::string noteName = Tokens[1];
-        Midi = Name2Midi(noteName);
-    } else {
-        Midi = std::stof(Tokens[1]);
-        if (Midi > 127) {
-            Midi = Midi * 0.01;
-        }
-    }
-    NoteState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
-
-    // Duration and tempo
-    bool isRatio = Tokens[2].find('/') != std::string::npos;
-    if (isRatio) {
-        std::string ratio = Tokens[2];
-        std::replace(ratio.begin(), ratio.end(), '/', ' ');
-        std::istringstream iss(ratio);
-        std::vector<std::string> ratioTokens;
-        std::string token;
-        while (std::getline(iss, token, ' ')) {
-            ratioTokens.push_back(token);
-        }
-        double numerator = std::stof(ratioTokens[0]);
-        double denominator = std::stof(ratioTokens[1]);
-        NoteState.Duration = numerator / denominator;
-    } else {
-        NoteState.Duration = std::stof(Tokens[2]);
-    }
-
-    if (NoteState.Index != 0) {
-        int Index = NoteState.Index;
-        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
-        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
-        double Tn1 = NoteState.OnsetExpected;
-        double PhiN0 = NoteState.PhaseExpected;
-        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-        PhiN1 = ModPhases(PhiN1);
-        NoteState.PhaseExpected = PhiN1;
-        NoteState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-        NoteState.IOIPhiN = (Tn1 - Tn) / PsiK;
-    } else {
-        NoteState.PhaseExpected = 0;
-        NoteState.IOIHatPhiN = 0;
-        NoteState.IOIPhiN = 0;
-    }
-
-    // time phase
-    NoteState.BPMExpected = m_CurrentBPM;
-
-    // Add values
-    m_PrevDuration = NoteState.Duration;
-    m_LastOnset = NoteState.OnsetExpected;
-    return NoteState;
-}
-
-// ─────────────────────────────────────
-MacroState Score::AddTrill(std::vector<std::string> Tokens) {
-    m_ScorePosition++;
-    double Midi;
-    MacroState TrillState;
-    TrillState.Line = m_LineCount;
-    TrillState.Type = TRILL;
-    TrillState.Markov = SEMIMARKOV;
-    TrillState.Index = m_ScoreStates.size();
-    TrillState.ScorePos = m_ScorePosition;
-
-    if (m_MarkovIndex != 0) {
-        TrillState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
-    } else {
-        TrillState.OnsetExpected = 0;
-    }
-
-    if (m_CurrentBPM == -1) {
-        throw std::runtime_error("BPM is not defined");
-    }
-    if (Tokens.size() < 3) {
-        throw std::runtime_error("Invalid trill on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
-    }
-
-    // check if Tokens[1][0] is a parenthesis
-    int TimeIndex = 1;
-    if (Tokens[1][0] == '(') {
-        for (int i = 1; i < Tokens.size(); i++) {
-            std::string str = Tokens[i];
-            str.erase(std::remove_if(str.begin(), str.end(), [](char c) { return c == '(' || c == ')'; }), str.end());
-            std::string pitch = str;
-            if (!std::isdigit(pitch[0])) {
-                std::string noteName = pitch;
-                Midi = Name2Midi(noteName);
-            } else {
-                Midi = std::stof(pitch);
-                if (Midi > 127) {
-                    Midi = Midi * 0.01;
-                }
-            }
-            TrillState.Freqs.push_back(m_Tunning * std::pow(2, (Midi - 69) / 12));
-            if (Tokens[i].find(')') != std::string::npos) {
-                TimeIndex = i + 1;
-                break;
-            }
-        }
-    }
-
-    // Duration and tempo
-    bool isRatio = Tokens[TimeIndex].find('/') != std::string::npos;
-
-    if (isRatio) {
-        std::string ratio = Tokens[TimeIndex];
-        std::replace(ratio.begin(), ratio.end(), '/', ' ');
-        std::istringstream iss(ratio);
-        std::vector<std::string> ratioTokens;
-        std::string token;
-        while (std::getline(iss, token, ' ')) {
-            ratioTokens.push_back(token);
-        }
-        double numerator = std::stof(ratioTokens[0]);
-        double denominator = std::stof(ratioTokens[1]);
-        TrillState.Duration = numerator / denominator;
-    } else {
-        TrillState.Duration = std::stof(Tokens[TimeIndex]);
-    }
-
-    if (TrillState.Index != 0) {
-        int Index = TrillState.Index;
-        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
-        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
-        double Tn1 = TrillState.OnsetExpected;
-        double PhiN0 = TrillState.PhaseExpected;
-        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-        PhiN1 = ModPhases(PhiN1);
-        TrillState.PhaseExpected = PhiN1;
-        TrillState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-        TrillState.IOIPhiN = (Tn1 - Tn) / PsiK;
-    } else {
-        TrillState.PhaseExpected = 0;
-        TrillState.IOIHatPhiN = 0;
-        TrillState.IOIPhiN = 0;
-    }
-
-    // time phase
-    TrillState.BPMExpected = m_CurrentBPM;
-
-    // Add values
-    m_PrevDuration = TrillState.Duration;
-    m_LastOnset = TrillState.OnsetExpected;
-    return TrillState;
-}
-
-// ─────────────────────────────────────
-MacroState Score::AddDumpSilence() {
-    double Midi;
-    MacroState RestState;
-    RestState.Line = m_LineCount;
-    RestState.Type = REST;
-    RestState.Markov = MARKOV;
-    RestState.Index = m_ScoreStates.size();
-    RestState.ScorePos = m_ScorePosition;
-    RestState.Duration = 0;
-    return RestState;
-}
-
-// ─────────────────────────────────────
-MacroState Score::AddRest(std::vector<std::string> Tokens) {
-    double Midi;
-    MacroState RestState;
-    RestState.Line = m_LineCount;
-    RestState.Type = REST;
-    RestState.Markov = MARKOV;
-    RestState.Index = m_ScoreStates.size();
-    RestState.ScorePos = m_ScorePosition;
-
-    if (m_MarkovIndex != 0) {
-        RestState.OnsetExpected = m_LastOnset + m_PrevDuration * (60 / m_CurrentBPM); // in Seconds
-    } else {
-        RestState.OnsetExpected = 0;
-    }
-
-    if (m_CurrentBPM == -1) {
-        throw std::runtime_error("BPM is not defined");
-    }
-    if (Tokens.size() < 2) {
-        throw std::runtime_error("Invalid note on line " + std::to_string(m_LineCount) + ". Need at least 3 tokens");
-    }
-
-    // Duration and tempo
-    bool isRatio = Tokens[1].find('/') != std::string::npos;
-    if (isRatio) {
-        std::string ratio = Tokens[1];
-        std::replace(ratio.begin(), ratio.end(), '/', ' ');
-        std::istringstream iss(ratio);
-        std::vector<std::string> ratioTokens;
-        std::string token;
-        while (std::getline(iss, token, ' ')) {
-            ratioTokens.push_back(token);
-        }
-        double numerator = std::stof(ratioTokens[0]);
-        double denominator = std::stof(ratioTokens[1]);
-        RestState.Duration = numerator / denominator;
-    } else {
-        RestState.Duration = std::stof(Tokens[1]);
-    }
-
-    if (RestState.Index != 0) {
-        int Index = RestState.Index;
-        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
-        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
-        double Tn1 = RestState.OnsetExpected;
-        double PhiN0 = RestState.PhaseExpected;
-        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-        PhiN1 = ModPhases(PhiN1);
-        RestState.PhaseExpected = PhiN1;
-        RestState.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-        RestState.IOIPhiN = (Tn1 - Tn) / PsiK;
-    } else {
-        RestState.PhaseExpected = 0;
-        RestState.IOIHatPhiN = 0;
-        RestState.IOIPhiN = 0;
-    }
-
-    // time phase
-    RestState.BPMExpected = m_CurrentBPM;
-
-    // Add values
-    m_PrevDuration = RestState.Duration;
-    m_LastOnset = RestState.OnsetExpected;
-
-    return RestState;
-}
-
-// ─────────────────────────────────────
-// MacroState OScofoScore::AddChord(States &ScoreStates, std::vector<std::string> Tokens) {
-//     // TODO:
-//     return;
-// }
-//
-//
-// // ─────────────────────────────────────
-// MacroState OScofoScore::AddMulti(States &ScoreStates, std::vector<std::string> Tokens) {
-//     // TODO:
-//     return;
-// }
-//
-// // ─────────────────────────────────────
-// MacroState OScofoScore::AddRest(States &ScoreStates, std::vector<std::string> Tokens) {
-//     // TODO:
-//     return;
-// }
-//
-// ─────────────────────────────────────
-void Score::AddAction(std::vector<std::string> Tokens) {
-    MacroState CurrentState = m_ScoreStates[m_ScoreStates.size() - 1];
-    std::vector<std::string> Action;
-    for (auto Token : Tokens) {
-    }
-
-    printf("\n");
-}
-
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-void Score::PrintTreeSitterNode(TSNode node, int indent) {
-    const char *type = ts_node_type(node);
-    std::string text = ts_node_string(node);
-    if (indent != 0) {
-        std::cout << std::string(indent, ' ') << type << ": " << text << std::endl;
-    }
-
-    uint32_t child_count = ts_node_child_count(node);
-    for (uint32_t i = 0; i < child_count; i++) {
-        PrintTreeSitterNode(ts_node_child(node, i), indent + 4); // Aumenta a indentação para filhos
-    }
-}
-
-// ─────────────────────────────────────
-std::string Score::GetCodeStr(TSNode Node) {
+std::string Score::GetCodeStr(const std::string &Score, TSNode Node) {
     int start = ts_node_start_byte(Node);
     int end = ts_node_end_byte(Node);
-    return std::string(std::string_view(m_TxtInput.data() + start, end - start));
+    return std::string(std::string_view(Score.data() + start, end - start));
 }
 
 // ─────────────────────────────────────
-int Score::ProcessNote(TSNode Node) {
-    TSNode pitchNode = ts_node_child_by_field_name(Node, "midi", 4);
-    TSNode durationNode = ts_node_child_by_field_name(Node, "duration", 8);
-    if (ts_node_is_null(pitchNode)) {
-        throw std::runtime_error("Pitch definition not found");
-    } else if (ts_node_is_null(durationNode)) {
-        throw std::runtime_error("Duration definition not found");
+double Score::GetFreqsFromNode(const std::string &Score, TSNode Node) {
+    uint32_t count = ts_node_child_count(Node);
+    if (count != 1) {
+        throw std::runtime_error("Invalid pitch count");
     }
-    std::string notetype = ts_node_type(pitchNode);
-    std::string durtype = ts_node_type(durationNode);
-    printf("note type: %s\n", notetype.c_str());
-    printf("duration type: %s\n", durtype.c_str());
 
-    return 0;
+    TSNode pitch = ts_node_child(Node, 0);
+    std::string pitch_type = ts_node_type(pitch);
+    if (pitch_type == "midi") {
+        std::string midi = GetCodeStr(Score, pitch);
+        double freq = m_Tunning * std::pow(2, (std::stof(midi) - 69) / 12);
+        return freq;
+    } else if (pitch_type == "pitchname") {
+        std::string pitchname = GetCodeStr(Score, pitch);
+        float midi = Name2Midi(pitchname);
+        double freq = m_Tunning * std::pow(2, (midi - 69) / 12);
+        return freq;
+    }
+    throw std::runtime_error("Invalid pitch type");
 }
 
 // ─────────────────────────────────────
-void Score::ParseInput() {
+double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
+    uint32_t count = ts_node_child_count(Node);
+    if (count != 1) {
+        throw std::runtime_error("Invalid duration count");
+    }
+
+    TSNode dur = ts_node_child(Node, 0);
+    std::string dur_type = ts_node_type(dur);
+    if (dur_type == "float" || dur_type == "integer") {
+        std::string dur_str = GetCodeStr(Score, dur);
+        return std::stof(dur_str);
+    }
+    throw std::runtime_error("Invalid duration type");
+}
+
+// ─────────────────────────────────────
+MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
+    m_ScorePosition++;
+
+    double Midi;
+    MacroState Note;
+    Note.Line = m_LineCount;
+    Note.Type = NOTE;
+    Note.Markov = SEMIMARKOV;
+    Note.Index = m_ScoreStates.size();
+    Note.ScorePos = m_ScorePosition;
+
+    uint32_t child_count = ts_node_child_count(Node);
+    for (uint32_t i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(Node, i);
+        std::string type = ts_node_type(child);
+        if (type == "NOTE") {
+            continue;
+        } else if (type == "pitch") {
+            AudioState SubState;
+            SubState.Type = NOTE;
+            SubState.Markov = MARKOV;
+            SubState.Freq = GetFreqsFromNode(Score, child);
+            Note.SubStates.push_back(SubState);
+        } else if (type == "duration") {
+            double duration = GetDurationFromNode(Score, child);
+            Note.Duration = duration;
+        } else if (type == "ACTION") {
+            printf("found action\n");
+            printf("action: %s\n", GetCodeStr(Score, child).c_str());
+        } else {
+            throw std::runtime_error("Invalid note event");
+        }
+    }
+    return Note;
+}
+
+// ─────────────────────────────────────
+MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
+    m_ScorePosition++;
+
+    MacroState Trill;
+    double Midi;
+    Trill.Line = m_LineCount;
+    Trill.Type = TRILL;
+    Trill.Markov = SEMIMARKOV;
+    Trill.Index = m_ScoreStates.size();
+    Trill.ScorePos = m_ScorePosition;
+
+    uint32_t child_count = ts_node_child_count(Node);
+    for (uint32_t i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(Node, i);
+        std::string type = ts_node_type(child);
+        if (type == "TRILL") {
+            continue;
+        } else if (type == "pitches") {
+            uint32_t pitches_count = ts_node_child_count(child);
+            for (uint32_t i = 0; i < pitches_count; i++) {
+                TSNode pitch = ts_node_child(child, i);
+                std::string type = ts_node_type(pitch);
+                if (type == "pitch" || type == "midi") {
+                    AudioState SubState;
+                    SubState.Type = NOTE;
+                    SubState.Markov = MARKOV;
+                    SubState.Freq = GetFreqsFromNode(Score, pitch);
+                    Trill.SubStates.push_back(SubState);
+                }
+            }
+        } else if (type == "duration") {
+            double duration = GetDurationFromNode(Score, child);
+            Trill.Duration = duration;
+        } else {
+            throw std::runtime_error("Invalid trill event");
+        }
+    }
+    return Trill;
+}
+
+// ─────────────────────────────────────
+void Score::ProcessEventTime(MacroState &Event) {
+    // Time
+    if (Event.Index != 0) {
+        int Index = Event.Index;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = Event.OnsetExpected;
+        double PhiN0 = Event.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        Event.PhaseExpected = PhiN1;
+        Event.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        Event.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        Event.PhaseExpected = 0;
+        Event.IOIHatPhiN = 0;
+        Event.IOIPhiN = 0;
+    }
+
+    Event.BPMExpected = m_CurrentBPM;
+}
+
+// ─────────────────────────────────────
+void Score::ProcessEvent(const std::string &Score, TSNode Node) {
+    uint32_t child_count = ts_node_child_count(Node);
+
+    for (uint32_t i = 0; i < child_count; i++) {
+        MacroState Event;
+        TSNode child = ts_node_child(Node, i);
+        std::string type = ts_node_type(child);
+        unsigned start_row, start_column;
+        TSPoint Pos = ts_node_start_point(child);
+        Event.Line = Pos.row + 1;
+        if (type == "NOTE") {
+            Event = NoteEvent(Score, child);
+            ProcessEventTime(Event);
+            m_MarkovIndex++;
+        } else if (type == "TRILL") {
+            Event = TrillEvent(Score, child);
+            ProcessEventTime(Event);
+            m_MarkovIndex++;
+        } else if (type == "REST") {
+            continue;
+        } else {
+            std::runtime_error("Invalid event type");
+        }
+        m_PrevDuration = Event.Duration;
+        m_LastOnset = Event.OnsetExpected;
+        m_ScoreStates.push_back(Event);
+    }
+}
+
+// ─────────────────────────────────────
+void Score::ProcessConfig(const std::string &Score, TSNode Node) {
+    MacroState Event;
+    uint32_t child_count = ts_node_child_count(Node);
+    for (uint32_t i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(Node, i);
+        std::string type = ts_node_type(child);
+        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (type == "bpm") {
+            uint32_t count = ts_node_child_count(Node);
+            TSNode value_node = ts_node_child(Node, i + 1);
+            std::string value = GetCodeStr(Score, value_node);
+            m_CurrentBPM = std::stof(value);
+        } else if (type == "transpose") {
+            uint32_t count = ts_node_child_count(Node);
+            TSNode value_node = ts_node_child(Node, i + 1);
+            std::string value = GetCodeStr(Score, value_node);
+            m_Transpose = std::stof(value);
+        }
+    }
+}
+
+// ─────────────────────────────────────
+void Score::ParseInput(const std::string &Score) {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_score());
-    TSTree *tree = ts_parser_parse_string(parser, nullptr, m_TxtInput.c_str(), m_TxtInput.size());
+    TSTree *tree = ts_parser_parse_string(parser, nullptr, Score.c_str(), Score.size());
     TSNode rootNode = ts_tree_root_node(tree);
-    PrintTreeSitterNode(rootNode, 0);
 
     uint32_t child_count = ts_node_child_count(rootNode);
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(rootNode, i);
         std::string type = ts_node_type(child);
-        if (type == "note_declaration") {
-            ProcessNote(child);
+        if (type == "EVENT") {
+            if (m_CurrentBPM == -1) {
+                throw std::runtime_error("BPM is not defined");
+            }
+            ProcessEvent(Score, child);
+        } else if (type == "CONFIG") {
+            ProcessConfig(Score, child);
         }
     }
 
@@ -456,71 +340,19 @@ States Score::Parse(std::string ScoreFile) {
         throw std::runtime_error("Score File not found");
     }
 
-    m_TxtInput = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
-
-    // Parse the input using Tree-sitter
-    // ParseInput();
-
     m_CurrentBPM = -1;
     m_LineCount = 0;
     m_MarkovIndex = 0;
     m_ScorePosition = 0;
     m_LastOnset = 0;
     m_PrevDuration = 0;
-
     std::string Line;
     double LastOnset = 0;
     double PreviousDuration = 0;
 
-    // for test
-    File.clear();
-    File.seekg(0, std::ios::beg);
-
-    while (std::getline(File, Line)) {
-        m_LineCount++;
-
-        // comments
-        if (Line.empty() || Line[0] == '#' || Line[0] == ';') {
-            continue;
-        }
-
-        std::istringstream iss(Line);
-        std::string Token;
-        std::vector<std::string> Tokens;
-        while (std::getline(iss, Token, ' ')) {
-            Tokens.push_back(Token);
-        }
-
-        if (Line[0] == '\t' || SpaceTab(Line, 2) || SpaceTab(Line, 4)) {
-            AddAction(Tokens);
-        } else {
-            if (m_ScorePosition == 1) {
-            }
-
-            // Actually Score
-            if (Tokens[0] == "NOTE") {
-                MacroState NewNote = AddNote(Tokens);
-                m_ScoreStates.push_back(NewNote);
-                // MacroState DummyRest = AddDumpSilence();
-                // m_ScoreStates.push_back(DummyRest);
-
-            } else if (Tokens[0] == "BPM") {
-                m_CurrentBPM = std::stof(Tokens[1]);
-                MacroState NewRest = AddRest({"REST", "0"});
-                m_ScoreStates.push_back(NewRest);
-                // add first Silence event
-            } else if (Tokens[0] == "REST") {
-                // MacroState NewRest = AddRest(Tokens);
-                // m_ScoreStates.push_back(NewRest);
-            } else if (Tokens[0] == "TRILL") {
-                MacroState NewTrill = AddTrill(Tokens);
-                m_ScoreStates.push_back(NewTrill);
-                // MacroState DummyRest = AddDumpSilence();
-                // m_ScoreStates.push_back(DummyRest);
-            }
-            m_MarkovIndex++;
-        }
-    }
+    // read and process score
+    std::string Score = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+    ParseInput(Score);
 
     m_ScoreLoaded = true;
     return m_ScoreStates;

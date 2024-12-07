@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Tree-sitter Syntax Highlighting</title>
+    <script src="tree-sitter.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      const Parser = window.TreeSitter;
+      var ScofoParser = null;
+
+      async function setScofoParse() {
+        const scoreScofo = await Parser.Language.load("tree-sitter-score.wasm");
+        ScofoParser.setLanguage(scoreScofo);
+      }
+
+      Parser.init().then(() => {
+        ScofoParser = new Parser();
+        setScofoParse(ScofoParser);
+      });
+    </script>
+  </head>
+  <body>
+    <h1 style="text-align: center">OScofo Score Editor</h1>
+    <h3 style="text-align: center">Charles K. Neimog</h3>
+    <div
+      style="display: flex; align-items: flex-start; width: 100%; height: auto"
+    >
+      <div class="container">
+        <textarea class="text-input"></textarea>
+        <div class="highlight-output"></div>
+      </div>
+
+      <button onclick="downloadScore()">Download Score</button>
+      <button>Import Musicxml</button>
+      <button>Import Midi</button>
+    </div>
+
+    <script>
+      const editor = document.getElementById("editor");
+      const lineNumbers = document.getElementById("line-numbers");
+
+      //───────────────────────────────────────
+      function getNodeText(text, node) {
+        if (node !== null && node !== undefined) {
+          let start = node.startIndex;
+          let end = node.endIndex;
+          let nodeText = text.slice(start, end);
+          return nodeText;
+        }
+        return "";
+      }
+
+      //───────────────────────────────────────
+      function highlighting(editor, text, node) {
+        let innerHTMLText = "";
+
+        function highlighNode(text, node) {
+          for (let child of node.children) {
+            let nodeText = getNodeText(text, child);
+            if (child.type == "ERROR") {
+              innerHTMLText += "<span class='error'>" + nodeText + "</span>";
+            } else if (nodeText == "NOTE") {
+              innerHTMLText += "<span class='note'>" + nodeText + "</span>";
+            } else if (child.type == "pitch") {
+              innerHTMLText += "<span class='pitch'>" + nodeText + "</span>";
+            } else if (child.type == "duration") {
+              innerHTMLText += "<span class='duration'>" + nodeText + "</span>";
+            }
+
+            if (child.children.length > 0) {
+              highlighNode(nodeText, child);
+            }
+          }
+        }
+
+        highlighNode(text, node);
+        editor.innerHTML = innerHTMLText;
+      }
+
+      //───────────────────────────────────────
+      function downloadScore() {
+        const sourceCode = document.getElementById("editor").innerText;
+        const blob = new Blob([sourceCode], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "score.scofo";
+        a.click();
+        a.remove();
+      }
+
+      //───────────────────────────────────────
+      function syncScroll() {
+        lineNumbers.scrollTop = editor.scrollTop;
+      }
+
+      //───────────────────────────────────────
+      function updateLineNumbers(text) {
+        const lines = text.split("\n"); // Split the text into lines
+        let lineNumberHTML = "";
+        if (lines.length === 1) {
+          lineNumberHTML += "1\n";
+        } else {
+          for (let i = 1; i < lines.length; i++) {
+            lineNumberHTML += i + "\n";
+          }
+        }
+        lineNumbers.textContent = lineNumberHTML;
+      }
+
+      document
+        .getElementById("editor")
+        .addEventListener("keydown", function (event) {
+          if (event.key === "Tab") {
+            event.preventDefault();
+            document.execCommand("insertText", false, "    ");
+          }
+        });
+
+      editor.addEventListener("scroll", syncScroll);
+      editor.addEventListener("input", function () {
+        const sourceCode = editor.innerText; // Get the text content inside the editor
+        const tree = ScofoParser.parse(sourceCode);
+        const rootNode = tree.rootNode;
+        // highlighting(editor, sourceCode, rootNode);
+        updateLineNumbers(sourceCode);
+      });
+
+      let placeholderText = "// Type your score here";
+      editor.innerText = placeholderText;
+      updateLineNumbers(placeholderText);
+      editor.addEventListener("focus", function () {
+        if (editor.innerText === placeholderText) {
+          editor.innerText = "";
+        }
+      });
+
+      editor.addEventListener("blur", function () {
+        if (editor.innerText.trim() === "") {
+          editor.innerText = placeholderText;
+        }
+      });
+    </script>
+  </body>
+</html>

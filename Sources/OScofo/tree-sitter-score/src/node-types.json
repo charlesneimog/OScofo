@@ -1,14 +1,18 @@
 [
   {
-    "type": "ACTION",
+    "type": "BPM",
     "named": true,
     "fields": {},
     "children": {
       "multiple": false,
-      "required": false,
+      "required": true,
       "types": [
         {
-          "type": "LUA",
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "integer",
           "named": true
         }
       ]
@@ -22,31 +26,40 @@
   {
     "type": "CONFIG",
     "named": true,
-    "fields": {}
-  },
-  {
-    "type": "EVENT",
-    "named": true,
     "fields": {},
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": true,
       "types": [
         {
-          "type": "ACTION",
-          "named": true
-        },
-        {
-          "type": "NOTE",
+          "type": "BPM",
           "named": true
         }
       ]
     }
   },
   {
-    "type": "LUA",
+    "type": "EVENT",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "NOTE",
+          "named": true
+        },
+        {
+          "type": "REST",
+          "named": true
+        },
+        {
+          "type": "TRILL",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "NOTE",
@@ -68,14 +81,127 @@
     }
   },
   {
-    "type": "duration",
+    "type": "REST",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "duration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "TRILL",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "duration",
+          "named": true
+        },
+        {
+          "type": "pitches",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "alteration",
     "named": true,
     "fields": {}
   },
   {
+    "type": "duration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "integer",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "pitch",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "midi",
+          "named": true
+        },
+        {
+          "type": "pitchname",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pitches",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "close_parenthesis",
+          "named": true
+        },
+        {
+          "type": "open_parenthesis",
+          "named": true
+        },
+        {
+          "type": "pitch",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pitchname",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alteration",
+          "named": true
+        },
+        {
+          "type": "octave",
+          "named": true
+        },
+        {
+          "type": "pitchclass",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "source_file",
@@ -101,11 +227,15 @@
     }
   },
   {
+    "type": " ",
+    "named": false
+  },
+  {
     "type": "#",
     "named": false
   },
   {
-    "type": "/",
+    "type": "##",
     "named": false
   },
   {
@@ -121,19 +251,47 @@
     "named": false
   },
   {
-    "type": "delay",
+    "type": "REST",
     "named": false
   },
   {
-    "type": "exec lua",
+    "type": "TRILL",
     "named": false
   },
   {
-    "type": "{",
+    "type": "b",
     "named": false
   },
   {
-    "type": "}",
+    "type": "bb",
     "named": false
+  },
+  {
+    "type": "close_parenthesis",
+    "named": true
+  },
+  {
+    "type": "float",
+    "named": true
+  },
+  {
+    "type": "integer",
+    "named": true
+  },
+  {
+    "type": "midi",
+    "named": true
+  },
+  {
+    "type": "octave",
+    "named": true
+  },
+  {
+    "type": "open_parenthesis",
+    "named": true
+  },
+  {
+    "type": "pitchclass",
+    "named": true
   }
 ]

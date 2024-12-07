@@ -20,13 +20,13 @@ OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopS
 // ╰─────────────────────────────────────╯
 void OScofo::SetPitchTemplateSigma(double Sigma) {
     m_MDP.SetPitchTemplateSigma(Sigma);
-    m_MDP.UpdatePitchTemplate();
+    m_MDP.UpdateAudioTemplate();
 }
 
 // ─────────────────────────────────────
 void OScofo::SetHarmonics(int Harmonics) {
     m_MDP.SetHarmonics(Harmonics);
-    m_MDP.UpdatePitchTemplate();
+    m_MDP.UpdateAudioTemplate();
 }
 
 // ─────────────────────────────────────
