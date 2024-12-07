@@ -1,43 +1,42 @@
-.editor-container {
-  display: flex;
-  align-items: flex-start;
-}
-
-.editor {
-  margin-right: 20px;
-  width: 90%;
-  max-width: 100%;
-  min-height: 400px;
-  font-size: 16px;
-  font-family: "FiraCodeNerdFont", "Courier New", monospace;
-  padding: 10px;
-  border: 1px solid #ccc;
+.container {
+  position: relative;
+  width: 60%; /* Set your desired width */
+  height: 300px; /* Set your desired height */
+  border: 1px solid #ccc; /* Optional: visualize the container */
   border-radius: 10px;
-  box-sizing: border-box;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
-  flex-grow: 1;
 }
 
-.editor:focus {
-  outline: none;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+.text-input {
+  position: absolute;
+  top: 1%;
+  left: 1%;
+  width: 98%;
+  height: 98%;
+  opacity: 0;
+  z-index: 1;
+  caret-color: black;
 }
 
-.line-numbers {
-  width: 10%;
-  padding: 10px;
-  margin-right: 10px;
+.highlight-output {
+  position: absolute;
+  top: 1%;
+  left: 1%;
+  width: 98%;
+  height: 98%;
+  z-index: 0;
+  overflow: auto;
   font-family: "FiraCodeNerdFont", "Courier New", monospace;
-  font-size: 16px;
-  color: #888;
   white-space: pre-wrap;
-  word-wrap: break-word;
-  min-width: 40px;
-  text-align: right;
-  /* border-right: 1px solid #ccc; */
+}
+
+.keyword-blue {
+  color: blue;
+  font-weight: bold;
+}
+
+.keyword-red {
+  color: red;
+  font-weight: bold;
 }
 
 button {
@@ -82,6 +81,10 @@ button:active {
 
 .error {
   color: red;
+}
+
+.highlight-selection {
+  background-color: rgba(173, 216, 230, 0.5); /* Light blue for selection */
 }
 
 /* Define the custom font */
