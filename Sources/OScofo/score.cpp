@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -9,13 +10,6 @@
 extern "C" TSLanguage *tree_sitter_score();
 
 namespace OScofo {
-
-// clang-format off
-// TODO: Add SECTION word, for example, "SECTION B" will start a score after the SECTION B event
-// TODO: Add EVENT (This must get a duration) and output one timer with it, for example, in 10000ms, a timer from 0 to 10000ms
-// TODO: ADD CHORD, MULTI, etc.
-// TODO: ADD EXTENDED TECHNIQUES @pizz, @multiphonic,
-// clang-format on
 
 // ─────────────────────────────────────
 void Score::PrintTreeSitterNode(TSNode node, int indent) {
@@ -44,7 +38,6 @@ bool Score::ScoreIsLoaded() {
 // ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
-
 int Score::Name2Midi(std::string note) {
     char noteName = note[0];
     int classNote = -1;
@@ -74,13 +67,15 @@ int Score::Name2Midi(std::string note) {
         throw std::runtime_error("Invalid note name for " + note);
     }
 
+    int endAcc = 1;
     if (note[1] == '#' || note[1] == 'b') {
-        noteName = note[1];
-        if (noteName == '#') {
+        char acc = note[1];
+        if (acc == '#') {
             classNote++;
         } else {
             classNote--;
         }
+
         if (std::isdigit(note[2])) {
             int octave = std::stoi(note.substr(2));
             int midi = classNote + 12 + (12 * octave);
@@ -89,8 +84,8 @@ int Score::Name2Midi(std::string note) {
             throw std::runtime_error("Invalid note name for " + note);
         }
     } else {
-        if (std::isdigit(note[1])) {
-            int octave = std::stoi(note.substr(1));
+        if (std::isdigit(note[endAcc])) {
+            int octave = std::stoi(note.substr(endAcc));
             int midi = classNote + 12 + (12 * octave);
             return midi;
         } else {
@@ -183,6 +178,9 @@ MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
         } else if (type == "duration") {
             double duration = GetDurationFromNode(Score, child);
             Note.Duration = duration;
+        } else if (type == "ACTION") {
+            printf("found action\n");
+            printf("action: %s\n", GetCodeStr(Score, child).c_str());
         } else {
             throw std::runtime_error("Invalid note event");
         }
@@ -190,28 +188,6 @@ MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
     return Note;
 }
 
-// ─────────────────────────────────────
-void Score::ProcessEventTime(MacroState &Event) {
-    // Time
-    if (Event.Index != 0) {
-        int Index = Event.Index;
-        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
-        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
-        double Tn1 = Event.OnsetExpected;
-        double PhiN0 = Event.PhaseExpected;
-        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
-        PhiN1 = ModPhases(PhiN1);
-        Event.PhaseExpected = PhiN1;
-        Event.IOIHatPhiN = (Tn1 - Tn) / PsiK;
-        Event.IOIPhiN = (Tn1 - Tn) / PsiK;
-    } else {
-        Event.PhaseExpected = 0;
-        Event.IOIHatPhiN = 0;
-        Event.IOIPhiN = 0;
-    }
-
-    Event.BPMExpected = m_CurrentBPM;
-}
 // ─────────────────────────────────────
 MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
@@ -254,6 +230,29 @@ MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
+void Score::ProcessEventTime(MacroState &Event) {
+    // Time
+    if (Event.Index != 0) {
+        int Index = Event.Index;
+        double PsiK = 60.0f / m_ScoreStates[Index - 1].BPMExpected;
+        double Tn = m_ScoreStates[Index - 1].OnsetExpected;
+        double Tn1 = Event.OnsetExpected;
+        double PhiN0 = Event.PhaseExpected;
+        double PhiN1 = PhiN0 + ((Tn1 - Tn) / PsiK);
+        PhiN1 = ModPhases(PhiN1);
+        Event.PhaseExpected = PhiN1;
+        Event.IOIHatPhiN = (Tn1 - Tn) / PsiK;
+        Event.IOIPhiN = (Tn1 - Tn) / PsiK;
+    } else {
+        Event.PhaseExpected = 0;
+        Event.IOIHatPhiN = 0;
+        Event.IOIPhiN = 0;
+    }
+
+    Event.BPMExpected = m_CurrentBPM;
+}
+
+// ─────────────────────────────────────
 void Score::ProcessEvent(const std::string &Score, TSNode Node) {
     uint32_t child_count = ts_node_child_count(Node);
 
@@ -263,7 +262,7 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
         std::string type = ts_node_type(child);
         unsigned start_row, start_column;
         TSPoint Pos = ts_node_start_point(child);
-
+        Event.Line = Pos.row + 1;
         if (type == "NOTE") {
             Event = NoteEvent(Score, child);
             ProcessEventTime(Event);
@@ -277,10 +276,8 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
         } else {
             std::runtime_error("Invalid event type");
         }
-        Event.Line = Pos.row + 1;
         m_PrevDuration = Event.Duration;
         m_LastOnset = Event.OnsetExpected;
-
         m_ScoreStates.push_back(Event);
     }
 }
@@ -292,24 +289,17 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
-        if (type == "BPM") {
-            // BPM: ("BPM")
-            // float: (float)
-            uint32_t count = ts_node_child_count(child);
-            for (uint32_t i = 0; i < count; i++) {
-                TSNode bpm = ts_node_child(child, i);
-                std::string bpm_type = ts_node_type(bpm);
-                if (bpm_type == "float") {
-                    std::string bpm_str = GetCodeStr(Score, bpm);
-                    m_CurrentBPM = std::stof(bpm_str);
-                } else if (bpm_type == "integer") {
-                    std::string bpm_str = GetCodeStr(Score, bpm);
-                    m_CurrentBPM = std::stof(bpm_str);
-                }
-            }
-
-            // m_CurrentBPM = std::stof(GetCodeStr(bpm));
-        } else if (type == "transpose" || type == "TRANSPOSE") {
+        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (type == "bpm") {
+            uint32_t count = ts_node_child_count(Node);
+            TSNode value_node = ts_node_child(Node, i + 1);
+            std::string value = GetCodeStr(Score, value_node);
+            m_CurrentBPM = std::stof(value);
+        } else if (type == "transpose") {
+            uint32_t count = ts_node_child_count(Node);
+            TSNode value_node = ts_node_child(Node, i + 1);
+            std::string value = GetCodeStr(Score, value_node);
+            m_Transpose = std::stof(value);
         }
     }
 }

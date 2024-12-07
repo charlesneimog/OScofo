@@ -57,6 +57,9 @@ class Score {
     MacroState AddRest(std::vector<std::string> Tokens);
     void AddAction(std::vector<std::string> Tokens);
 
+    // Some ScoreConfigs
+    float m_Transpose;
+
     // Variables
     int m_ScorePosition = 1;
     int m_LineCount = 0;
