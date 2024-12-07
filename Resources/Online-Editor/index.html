@@ -1,28 +1,30 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tree-sitter Syntax Highlighting</title>
-    <script src="tree-sitter.js"></script>
-    <link rel="stylesheet" href="styles.css" />
-    <script></script>
-  </head>
-  <body>
-    <h1 style="text-align: center">OScofo Score Editor</h1>
-    <div
-      style="display: flex; align-items: flex-start; width: 100%; height: auto"
-    >
-      <div class="container">
-        <textarea class="text-input"></textarea>
-        <div class="highlight-output"></div>
-      </div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tree-sitter Syntax Highlighting</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" />
+        <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+        <script src="tree-sitter.js"></script>
+        <link rel="stylesheet" href="styles.css" />
+        <script></script>
+    </head>
+    <body>
+        <h1 style="text-align: center">OScofo Score Editor</h1>
+        <div style="display: flex; align-items: flex-start; width: 100%; height: auto">
+            <div class="container">
+                <div class="line-numbers"></div>
+                <textarea class="text-input"></textarea>
+                <div class="highlight-output"></div>
+            </div>
 
-      <button>Download Score</button>
-      <button>Import Musicxml</button>
-      <button>Import Midi</button>
-    </div>
-    <script src="editor.js"></script>
-    <script></script>
-  </body>
+            <button id="download-score"><i class="fa-solid fa-download"></i> Download Score</button>
+            <button id="upload-score"><i class="fa-solid fa-file-arrow-up"></i> Import Musicxml</button>
+            <input type="file" id="fileInput" accept=".xml, .musicxml, .mxl" style="display: none" />
+        </div>
+        <script src="editor.js"></script>
+        <script></script>
+    </body>
 </html>

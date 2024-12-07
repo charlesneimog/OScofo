@@ -1,96 +1,210 @@
 .container {
-  position: relative;
-  width: 60%; /* Set your desired width */
-  height: 300px; /* Set your desired height */
-  border: 1px solid #ccc; /* Optional: visualize the container */
-  border-radius: 10px;
+    position: relative;
+    width: 60%;
+    height: 500px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 144, 0, 0.2); /* Initial shadow */
+    overflow-x: auto;
+    overflow-y: auto;
+    box-sizing: border-box; /* Ensure padding doesn't cause overflow */
+    font-size: 16px;
+    transition: box-shadow 0.3s ease-in-out; /* Smooth transition */
+}
+
+.container:hover {
+    box-shadow: 0 0 20px rgba(0, 144, 0, 0.4); /* Larger shadow on hover */
+}
+
+.line-numbers {
+    position: absolute;
+    width: 3%;
+    min-height: 500px;
+    height: 100%;
+    padding: 5px;
+    overflow-x: auto;
+    overflow-y: scroll;
+    background-color: #f5f5f5;
+    color: #333;
+    text-align: right;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
 }
 
 .text-input {
-  position: absolute;
-  top: 1%;
-  left: 1%;
-  width: 98%;
-  height: 98%;
-  opacity: 0;
-  z-index: 1;
-  caret-color: black;
+    position: absolute;
+    top: 0;
+    left: 3%;
+    width: 97%;
+    height: 100%;
+    opacity: 0;
+    z-index: 1;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    white-space: pre-wrap; /* Keep text formatting */
 }
 
 .highlight-output {
-  position: absolute;
-  top: 1%;
-  left: 1%;
-  width: 98%;
-  height: 98%;
-  z-index: 0;
-  overflow: auto;
-  font-family: "FiraCodeNerdFont", "Courier New", monospace;
-  white-space: pre-wrap;
+    position: absolute;
+    margin-left: 5%;
+    top: 1%;
+    width: 97%;
+    height: 100%;
+    z-index: 0;
+    overflow: auto;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
 }
 
-.keyword-blue {
-  color: blue;
-  font-weight: bold;
-}
-
-.keyword-red {
-  color: red;
-  font-weight: bold;
+.highlight-selection {
+    background-color: rgba(173, 216, 230, 0.5); /* Light blue for selection */
 }
 
 button {
-  margin-left: 20px;
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: bold;
-  border: none;
-  border-radius: 5px;
-  background-color: #4caf50;
-  color: white;
-  cursor: pointer;
-  transition:
-    background-color 0.3s ease,
-    transform 0.2s ease;
+    margin-left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    background-color: #4caf50;
+    color: white;
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
 }
 
 /* Hover effect for the button */
 button:hover {
-  background-color: #45a049; /* Slightly darker green on hover */
-  transform: scale(1.05); /* Slightly scale up the button */
+    background-color: #45a049; /* Slightly darker green on hover */
+    transform: scale(1.05); /* Slightly scale up the button */
 }
 
 /* Active effect for the button */
 button:active {
-  background-color: #388e3c; /* Even darker green when clicked */
-  transform: scale(0.98); /* Slightly scale down when clicked */
+    background-color: #388e3c; /* Even darker green when clicked */
+    transform: scale(0.98); /* Slightly scale down when clicked */
 }
 
-.note {
-  color: blue;
-  font-weight: bold;
+/* Light Mode - One Light Theme */
+.open_parenthesis {
+    color: #383a42; /* Dark gray */
+    font-weight: bold;
+}
+.close_parenthesis {
+    color: #383a42; /* Dark gray */
+    font-weight: bold;
+}
+.KEYWORD {
+    color: #a626a4; /* Purple */
+    font-weight: bold;
+}
+.CONFIG {
+    color: #986801; /* Orange */
+    font-weight: bold;
+}
+.COMMENT {
+    color: #a0a1a7; /* Light gray */
+    font-style: italic;
+}
+.ERROR {
+    color: #e45649; /* Red */
+    text-decoration: underline;
+}
+.octave {
+    color: #50a14f; /* Green */
+}
+.pitchclass {
+    color: #50a14f; /* Green */
+}
+.alteration {
+    color: #50a14f; /* Green */
+}
+.midi {
+    color: #50a14f; /* Green */
+}
+.integer {
+    color: #4078f2; /* Blue */
+}
+.float {
+    color: #4078f2; /* Blue */
 }
 
-.pitch {
-  color: green;
-}
+/* Change background color based on theme */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #333;
+        color: #f5f5f5;
+    }
+    .container {
+        background-color: #444;
+    }
+    .line-numbers {
+        background-color: #555;
+        color: #ccc;
+    }
+    button {
+        background-color: #1e8449;
+    }
+    button:hover {
+        background-color: #186a3b;
+    }
+    button:active {
+        background-color: #145a32;
+    }
 
-.duration {
-  color: red;
-}
-
-.error {
-  color: red;
-}
-
-.highlight-selection {
-  background-color: rgba(173, 216, 230, 0.5); /* Light blue for selection */
+    /* Dark Mode - One Dark Theme */
+    .open_parenthesis {
+        color: #abb2bf; /* Light gray */
+        font-weight: bold;
+    }
+    .close_parenthesis {
+        color: #abb2bf; /* Light gray */
+        font-weight: bold;
+    }
+    .KEYWORD {
+        color: #c678dd; /* Purple */
+        font-weight: bold;
+    }
+    .CONFIG {
+        color: #d19a66; /* Orange */
+        font-weight: bold;
+    }
+    .COMMENT {
+        color: rgb(220, 220, 220); /* Dark gray */
+        font-style: italic;
+    }
+    .ERROR {
+        color: #e06c75; /* Red */
+        text-decoration: underline;
+    }
+    .octave {
+        color: #98c379; /* Green */
+    }
+    .pitchclass {
+        color: #98c379; /* Green */
+    }
+    .alteration {
+        color: #98c379; /* Green */
+    }
+    .midi {
+        color: #98c379; /* Green */
+    }
+    .integer {
+        color: #61afef; /* Blue */
+    }
+    .float {
+        color: #61afef; /* Blue */
+    }
 }
 
 /* Define the custom font */
 @font-face {
-  font-family: "FiraCodeNerdFont";
-  src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "FiraCodeNerdFont";
+    src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
 }
