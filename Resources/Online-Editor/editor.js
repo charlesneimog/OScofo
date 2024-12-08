@@ -150,7 +150,7 @@ class ScofoHighlighter {
     }
 
     click() {
-        if (this.textInput.value === "// Edit your score here") {
+        if (this.textInput.value === "; Edit your score here") {
             this.textInput.value = "";
         }
 
@@ -347,10 +347,8 @@ class ScofoHighlighter {
 
     uploadScore() {
         const fileInput = document.getElementById("fileInput");
-        fileInput.focus(); // Ensure the element is in focus
         fileInput.click();
         fileInput.onchange = (event) => {
-            console.log(event);
             const file = event.target.files[0];
             if (!file) {
                 console.error("No file selected");
@@ -373,7 +371,7 @@ class ScofoHighlighter {
                                 });
                         })
                         .catch((error) => {
-                            console.error("Error extracting MXL file:", error);
+                            alert("Error extracting MXL file:", error);
                         });
                 };
                 reader.onerror = (error) => {
@@ -393,7 +391,7 @@ class ScofoHighlighter {
                 };
                 reader.readAsText(file); // Read the XML as text
             } else {
-                console.error("Unsupported file type");
+                alert("Unsupported file type");
             }
         };
     }
@@ -436,32 +434,9 @@ class ScofoHighlighter {
         const recoveredValue = this.getCookie("textInputValue");
         this.textInput.value = recoveredValue;
         if (!recoveredValue) {
-            this.textInput.value = "// Edit your score here";
+            this.textInput.value = "; Edit your score here";
         }
         this.updateHighlightOutput();
-
-        const fileInput = document.getElementById("fileInput");
-        const uploadButton = document.getElementById("upload-score");
-
-        // Trigger file input click on "Upload Score" button click
-        uploadButton.addEventListener("click", () => {
-            fileInput.click();
-        });
-        fileInput.addEventListener("change", (event) => {
-            const files = event.target.files;
-            if (files.length > 0) {
-                console.log("File selected:", files[0].name);
-                // Add your upload logic here
-            }
-        });
-        fileInput.addEventListener("change", (event) => {
-            preview.innerHTML = "";
-            Array.from(event.target.files).forEach((file) => {
-                const listItem = document.createElement("div");
-                listItem.textContent = `File Name: ${file.name}, Size: ${file.size} bytes`;
-                preview.appendChild(listItem);
-            });
-        });
     }
 }
 
