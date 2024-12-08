@@ -13,8 +13,10 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          cp -r ./Resources/Online-Editor/ ../
           git checkout gh-pages || git checkout --orphan gh-pages
-          cp -r ./Resources/Online-Editor/* .
+          git rm -rf . || true
+          cp -r ../Online-Editor/* .
           git add .
           git commit -m "Update gh-pages"
           git push origin gh-pages --force
