@@ -1,0 +1,297 @@
+html {
+    scrollbar-width: thin; /* For Firefox */
+    scrollbar-color: #888 transparent; /* For Firefox */
+}
+
+body::-webkit-scrollbar {
+    width: 3px;
+    border-radius: 2px;
+}
+
+body::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+}
+
+body::-webkit-scrollbar-thumb {
+    background-color: darkgrey;
+    outline: 1px solid slategrey;
+}
+
+.container {
+    position: relative;
+    width: 60%;
+    height: 400px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 144, 0, 0.2); /* Initial shadow */
+    overflow-x: auto;
+    overflow-y: auto;
+    box-sizing: border-box; /* Ensure padding doesn't cause overflow */
+    font-size: 16px;
+    transition: box-shadow 0.3s ease-in-out; /* Smooth transition */
+    line-height: 1.5; /* Adjust line height for the entire container */
+    scroll-behavior: smooth;
+    poitner-events: pointer;
+}
+.container::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+}
+.container::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 144, 0, 0.5); /* Thumb color */
+    border-radius: 4px;
+}
+.container::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.1); /* Track color */
+}
+
+.container:hover {
+    box-shadow: 0 0 20px rgba(0, 144, 0, 0.4); /* Larger shadow on hover */
+}
+
+.line-numbers {
+    position: absolute;
+    width: 3%;
+    min-height: 400px;
+    padding: 5px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    background-color: #f5f5f5;
+    color: #333;
+    text-align: right;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    line-height: 1.5; /* Increase space between lines in line numbers */
+}
+
+.text-input {
+    position: absolute;
+    left: 5%;
+    height: 100%;
+    width: 94%;
+    min-height: 400px;
+    opacity: 0.2;
+    color: transparent;
+    background-color: transparent;
+    border: none;
+    z-index: 1;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    caret-color: black;
+}
+
+.text-input:focus {
+    outline: none;
+    border: none;
+    color: transparent;
+}
+
+.text-input::selection {
+    background-color: #b3d4fc; /* Highlight color for selected text */
+    color: transparent; /* Hide text color for selected text */
+}
+
+.highlight-output {
+    position: absolute;
+    top: 1.1%; /* Align to the same top position as text-input */
+    left: 5%; /* Align horizontally with text-input */
+    z-index: 0;
+    overflow: hidden;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    font-size: 16px;
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
+    line-height: 1.5; /* Increase space between lines in highlighted output */
+}
+
+.error-messages {
+    bottom: 0; /* Position at the bottom of the container */
+    left: 3%; /* Align with the text input and line numbers */
+    color: red;
+    margin-top: 20%; /* Add spacing between textarea and error message */
+    padding: 20px;
+    font-size: 14px;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    border-radius: 5px;
+    z-index: 2; /* Ensure it appears on top of other elements */
+    overflow-y: auto; /* Allow scrolling if the error messages are long */
+}
+
+button {
+    margin-left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    background-color: #4caf50;
+    color: white;
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
+}
+
+.h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+.h2 {
+    font-size: 1.5em;
+    margin: 0.83em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+.h3 {
+    font-size: 1.17em;
+    margin: 1em 0;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+
+/* Hover effect for the button */
+button:hover {
+    background-color: #45a049; /* Slightly darker green on hover */
+    transform: scale(1.05); /* Slightly scale up the button */
+}
+
+/* Active effect for the button */
+button:active {
+    background-color: #388e3c; /* Even darker green when clicked */
+    transform: scale(0.98); /* Slightly scale down when clicked */
+}
+
+/* Light Mode - One Light Theme */
+.open_parenthesis {
+    color: #383a42; /* Dark gray */
+    font-weight: bold;
+}
+.close_parenthesis {
+    color: #383a42; /* Dark gray */
+    font-weight: bold;
+}
+.KEYWORD {
+    color: #a626a4; /* Purple */
+    font-weight: bold;
+}
+.CONFIG {
+    color: #986801; /* Orange */
+    font-weight: bold;
+}
+.COMMENT {
+    color: #a0a1a7; /* Light gray */
+    font-style: italic;
+    font-weight: lighter;
+    opacity: 0.4;
+}
+
+.ERROR {
+    color: #e45649; /* Red */
+    text-decoration: underline;
+    text-decoration-style: wavy; /* Subline ondulada */
+}
+
+.octave {
+    color: #50a14f; /* Green */
+}
+.pitchclass {
+    color: #50a14f; /* Green */
+}
+.alteration {
+    color: #50a14f; /* Green */
+    text-decoration: none;
+}
+.midi {
+    color: #50a14f; /* Green */
+}
+.integer {
+    color: #4078f2; /* Blue */
+}
+.float {
+    color: #4078f2; /* Blue */
+}
+
+/* Change background color based on theme */
+@media (prefers-color-scheme: dark) {
+    .text-input {
+        caret-color: white;
+    }
+    body {
+        background-color: #333;
+        color: #f5f5f5;
+    }
+    .container {
+        background-color: #444;
+    }
+    .line-numbers {
+        background-color: #555;
+        color: #ccc;
+    }
+    button {
+        background-color: #1e8449;
+    }
+    button:hover {
+        background-color: #186a3b;
+    }
+    button:active {
+        background-color: #145a32;
+    }
+
+    /* Dark Mode - One Dark Theme */
+    .open_parenthesis {
+        color: #abb2bf; /* Light gray */
+        font-weight: bold;
+    }
+    .close_parenthesis {
+        color: #abb2bf; /* Light gray */
+        font-weight: bold;
+    }
+    .KEYWORD {
+        color: #c678dd; /* Purple */
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .CONFIG {
+        color: #d19a66; /* Orange */
+        font-weight: bold;
+    }
+    .COMMENT {
+        color: rgb(220, 220, 220); /* Dark gray */
+        font-style: italic;
+        font-weight: lighter;
+        opacity: 0.4;
+    }
+    .ERROR {
+        color: #e06c75; /* Red */
+        text-decoration: underline;
+    }
+    .octave {
+        color: #98c379; /* Green */
+    }
+    .pitchclass {
+        color: #98c379; /* Green */
+        text-decoration: none;
+    }
+    .alteration {
+        color: #98c379; /* Green */
+    }
+    .midi {
+        color: #98c379; /* Green */
+    }
+    .integer {
+        color: #61afef; /* Blue */
+    }
+    .float {
+        color: #61afef; /* Blue */
+    }
+}
+
+/* Define the custom font */
+@font-face {
+    font-family: "FiraCodeNerdFont";
+    src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
