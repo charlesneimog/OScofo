@@ -9,6 +9,7 @@ class ScofoHighlighter {
         this.htmlFormatterCode = "";
         this.linesWithErrors = {}; // Track lines with errors
         this.musicxmlScore = [];
+        this.lastUpdate = Date.now();
 
         // Initialize the parser and setup event listeners
         this.initParser().then(() => {
@@ -32,6 +33,13 @@ class ScofoHighlighter {
         return `<span class="highlight-selection">${selectedText}</span>`;
     }
 
+    showError(message) {
+        const errorContainer = document.querySelector(".error-messages");
+        const errorElement = document.createElement("p");
+        errorElement.textContent = message;
+        errorContainer.appendChild(errorElement);
+    }
+
     highlightCode(input, node, errors) {
         const keywords = ["NOTE", "TRILL", "REST"];
         const config = ["BPM"];
@@ -41,9 +49,15 @@ class ScofoHighlighter {
             let lastPosition = node.startIndex;
             node.namedChildren.forEach((child) => {
                 const line = input.slice(0, child.startIndex).split("\n").length;
-                if (child.type === "ERROR") {
+                if (child.hasError) {
                     errors[line] = true;
                 }
+                if (child.isMissing) {
+                    errors[line] = true;
+                    this.showError("Syntax error: missing " + child.parent.type + " at line " + line + ".");
+                }
+                // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(child)));
+
                 const nodeTxtStrNoSpace = input.slice(lastPosition, child.startIndex).trim();
                 if (nodeTxtStrNoSpace.length > 0 && keywords.includes(nodeTxtStrNoSpace)) {
                     highlightedText += `<span class="KEYWORD">${nodeTxtStrNoSpace}</span>`;
@@ -87,6 +101,9 @@ class ScofoHighlighter {
     }
 
     updateHighlightOutput() {
+        const errorContainer = document.querySelector(".error-messages");
+        errorContainer.innerHTML = "";
+
         this.resizeInput();
         const value = this.textInput.value;
         const tree = this.ScofoParser.parse(value);
@@ -95,7 +112,10 @@ class ScofoHighlighter {
         this.highlightOutput.innerHTML = styledCode;
         this.updateLineNumbers(errors);
 
-        // Dynamically adjust height of text input based on its content
+        for (let errorLine in errors) {
+            this.showError("Error at line " + errorLine + ".");
+        }
+
         this.adjustTextInputHeight();
     }
 
@@ -105,13 +125,6 @@ class ScofoHighlighter {
 
     adjustLineNumbersHeight() {
         this.lineNumbers.style.height = `${this.textInput.scrollHeight}px`;
-    }
-
-    simulateSelection() {
-        const value = this.textInput.value;
-        const selectionStart = this.textInput.selectionStart;
-        const selectionEnd = this.textInput.selectionEnd;
-        this.highlightOutput.innerHTML = this.applySelection(value, selectionStart, selectionEnd);
     }
 
     downloadScore() {
@@ -336,9 +349,8 @@ class ScofoHighlighter {
         const fileInput = document.getElementById("fileInput");
         fileInput.focus(); // Ensure the element is in focus
         fileInput.click();
-
         fileInput.onchange = (event) => {
-            // Get the first file uploaded
+            console.log(event);
             const file = event.target.files[0];
             if (!file) {
                 console.error("No file selected");
@@ -399,15 +411,23 @@ class ScofoHighlighter {
         return null;
     }
 
+    preventDefault(e) {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            this.textInput.value += "    ";
+        }
+    }
+
     initEventListeners() {
         this.textInput.addEventListener("input", () => this.updateHighlightOutput());
-        this.textInput.addEventListener("select", () => this.simulateSelection());
+        this.textInput.addEventListener("keydown", (e) => this.preventDefault(e));
         this.textInput.addEventListener("scroll", () => this.syncScrollPosition());
         this.textInput.addEventListener("click", () => this.click());
         setInterval(this.saveToCookies, 15000);
 
         const downloadButton = document.querySelector("#download-score");
         const uploadButtom = document.querySelector("#upload-score");
+
         if (downloadButton && uploadButtom) {
             downloadButton.addEventListener("click", () => this.downloadScore());
             uploadButtom.addEventListener("click", () => this.uploadScore());
@@ -419,6 +439,29 @@ class ScofoHighlighter {
             this.textInput.value = "// Edit your score here";
         }
         this.updateHighlightOutput();
+
+        const fileInput = document.getElementById("fileInput");
+        const uploadButton = document.getElementById("upload-score");
+
+        // Trigger file input click on "Upload Score" button click
+        uploadButton.addEventListener("click", () => {
+            fileInput.click();
+        });
+        fileInput.addEventListener("change", (event) => {
+            const files = event.target.files;
+            if (files.length > 0) {
+                console.log("File selected:", files[0].name);
+                // Add your upload logic here
+            }
+        });
+        fileInput.addEventListener("change", (event) => {
+            preview.innerHTML = "";
+            Array.from(event.target.files).forEach((file) => {
+                const listItem = document.createElement("div");
+                listItem.textContent = `File Name: ${file.name}, Size: ${file.size} bytes`;
+                preview.appendChild(listItem);
+            });
+        });
     }
 }
 

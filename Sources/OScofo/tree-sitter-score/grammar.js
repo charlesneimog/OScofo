@@ -1,7 +1,7 @@
 module.exports = grammar({
   name: "score",
   rules: {
-    source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT)),
+    source_file: ($) => repeat(choice($.EVENT, $.CONFIG, $.COMMENT, $.taj)),
 
     // Things
     CONFIG: ($) =>
@@ -49,7 +49,13 @@ module.exports = grammar({
         repeat(seq(" ", $.pitch)),
         $.close_parenthesis,
       ),
-    pitch: ($) => choice($.pitchname, $.midi),
+    pitch: ($) =>
+      seq(
+        /\s+/, // Match leading spaces
+        choice($.pitchname, $.midi),
+        /\s+/, // Match trailing spaces
+      ),
+
     pitchname: ($) => seq($.pitchclass, optional($.alteration), $.octave),
     midi: () => /([0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])/,
     pitchclass: () => /[A-Ga-g]/,
@@ -68,6 +74,7 @@ module.exports = grammar({
     // Tokens
     open_parenthesis: () => "(",
     close_parenthesis: () => ")",
+    tab: () => choice("\t", "    "),
 
     two_spaces: () => "  ", // Match exactly two spaces
     four_spaces: () => "    ", // Match exactly four spaces
