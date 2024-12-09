@@ -1,23 +1,3 @@
-html {
-    scrollbar-width: thin; /* For Firefox */
-    scrollbar-color: #888 transparent; /* For Firefox */
-}
-
-body::-webkit-scrollbar {
-    width: 3px;
-    border-radius: 2px;
-}
-
-body::-webkit-scrollbar-track {
-    box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3);
-    border-radius: 2px;
-}
-
-body::-webkit-scrollbar-thumb {
-    background-color: darkgrey;
-    outline: 1px solid slategrey;
-}
-
 .container {
     position: relative;
     width: 60%;
@@ -33,55 +13,56 @@ body::-webkit-scrollbar-thumb {
     scroll-behavior: smooth;
     poitner-events: pointer;
 }
-.container::-webkit-scrollbar {
-    width: 2px;
-    height: 2px;
-}
-.container::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 144, 0, 0.5); /* Thumb color */
-    border-radius: 4px;
-}
-.container::-webkit-scrollbar-track {
-    background-color: rgba(0, 0, 0, 0.1); /* Track color */
-}
 
-.container:hover {
-    box-shadow: 0 0 20px rgba(0, 144, 0, 0.4); /* Larger shadow on hover */
+.container:focus-within {
+    box-shadow: 0 0 10px rgba(0, 144, 144, 0.7); /* Highlight when focused */
 }
 
 .line-numbers {
     position: absolute;
-    width: 3%;
+    width: auto;
+    min-width: 3%;
     min-height: 400px;
-    padding: 5px;
+    padding: 0px 5px;
     overflow-x: hidden;
     overflow-y: hidden;
     background-color: #f5f5f5;
     color: #333;
-    text-align: right;
+    text-align: left;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     font-size: 16px;
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
-    line-height: 1.5; /* Increase space between lines in line numbers */
+    line-height: 1.5;
 }
 
+.text-input {
+    color: transparent;
+    background-color: transparent;
+    z-index: 1;
+    caret-color: black;
+    opacity: 0.2;
+}
+
+.highlight-output {
+    z-index: 0;
+    opacity: 1;
+}
+
+.highlight-output,
 .text-input {
     position: absolute;
     left: 5%;
     height: 100%;
-    width: 94%;
+    width: 93%;
     min-height: 400px;
-    opacity: 0.2;
-    color: transparent;
-    background-color: transparent;
+    min-width: 93%;
     border: none;
-    z-index: 1;
+    overflow: hidden;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     font-size: 16px;
     white-space: pre-wrap;
     line-height: 1.5;
-    caret-color: black;
 }
 
 .text-input:focus {
@@ -93,18 +74,6 @@ body::-webkit-scrollbar-thumb {
 .text-input::selection {
     background-color: #b3d4fc; /* Highlight color for selected text */
     color: transparent; /* Hide text color for selected text */
-}
-
-.highlight-output {
-    position: absolute;
-    top: 1.1%; /* Align to the same top position as text-input */
-    left: 5%; /* Align horizontally with text-input */
-    z-index: 0;
-    overflow: hidden;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-    font-size: 16px;
-    white-space: pre-wrap; /* Preserve line breaks and spaces */
-    line-height: 1.5; /* Increase space between lines in highlighted output */
 }
 
 .error-messages {
@@ -163,54 +132,35 @@ button:active {
     transform: scale(0.98); /* Slightly scale down when clicked */
 }
 
-/* Light Mode - One Light Theme */
-.open_parenthesis {
-    color: #383a42; /* Dark gray */
-    font-weight: bold;
-}
-.close_parenthesis {
-    color: #383a42; /* Dark gray */
-    font-weight: bold;
-}
-.KEYWORD {
+.eventId {
     color: #a626a4; /* Purple */
     font-weight: bold;
 }
-.CONFIG {
-    color: #986801; /* Orange */
-    font-weight: bold;
-}
-.COMMENT {
-    color: #a0a1a7; /* Light gray */
-    font-style: italic;
-    font-weight: lighter;
-    opacity: 0.4;
-}
-
-.ERROR {
-    color: #e45649; /* Red */
-    text-decoration: underline;
-    text-decoration-style: wavy; /* Subline ondulada */
-}
-
-.octave {
-    color: #50a14f; /* Green */
-}
-.pitchclass {
-    color: #50a14f; /* Green */
-}
-.alteration {
+.pitch {
     color: #50a14f; /* Green */
     text-decoration: none;
 }
-.midi {
-    color: #50a14f; /* Green */
-}
-.integer {
+.duration {
     color: #4078f2; /* Blue */
 }
-.float {
-    color: #4078f2; /* Blue */
+.comment {
+    color: #6a737d;
+    opacity: 0.4;
+    font-style: italic;
+}
+.configId {
+    color: #d49e42;
+    font-style: bold;
+}
+
+.numberSet {
+    color: #aa0000;
+    font-style: bold;
+}
+
+.error {
+    text-decoration: underline;
+    text-decoration-color: red;
 }
 
 /* Change background color based on theme */
@@ -240,51 +190,21 @@ button:active {
     }
 
     /* Dark Mode - One Dark Theme */
-    .open_parenthesis {
-        color: #abb2bf; /* Light gray */
+    .eventId {
+        color: #d291e4; /* Bright Purple for dark background */
         font-weight: bold;
     }
-    .close_parenthesis {
-        color: #abb2bf; /* Light gray */
-        font-weight: bold;
-    }
-    .KEYWORD {
-        color: #c678dd; /* Purple */
-        font-weight: bold;
+    .pitch {
+        color: #7eca9c; /* Soft Green for dark background */
         text-decoration: none;
     }
-    .CONFIG {
-        color: #d19a66; /* Orange */
-        font-weight: bold;
+    .duration {
+        color: #82aaff; /* Bright Blue for dark background */
     }
-    .COMMENT {
-        color: rgb(220, 220, 220); /* Dark gray */
+    .comment {
+        color: #9aa5b1; /* Muted Gray-Blue for dark background */
+        opacity: 0.6; /* Slightly increased opacity for better readability */
         font-style: italic;
-        font-weight: lighter;
-        opacity: 0.4;
-    }
-    .ERROR {
-        color: #e06c75; /* Red */
-        text-decoration: underline;
-    }
-    .octave {
-        color: #98c379; /* Green */
-    }
-    .pitchclass {
-        color: #98c379; /* Green */
-        text-decoration: none;
-    }
-    .alteration {
-        color: #98c379; /* Green */
-    }
-    .midi {
-        color: #98c379; /* Green */
-    }
-    .integer {
-        color: #61afef; /* Blue */
-    }
-    .float {
-        color: #61afef; /* Blue */
     }
 }
 

@@ -65,7 +65,7 @@ add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
 if(TREE_SITTER_EXECUTABLE)
-    set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score)
+    set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
     set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score/src/parser.c)
 
     add_custom_command(
@@ -76,24 +76,21 @@ if(TREE_SITTER_EXECUTABLE)
         output ERROR_VARIABLE error_output
         VERBATIM)
 
-    # Define the custom target
+    # Define the custom target for parser generation
     add_custom_target(
         generate_tree_sitter_parser
         DEPENDS ${PARSER_OUTPUT_C}
         COMMENT "Generating Tree-sitter parser...")
+
+    # Create the library and set the dependency
+    add_library(score_parser STATIC ${PARSER_OUTPUT_C})
+    add_dependencies(score_parser generate_tree_sitter_parser)
 
 else()
     message(
         WARNING
             "Tree-sitter executable not found. Parser generation skipped. Please install tree-sitter-cli."
     )
-endif()
-
-add_library(score_parser STATIC Sources/OScofo/tree-sitter-score/src/parser.c)
-
-if(EMSCRIPTEN)
-    target_compile_options(score_parser PUBLIC -matomics -mbulk-memory)
-    target_compile_options(tree-sitter PUBLIC -matomics -mbulk-memory)
 endif()
 
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
@@ -107,7 +104,7 @@ list(APPEND SCofoSrc Sources/OScofo/score.cpp)
 list(APPEND SCofoSrc Sources/OScofo/OScofo.cpp)
 add_library(OScofo STATIC ${SCofoSrc})
 
-target_include_directories(OScofo PUBLIC Sources/OScofo/tree-sitter-score/src)
+target_include_directories(OScofo PUBLIC Resources/tree-sitter-score/src)
 
 include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_link_libraries(OScofo PUBLIC fftw3)

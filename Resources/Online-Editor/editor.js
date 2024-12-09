@@ -1,15 +1,17 @@
-class ScofoHighlighter {
+class ScofoOnlineEditor {
     constructor(textInputSelector, highlightOutputSelector, lineNumbersSelector, parserLanguageUrl) {
         this.textInput = document.querySelector(textInputSelector);
         this.highlightOutput = document.querySelector(highlightOutputSelector);
         this.lineNumbers = document.querySelector(lineNumbersSelector);
+
         this.Parser = window.TreeSitter;
         this.ScofoParser = null;
         this.parserLanguageUrl = parserLanguageUrl;
         this.htmlFormatterCode = "";
         this.linesWithErrors = {}; // Track lines with errors
-        this.musicxmlScore = [];
+        this.musicxmlScore = {};
         this.lastUpdate = Date.now();
+        this.highglightIds = ["pitch", "duration"];
 
         // Initialize the parser and setup event listeners
         this.initParser().then(() => {
@@ -26,6 +28,7 @@ class ScofoHighlighter {
     async setScofoParse() {
         const scoreScofo = await this.Parser.Language.load(this.parserLanguageUrl);
         this.ScofoParser.setLanguage(scoreScofo);
+        // console.log(this.ScofoParser.language);
     }
 
     applySelection(text, selectionStart, selectionEnd) {
@@ -40,50 +43,59 @@ class ScofoHighlighter {
         errorContainer.appendChild(errorElement);
     }
 
-    highlightCode(input, node, errors) {
-        const keywords = ["NOTE", "TRILL", "REST"];
-        const config = ["BPM"];
+    // Example usage
+    highlightCode(input, rootNode) {
+        const desiredTypes = ["eventId", "pitch", "duration", "comment", "configId", "numberSet"];
+        let result = "";
+        let lastIndex = 0;
 
-        let highlightedText = "";
-        if (node.namedChildCount > 0) {
-            let lastPosition = node.startIndex;
-            node.namedChildren.forEach((child) => {
-                const line = input.slice(0, child.startIndex).split("\n").length;
-                if (child.hasError) {
-                    errors[line] = true;
+        function processNode(myClass, node) {
+            if (desiredTypes.includes(node.type)) {
+                const start = node.startIndex;
+                let end = node.endIndex;
+                if (start == end) {
+                    end++;
                 }
-                if (child.isMissing) {
-                    errors[line] = true;
-                    this.showError("Syntax error: missing " + child.parent.type + " at line " + line + ".");
-                }
-                // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(child)));
 
-                const nodeTxtStrNoSpace = input.slice(lastPosition, child.startIndex).trim();
-                if (nodeTxtStrNoSpace.length > 0 && keywords.includes(nodeTxtStrNoSpace)) {
-                    highlightedText += `<span class="KEYWORD">${nodeTxtStrNoSpace}</span>`;
-                    highlightedText += " ";
-                } else if (nodeTxtStrNoSpace.length > 0 && config.includes(nodeTxtStrNoSpace)) {
-                    highlightedText += `<span class="CONFIG">${nodeTxtStrNoSpace}</span>`;
-                    highlightedText += " ";
-                } else {
-                    highlightedText += input.slice(lastPosition, child.startIndex);
+                let hasError = myClass.checkErrors(node);
+                let classCss = node.type;
+                if (hasError) {
+                    classCss += " error";
                 }
-                highlightedText += this.highlightCode(input, child, errors);
-                lastPosition = child.endIndex;
-            });
-            highlightedText += input.slice(lastPosition, node.endIndex);
-        } else {
-            let nodeTxtStrNoSpace = input.slice(node.startIndex, node.endIndex).trim();
-            if (keywords.includes(nodeTxtStrNoSpace)) {
-                highlightedText += `<span class="KEYWORD">${nodeTxtStrNoSpace}</span>`;
-            } else {
-                if (node.type == "COMMENT") {
-                    nodeTxtStrNoSpace = input.slice(node.startIndex, node.endIndex);
+
+                if (start > lastIndex) {
+                    result += `<span>${input.slice(lastIndex, start)}</span>`;
                 }
-                highlightedText += `<span class="${node.type}">${nodeTxtStrNoSpace}</span>`;
+                result += `<span class="${classCss}">${input.slice(start, end)}</span>`;
+                lastIndex = end;
+            }
+            for (let i = 0; i < node.namedChildCount; i++) {
+                processNode(myClass, node.namedChild(i));
             }
         }
-        return highlightedText;
+        for (let i = 0; i < rootNode.namedChildCount; i++) {
+            const eventNode = rootNode.namedChild(i);
+            processNode(this, eventNode);
+        }
+        if (lastIndex < input.length) {
+            result += `<span>${input.slice(lastIndex)}</span>`;
+        }
+        this.checkErrors(rootNode);
+        return result;
+    }
+
+    checkErrors(node, errors = {}) {
+        if (node.text == "" && node.type != "score") {
+            let line = node.parent.startPosition.row;
+            errors[line] = {};
+            errors[line].line = line;
+            errors[line].init = node.startIndex;
+            errors[line].end = node.endIndex;
+            errors[line].error = true;
+            errors[line].message = "Error: " + node.parent.type + " is empty";
+            return true;
+        }
+        return false;
     }
 
     updateLineNumbers(errors) {
@@ -100,15 +112,30 @@ class ScofoHighlighter {
         this.adjustLineNumbersHeight();
     }
 
+    resizeInputCanvas() {
+        let lines = this.textInput.value.split("\n");
+        let biggerLine = lines.reduce((a, b) => (a.length > b.length ? a : b));
+        let width = biggerLine.length + "ch";
+        this.textInput.style.width = width;
+        let widthInPixels = this.textInput.getBoundingClientRect().width;
+        let heightInPixels = this.textInput.getBoundingClientRect().height;
+        this.highlightOutput.style.width = widthInPixels + "px";
+        this.highlightOutput.style.height = heightInPixels + "px";
+    }
+
     updateHighlightOutput() {
         const errorContainer = document.querySelector(".error-messages");
         errorContainer.innerHTML = "";
 
-        this.resizeInput();
+        this.resizeInputCanvas();
+
+        // this.resizeInput();
         const value = this.textInput.value;
         const tree = this.ScofoParser.parse(value);
         let errors = {};
-        let styledCode = this.highlightCode(value, tree.rootNode, errors);
+        // console.log(tree.rootNode.toString());
+        let styledCode = this.highlightCode(value, tree.rootNode);
+
         this.highlightOutput.innerHTML = styledCode;
         this.updateLineNumbers(errors);
 
@@ -136,13 +163,6 @@ class ScofoHighlighter {
         a.click();
     }
 
-    resizeInput() {
-        this.textInput.style.height = "auto";
-        this.textInput.style.height = `${this.textInput.scrollHeight}px`;
-        this.highlightOutput.style.height = `${this.textInput.scrollHeight}px`;
-        this.lineNumbers.style.height = `${this.textInput.scrollHeight}px`;
-    }
-
     syncScrollPosition() {
         this.highlightOutput.scrollTop = this.textInput.scrollTop;
         this.highlightOutput.scrollLeft = this.textInput.scrollLeft;
@@ -150,7 +170,7 @@ class ScofoHighlighter {
     }
 
     click() {
-        if (this.textInput.value === "; Edit your score here") {
+        if (this.textInput.value === "// Edit your score here") {
             this.textInput.value = "";
         }
 
@@ -158,13 +178,41 @@ class ScofoHighlighter {
         this.updateHighlightOutput();
     }
 
+    getPitch(note) {
+        let pitch = `${note.step}`;
+        if (note.alter) {
+            if (note.alter == "1") {
+                pitch += `#`;
+            } else if (note.alter == "-1") {
+                pitch += "b";
+            } else {
+                alert("accident " + note.alter + "is not supported by OScofo yet");
+            }
+        }
+        pitch += `${note.octave}`;
+        return pitch;
+    }
+
+    getAllPitches(allNotes, index) {
+        let chords = [];
+
+        return;
+    }
+
     generateOScofoScore() {
         let score = "";
-        score += `BPM ${this.musicxmlScore[0][0].bpm}`;
+
+        score += `/* Generated by OScofo online editor\n`;
+        score += `${this.musicxmlScore.pieceName} by ${this.musicxmlScore.pieceComposer}\n`;
+        score += `*/\n\n`;
+
+        score += `BPM ${this.musicxmlScore.measures[1][0].bpm}`;
+        let bpm = this.musicxmlScore.measures[1][0].bpm;
         let allNotes = [];
-        for (let i = 0; i < this.musicxmlScore.length; i++) {
-            const currentMeasure = this.musicxmlScore[i];
-            for (let note of currentMeasure) {
+
+        for (let measureNumber in this.musicxmlScore.measures) {
+            const measure = this.musicxmlScore.measures[measureNumber];
+            for (let note of measure) {
                 allNotes.push(note);
             }
         }
@@ -174,89 +222,116 @@ class ScofoHighlighter {
             let note = allNotes[i];
             if (note !== undefined) {
                 if (note.measureNumber != lastMeasureNumber) {
-                    score += "\n\n; Measure number " + note.measureNumber + "";
+                    score += `\n\n// Measure number ${note.measureNumber}`;
                     lastMeasureNumber = note.measureNumber;
                 }
             }
+            if (note.bpm != bpm) {
+                score += `\nBPM ${note.bpm}\n`;
+                bpm = note.bpm;
+            }
             score += "\n";
-            if (note.rest) {
-                score += "REST ";
-                score += `${note.duration}`;
-            } else if (note.tremolo) {
-                score += "TRILL (";
-                let duration = 0;
-                while (true) {
-                    note = allNotes[i];
-                    if (note === undefined) {
-                        break;
-                    }
-                    if (duration > 0) {
-                        score += " ";
-                    }
+            if (note.isRest) {
+                score += `REST ${note.duration}`;
+            } else {
+                let isTied = note.isTied;
+                let pitches = [this.getPitch(note)];
+                let duration = note.duration;
+                let type = "NOTE";
+                let nextNote = allNotes[i + 1];
 
-                    score += `${note.step}`;
-                    if (note.alter) {
-                        if (note.alter == "1") {
-                            score += `#`;
-                        } else if (note.alter == "-1") {
-                            score += "b";
+                // tied pitches
+                if (note.isTied && !nextNote.isChord) {
+                    while (true) {
+                        i++;
+                        nextNote = allNotes[i];
+                        if (nextNote.isTied) {
+                            duration += nextNote.duration;
                         } else {
-                            alert("not supported");
+                            i--;
+                            break;
                         }
                     }
-                    score += `${note.octave}`;
-                    duration += parseInt(note.duration);
-                    if (note.tremolo == false) {
-                        break;
-                    }
-                    i++;
                 }
-                score += `) ${duration}`;
-            } else if (note.tied) {
-                score += "NOTE ";
-                let pitchclass = note.step;
-                if (note.alter) {
-                    if (note.alter == "1") {
-                        pitchclass += `#`;
-                    } else if (note.alter == "-1") {
-                        pitchclass += "b";
-                    } else {
-                        alert("not supported");
+
+                // process chord not tied
+                if (nextNote.isChord && !note.isTied) {
+                    type = "CHORD";
+                    while (true) {
+                        i++;
+                        nextNote = allNotes[i];
+                        if (nextNote.isChord) {
+                            pitches.push(this.getPitch(nextNote));
+                        } else {
+                            i--;
+                            break;
+                        }
                     }
                 }
-                pitchclass += `${note.octave}`;
-                let duration = 0;
-                while (true) {
-                    note = allNotes[i];
-                    if (note === undefined) {
-                        break;
+
+                // process chord tied
+                if (nextNote.isChord && note.isTied) {
+                    type = "CHORD";
+                    let chords = [];
+                    let lastNote = note;
+                    while (true) {
+                        i++;
+                        nextNote = allNotes[i];
+                        if (nextNote === undefined) {
+                            break;
+                        }
+
+                        if (!nextNote.isChord) {
+                            chords.push(pitches);
+                            pitches = [this.getPitch(nextNote)];
+                        }
+
+                        if (nextNote.isChord) {
+                            pitches.push(this.getPitch(nextNote));
+                        } else if (!nextNote.isTied || (nextNote.tiedType == "start" && lastNote.tiedType == "stop")) {
+                            i--;
+                            break;
+                        }
+
+                        if (nextNote.isTied && !nextNote.isChord) {
+                            duration += nextNote.duration;
+                        }
+                        lastNote = nextNote;
                     }
-                    if (note.tremolo) {
-                        alert("Tied notes cannot be tremolo, OScofo does not support this");
-                        return;
-                    }
-                    duration += parseFloat(note.duration);
-                    if (note.tied == false) {
-                        break;
-                    }
-                    i++;
+                    pitches = chords[0];
                 }
-                score += `${pitchclass} ${duration} ; tied`;
-            } else {
-                score += `NOTE ${note.step}`;
-                if (note.alter) {
-                    if (note.alter == "1") {
-                        score += `#`;
-                    } else if (note.alter == "-1") {
-                        score += "b";
-                    } else {
-                        alert("not supported");
+
+                // process tremolo
+                if (note.isTremolo) {
+                    type = "TRILL";
+                    while (true) {
+                        i++;
+                        nextNote = allNotes[i];
+                        if (nextNote === undefined) {
+                            i--;
+                            break;
+                        }
+                        if (nextNote.isTremolo) {
+                            pitches.push(this.getPitch(nextNote));
+                            duration += nextNote.duration;
+                        } else {
+                            i--;
+                            break;
+                        }
                     }
                 }
-                score += `${note.octave} `;
-                score += `${note.duration}`;
+
+                if (pitches.length > 1) {
+                    score += `${type} (${pitches.join(" ")}) ${duration}`;
+                } else {
+                    score += `${type} ${pitches[0]} ${duration}`;
+                }
+                if (note.isTied) {
+                    score += " // TIED";
+                }
             }
         }
+
         this.textInput.value = score;
         this.updateHighlightOutput();
     }
@@ -266,9 +341,17 @@ class ScofoHighlighter {
         const measures = part.getElementsByTagName("measure");
         let bpm = 60;
         let beatUnit = "quarter";
-        this.musicxmlScore = [];
+        this.musicxmlScore = {};
+        this.musicxmlScore.measures = {};
         let isTremolo = false;
         let isTied = false;
+        let tremoloType = null;
+        let tiedType = null;
+        let pieceName = part.getElementsByTagName("work")[0].getElementsByTagName("work-title")[0].textContent;
+        let pieceComposer = part.getElementsByTagName("creator")[0].textContent;
+        this.musicxmlScore.pieceName = pieceName;
+        this.musicxmlScore.pieceComposer = pieceComposer;
+
         let divisionsFactor = 1;
         for (let measure of measures) {
             let divisions = measure.getElementsByTagName("divisions");
@@ -285,27 +368,24 @@ class ScofoHighlighter {
             let measureNotes = [];
             for (let i = 0; i < notes.length; i++) {
                 let note = notes[i];
+                let chord = note.getElementsByTagName("chord").length;
                 let pitch = note.getElementsByTagName("pitch")[0];
                 let tremolo = note.getElementsByTagName("tremolo");
                 let tied = note.getElementsByTagName("tied");
-
                 if (tremolo.length > 0) {
-                    if (tremolo[0].getAttribute("type") == "start") {
-                        isTremolo = true;
-                    }
-                    if (tremolo[0].getAttribute("type") == "stop") {
-                        isTremolo = false;
-                    }
+                    isTremolo = true;
+                    tremoloType = tremolo[0].getAttribute("type");
+                } else {
+                    isTremolo = false;
+                    tremoloType = null;
                 }
                 if (tied.length > 0) {
-                    if (tied[0].getAttribute("type") == "start") {
-                        isTied = true;
-                    }
-                    if (tied[0].getAttribute("type") == "stop") {
-                        isTied = false;
-                    }
+                    isTied = true;
+                    tiedType = tied[0].getAttribute("type");
+                } else {
+                    isTied = false;
+                    tiedType = null;
                 }
-
                 let step, octave, alter;
                 if (!pitch) {
                     step = null;
@@ -315,12 +395,11 @@ class ScofoHighlighter {
                     octave = pitch.getElementsByTagName("octave")[0].textContent;
                     const alterElement = pitch.getElementsByTagName("alter")[0]; // Get the first <alter> element
                     if (alterElement) {
-                        alter = alterElement.textContent; // If it exists, get its text content
+                        alter = parseInt(alterElement.textContent); // If it exists, get its text content
                     } else {
                         alter = null;
                     }
                 }
-
                 let duration = note.getElementsByTagName("duration")[0].textContent;
                 let rest = note.getElementsByTagName("rest")[0];
                 let noteObj = {
@@ -329,20 +408,25 @@ class ScofoHighlighter {
                     octave: octave,
                     alter: alter,
                     duration: parseFloat(duration) / divisionsFactor,
-                    rest: false,
-                    tremolo: isTremolo,
-                    tied: isTied,
+                    isRest: false,
+                    isTremolo: isTremolo,
+                    tremoloType: tremoloType,
+                    isTied: isTied,
+                    tiedType: tiedType,
                     measureNumber: measureNumber,
+                    isChord: chord == 1,
+                    firstChordNote: false,
                 };
                 if (rest) {
-                    noteObj["rest"] = true;
+                    noteObj.isRest = true;
                 }
-
                 measureNotes.push(noteObj);
             }
-            this.musicxmlScore.push(measureNotes);
+            this.musicxmlScore.measures[measureNumber] = {};
+            this.musicxmlScore.measures[measureNumber] = measureNotes;
         }
         this.generateOScofoScore();
+        this.resizeInputCanvas();
     }
 
     uploadScore() {
@@ -434,16 +518,17 @@ class ScofoHighlighter {
         const recoveredValue = this.getCookie("textInputValue");
         this.textInput.value = recoveredValue;
         if (!recoveredValue) {
-            this.textInput.value = "; Edit your score here";
+            this.textInput.value = "// Edit your score here";
         }
         this.updateHighlightOutput();
+        this.resizeInputCanvas();
     }
 }
 
 // Instantiate the class
-const scofoHighlighter = new ScofoHighlighter(
+const scofoEditor = new ScofoOnlineEditor(
     ".text-input",
     ".highlight-output",
     ".line-numbers",
-    "tree-sitter-score.wasm",
+    "tree-sitter-scofo.wasm",
 );
