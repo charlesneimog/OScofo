@@ -28,7 +28,8 @@ class Score {
     // Helpers
     double ModPhases(double Phase);
     MacroState AddTransState(MacroState &State, int ScoreEvent, int BPM);
-    int Name2Midi(std::string note);
+    double PitchName2Midi(char pitchName, std::string alt, std::string octave);
+    double PitchNode2Freq(const std::string Score, TSNode node);
     // bool SpaceTab(const std::string &line, int numSpaces);
     void ParseInput(const std::string &Score);
     void PrintTreeSitterNode(TSNode node, int indent = 0);
@@ -41,11 +42,12 @@ class Score {
 
     // Get TreeSitter Values
     std::string GetCodeStr(const std::string &Score, TSNode Node);
-    double GetFreqsFromNode(const std::string &Score, TSNode Node);
+    // double GetFreqsFromNode(const std::string &Score, TSNode Node);
     double GetDurationFromNode(const std::string &Score, TSNode Node);
+    std::string GetChildStringFromId(const std::string &Score, TSNode node, std::string id);
 
     // Events
-    MacroState NoteEvent(const std::string &Score, TSNode Node);
+    MacroState PitchEvent(const std::string &Score, TSNode Node);
     MacroState TrillEvent(const std::string &Score, TSNode Node);
 
     // Add events

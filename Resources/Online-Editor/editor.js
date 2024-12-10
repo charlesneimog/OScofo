@@ -12,6 +12,11 @@ class ScofoOnlineEditor {
         this.musicxmlScore = {};
         this.lastUpdate = Date.now();
         this.highglightIds = ["pitch", "duration"];
+        this.htmlFormatter = {};
+        this.bigTextWarning = false;
+
+        this.previousTree = null;
+        this.currentTree = null;
 
         // Initialize the parser and setup event listeners
         this.initParser().then(() => {
@@ -52,20 +57,19 @@ class ScofoOnlineEditor {
     }
 
     checkErrors(node) {
-        const errorContainer = document.querySelector(".error-messages");
-        const errorElement = document.createElement("p");
         var lineWithErrors = [];
+        var lineWithUnexpected = [];
 
         function checkNode(node) {
             for (let i = 0; i < node.namedChildCount; i++) {
+                const errorContainer = document.querySelector(".error-messages");
+                const errorElement = document.createElement("p");
                 let child = node.namedChild(i);
                 if (child.hasError) {
                     let message = "";
                     lineWithErrors.push(child.startPosition.row + 1);
                     if (child.type === "number") {
-                        console.log("here");
                         if (child.text === "") {
-                            console.log("here");
                             message =
                                 "Missing " +
                                 child.parent.type +
@@ -84,6 +88,15 @@ class ScofoOnlineEditor {
                     errorElement.textContent = message;
                     errorContainer.appendChild(errorElement);
                 }
+                let treeString = child.toString();
+                // check if treeString starts with (UNEXPECTED if it does, add to lineWithUnexpected
+                if (treeString.startsWith("(UNEXPECTED") && !lineWithUnexpected.includes(child.startPosition.row + 1)) {
+                    lineWithUnexpected.push(child.startPosition.row + 1);
+                    errorElement.textContent = "UNEXPECTED keyword at line " + (child.startPosition.row + 1);
+                    errorContainer.appendChild(errorElement);
+                }
+
+                console.log(child.toString());
                 checkNode(child);
             }
         }
@@ -93,6 +106,17 @@ class ScofoOnlineEditor {
     }
 
     highlightCode(input, rootNode) {
+        console.log(rootNode.toString());
+        // const cursorPosition = this.textInput.selectionStart; // Get cursor position
+        // const textUntilCursor = input.slice(0, cursorPosition); // Get text until
+        const lineNumber = input.split("\n").length; // Get the line number
+        if (lineNumber > 200 && !this.bigTextWarning) {
+            setTimeout(() => {
+                alert("Your score is too big, it may slow down the editor for now! :(");
+            }, 3000);
+            this.bigTextWarning = true;
+        }
+
         this.checkErrors(rootNode);
         const desiredTypes = ["pitchEventId", "restEventId", "pitch", "duration", "comment", "configId", "numberSet"];
         let result = "";
@@ -100,6 +124,13 @@ class ScofoOnlineEditor {
 
         function processNode(myClass, node) {
             if (desiredTypes.includes(node.type)) {
+                if (node.type === "pitchEventId" || node.type == "restEventId") {
+                    let previousChar = input[node.startIndex - 1];
+                    if (previousChar !== "\n" && previousChar !== undefined) {
+                        myClass.textInput.value = input.slice(0, node.startIndex) + "\n" + input.slice(node.startIndex);
+                    }
+                }
+
                 const start = node.startIndex;
                 let end = node.endIndex;
                 if (start == end) {
@@ -112,10 +143,14 @@ class ScofoOnlineEditor {
                     thereIsError = true;
                 }
                 if (start > lastIndex) {
-                    result += `<span class="${classCss}">${input.slice(lastIndex, start)}</span>`;
+                    let text = input.slice(lastIndex, start);
+                    if (text != "") {
+                        result += `<span class="${classCss}">${text}</span>`;
+                    }
                 }
                 classCss += " " + node.type;
-                result += `<span class="${classCss}">${input.slice(start, end)}</span>`;
+                let text = input.slice(start, end);
+                result += `<span class="${classCss}">${text}</span>`;
                 lastIndex = end;
             }
             for (let i = 0; i < node.namedChildCount; i++) {
@@ -130,6 +165,7 @@ class ScofoOnlineEditor {
         if (lastIndex < input.length) {
             result += `<span>${input.slice(lastIndex)}</span>`;
         }
+
         this.resizeInputCanvas();
         return result;
     }
@@ -153,19 +189,22 @@ class ScofoOnlineEditor {
 
         // this.resizeInput();
         const value = this.textInput.value;
+
+        if (value === this.previousTree) {
+            return;
+        }
+
         const tree = this.ScofoParser.parse(value);
-        let errors = {};
+        // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(this.ScofoParser)));
+
         let styledCode = this.highlightCode(value, tree.rootNode);
 
         this.highlightOutput.innerHTML = styledCode;
 
-        for (let errorLine in errors) {
-            this.showError("Error at line " + errorLine + ".");
-        }
-
         this.adjustTextInputHeight();
 
         if (typeof FS_createDataFile === "function") {
+            return;
             var byteArray = new TextEncoder().encode(value);
             FS_unlink("/score.scofo.txt");
             FS_createDataFile("/", "score.scofo.txt", byteArray, true, true, true);
@@ -201,7 +240,7 @@ class ScofoOnlineEditor {
         }
 
         this.textInput.focus();
-        this.updateHighlightOutput();
+        // this.updateHighlightOutput();
     }
 
     getPitch(note) {
@@ -472,7 +511,11 @@ class ScofoOnlineEditor {
     }
 
     uploadScore() {
-        const fileInput = document.getElementById("fileInput");
+        const fileInput = document.getElementById("scoreXmlInput");
+        if (!fileInput) {
+            console.error("File input not found");
+            return;
+        }
         fileInput.click();
         fileInput.onchange = (event) => {
             const file = event.target.files[0];
@@ -522,12 +565,47 @@ class ScofoOnlineEditor {
         };
     }
 
+    loadTxtScore() {
+        const fileInput = document.getElementById("scoreTxtInput");
+        if (!fileInput) {
+            console.error("File input not found");
+            return;
+        }
+
+        fileInput.click();
+        fileInput.onchange = (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                console.error("No file selected");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const fileContent = e.target.result; // Contains the content of the file
+                this.textInput.value = fileContent;
+            };
+            reader.onerror = (e) => {
+                console.error("Error reading file:", e);
+            };
+            reader.readAsText(file); // Read file as plain text
+        };
+    }
+
     saveToCookies() {
         let input = document.querySelector(".text-input");
         const value = input.value;
-        document.cookie = `textInputValue=${encodeURIComponent(value)}; path=/; max-age=86400; SameSite=None; Secure`;
+        const chunkSize = 3000;
+        const chunks = [];
+        for (let i = 0; i < value.length; i += chunkSize) {
+            chunks.push(value.slice(i, i + chunkSize));
+        }
+        chunks.forEach((chunk, index) => {
+            document.cookie = `textInputValue_${index}=${encodeURIComponent(chunk)}; path=/; max-age=86400; SameSite=None; Secure`;
+        });
+        document.cookie = `textInputValue_chunks=${chunks.length}; path=/; max-age=86400; SameSite=None; Secure`;
     }
 
+    // Helper function to get a cookie by name
     getCookie(name) {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
@@ -535,10 +613,29 @@ class ScofoOnlineEditor {
         return null;
     }
 
+    getFromCookies() {
+        const chunksCount = parseInt(this.getCookie("textInputValue_chunks"), 10);
+        if (isNaN(chunksCount) || chunksCount <= 0) return null;
+
+        let reconstructedValue = "";
+        for (let i = 0; i < chunksCount; i++) {
+            const chunk = this.getCookie(`textInputValue_${i}`);
+            if (chunk === null) return null; // Return null if any chunk is missing
+            reconstructedValue += chunk;
+        }
+
+        return reconstructedValue;
+    }
+
     preventDefault(e) {
         if (e.key === "Tab") {
             e.preventDefault();
-            this.textInput.value += "    ";
+            let currentCursorPosition = this.textInput.selectionStart;
+            let textBeforeCursor = this.textInput.value.slice(0, currentCursorPosition);
+            let textAfterCursor = this.textInput.value.slice(currentCursorPosition);
+            this.textInput.value = textBeforeCursor + "    " + textAfterCursor;
+            // set the cursor
+            this.textInput.selectionEnd = currentCursorPosition + 4;
         }
     }
 
@@ -551,17 +648,30 @@ class ScofoOnlineEditor {
 
         const downloadButton = document.querySelector("#download-score");
         const uploadButtom = document.querySelector("#upload-score");
+        const loadButtom = document.querySelector("#load-score");
 
-        if (downloadButton && uploadButtom) {
+        if (downloadButton && uploadButtom && loadButtom) {
             downloadButton.addEventListener("click", () => this.downloadScore());
             uploadButtom.addEventListener("click", () => this.uploadScore());
+            loadButtom.addEventListener("click", () => this.loadTxtScore());
+        } else {
+            alert("Buttons not found");
         }
 
-        const recoveredValue = this.getCookie("textInputValue");
-        this.textInput.value = recoveredValue;
+        /*
+        const recoveredValue = this.getFromCookies();
+        if (recoveredValue) {
+            let recoverConfirmation = confirm("Do you want to recover your last session?");
+            if (recoverConfirmation) {
+                this.textInput.value = recoveredValue;
+            }
+        }
+
         if (!recoveredValue) {
             this.textInput.value = "// Edit your score here";
         }
+        */
+
         this.updateHighlightOutput();
         this.resizeInputCanvas();
     }

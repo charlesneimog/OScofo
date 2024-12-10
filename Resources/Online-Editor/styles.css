@@ -47,6 +47,15 @@ h3 {
     margin: 1em 0;
 }
 
+hr {
+    width: 20%;
+    margin: 20px auto;
+    border: none;
+    height: 1px;
+    background-color: #ccc;
+    align: center;
+}
+
 p {
     margin: 0.5em 0;
 }
@@ -193,7 +202,7 @@ p {
 }
 
 .text-input::selection {
-    background-color: #b3d4fc;
+    background-color: rgba(179, 212, 252, 0.3);
     color: transparent;
 }
 

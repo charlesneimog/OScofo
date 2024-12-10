@@ -7,7 +7,7 @@
 #include "score.hpp"
 #include "tree_sitter/api.h"
 
-extern "C" TSLanguage *tree_sitter_score();
+extern "C" TSLanguage *tree_sitter_scofo();
 
 namespace OScofo {
 
@@ -18,7 +18,6 @@ void Score::PrintTreeSitterNode(TSNode node, int indent) {
     if (indent != 0) {
         std::cout << std::string(indent, ' ') << type << ": " << text << std::endl;
     }
-
     uint32_t child_count = ts_node_child_count(node);
     for (uint32_t i = 0; i < child_count; i++) {
         PrintTreeSitterNode(ts_node_child(node, i), indent + 4);
@@ -35,13 +34,24 @@ bool Score::ScoreIsLoaded() {
     return m_ScoreLoaded;
 }
 
-// ╭─────────────────────────────────────╮
-// │                Utils                │
-// ╰─────────────────────────────────────╯
-int Score::Name2Midi(std::string note) {
-    char noteName = note[0];
+// ─────────────────────────────────────
+double Score::PitchNode2Freq(const std::string Score, TSNode node) {
+    TSNode pitch = ts_node_child(node, 0);
+    std::string type = ts_node_type(pitch);
+    if (type == "midi") {
+        int midi = std::stof(GetCodeStr(Score, pitch));
+        return m_Tunning * pow(2, (midi - 69.0) / 12);
+
+    } else if (type != "noteName") {
+        throw std::runtime_error("Invalid pitch type");
+    }
+
+    char pitchName = GetChildStringFromId(Score, pitch, "pitchname")[0];
+    std::string alt = GetChildStringFromId(Score, pitch, "alteration");
+    std::string octave = GetChildStringFromId(Score, pitch, "octave");
+
     int classNote = -1;
-    switch (noteName) {
+    switch (pitchName) {
     case 'C':
         classNote = 0;
         break;
@@ -64,34 +74,22 @@ int Score::Name2Midi(std::string note) {
         classNote = 11;
         break;
     default:
-        throw std::runtime_error("Invalid note name for " + note);
+        throw std::runtime_error("Invalid note name");
     }
 
-    int endAcc = 1;
-    if (note[1] == '#' || note[1] == 'b') {
-        char acc = note[1];
-        if (acc == '#') {
+    if (alt != "") {
+        if (alt == "#") {
             classNote++;
-        } else {
+        } else if (alt == "b") {
             classNote--;
-        }
-
-        if (std::isdigit(note[2])) {
-            int octave = std::stoi(note.substr(2));
-            int midi = classNote + 12 + (12 * octave);
-            return midi;
-        } else {
-            throw std::runtime_error("Invalid note name for " + note);
-        }
-    } else {
-        if (std::isdigit(note[endAcc])) {
-            int octave = std::stoi(note.substr(endAcc));
-            int midi = classNote + 12 + (12 * octave);
-            return midi;
-        } else {
-            throw std::runtime_error("Invalid note name for " + note);
+        } else if (alt == "##") {
+            classNote += 2;
+        } else if (alt == "bb") {
+            classNote -= 2;
         }
     }
+    int midi = classNote + 12 + (12 * std::stoi(octave));
+    return midi;
 }
 
 // ─────────────────────────────────────
@@ -114,28 +112,6 @@ std::string Score::GetCodeStr(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-double Score::GetFreqsFromNode(const std::string &Score, TSNode Node) {
-    uint32_t count = ts_node_child_count(Node);
-    if (count != 1) {
-        throw std::runtime_error("Invalid pitch count");
-    }
-
-    TSNode pitch = ts_node_child(Node, 0);
-    std::string pitch_type = ts_node_type(pitch);
-    if (pitch_type == "midi") {
-        std::string midi = GetCodeStr(Score, pitch);
-        double freq = m_Tunning * std::pow(2, (std::stof(midi) - 69) / 12);
-        return freq;
-    } else if (pitch_type == "pitchname") {
-        std::string pitchname = GetCodeStr(Score, pitch);
-        float midi = Name2Midi(pitchname);
-        double freq = m_Tunning * std::pow(2, (midi - 69) / 12);
-        return freq;
-    }
-    throw std::runtime_error("Invalid pitch type");
-}
-
-// ─────────────────────────────────────
 double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
@@ -144,7 +120,7 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
 
     TSNode dur = ts_node_child(Node, 0);
     std::string dur_type = ts_node_type(dur);
-    if (dur_type == "float" || dur_type == "integer") {
+    if (dur_type == "number") {
         std::string dur_str = GetCodeStr(Score, dur);
         return std::stof(dur_str);
     }
@@ -152,13 +128,12 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
+MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
 
     double Midi;
     MacroState Note;
     Note.Line = m_LineCount;
-    Note.Type = NOTE;
     Note.Markov = SEMIMARKOV;
     Note.Index = m_ScoreStates.size();
     Note.ScorePos = m_ScorePosition;
@@ -167,66 +142,57 @@ MacroState Score::NoteEvent(const std::string &Score, TSNode Node) {
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
-        if (type == "NOTE") {
-            continue;
+        if (type == "pitchEventId") {
+            std::string id = GetCodeStr(Score, child);
+            printf("%s ", id.c_str());
+            if (id == "NOTE") {
+                Note.Type = NOTE;
+            } else if (id == "TRILL") {
+                Note.Type = TRILL;
+            } else if (id == "CHORD") {
+                Note.Type = CHORD;
+            } else {
+                throw std::runtime_error("Invalid pitch event id");
+            }
         } else if (type == "pitch") {
+            TSNode pitch = ts_node_child(child, 0);
             AudioState SubState;
-            SubState.Type = NOTE;
             SubState.Markov = MARKOV;
-            SubState.Freq = GetFreqsFromNode(Score, child);
+            SubState.Type = NOTE;
+            SubState.Freq = PitchNode2Freq(Score, child);
+            printf("%f ", SubState.Freq);
             Note.SubStates.push_back(SubState);
+        } else if (type == "pitches") {
+            uint32_t pitchCount = ts_node_child_count(child);
+            printf("(");
+            for (int j = 0; j < pitchCount; j++) {
+                TSNode eventPitch = ts_node_child(child, j);
+                std::string eventPitchId = ts_node_type(eventPitch);
+                if (eventPitchId == "pitch") {
+                    AudioState SubState;
+                    SubState.Markov = MARKOV;
+                    SubState.Type = NOTE;
+                    SubState.Freq = PitchNode2Freq(Score, eventPitch);
+                    Note.SubStates.push_back(SubState);
+                    printf("%f ", SubState.Freq);
+                }
+            }
+            printf(") ");
+
         } else if (type == "duration") {
             double duration = GetDurationFromNode(Score, child);
             Note.Duration = duration;
+            printf(" %f", duration);
         } else if (type == "ACTION") {
-            printf("found action\n");
-            printf("action: %s\n", GetCodeStr(Score, child).c_str());
+            // TODO:
+            continue;
         } else {
             throw std::runtime_error("Invalid note event");
         }
     }
+    ProcessEventTime(Note);
+    printf("\n");
     return Note;
-}
-
-// ─────────────────────────────────────
-MacroState Score::TrillEvent(const std::string &Score, TSNode Node) {
-    m_ScorePosition++;
-
-    MacroState Trill;
-    double Midi;
-    Trill.Line = m_LineCount;
-    Trill.Type = TRILL;
-    Trill.Markov = SEMIMARKOV;
-    Trill.Index = m_ScoreStates.size();
-    Trill.ScorePos = m_ScorePosition;
-
-    uint32_t child_count = ts_node_child_count(Node);
-    for (uint32_t i = 0; i < child_count; i++) {
-        TSNode child = ts_node_child(Node, i);
-        std::string type = ts_node_type(child);
-        if (type == "TRILL") {
-            continue;
-        } else if (type == "pitches") {
-            uint32_t pitches_count = ts_node_child_count(child);
-            for (uint32_t i = 0; i < pitches_count; i++) {
-                TSNode pitch = ts_node_child(child, i);
-                std::string type = ts_node_type(pitch);
-                if (type == "pitch" || type == "midi") {
-                    AudioState SubState;
-                    SubState.Type = NOTE;
-                    SubState.Markov = MARKOV;
-                    SubState.Freq = GetFreqsFromNode(Score, pitch);
-                    Trill.SubStates.push_back(SubState);
-                }
-            }
-        } else if (type == "duration") {
-            double duration = GetDurationFromNode(Score, child);
-            Trill.Duration = duration;
-        } else {
-            throw std::runtime_error("Invalid trill event");
-        }
-    }
-    return Trill;
 }
 
 // ─────────────────────────────────────
@@ -255,31 +221,32 @@ void Score::ProcessEventTime(MacroState &Event) {
 // ─────────────────────────────────────
 void Score::ProcessEvent(const std::string &Score, TSNode Node) {
     uint32_t child_count = ts_node_child_count(Node);
-
     for (uint32_t i = 0; i < child_count; i++) {
         MacroState Event;
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
-        unsigned start_row, start_column;
         TSPoint Pos = ts_node_start_point(child);
         Event.Line = Pos.row + 1;
-        if (type == "NOTE") {
-            Event = NoteEvent(Score, child);
-            ProcessEventTime(Event);
-            m_MarkovIndex++;
-        } else if (type == "TRILL") {
-            Event = TrillEvent(Score, child);
-            ProcessEventTime(Event);
-            m_MarkovIndex++;
-        } else if (type == "REST") {
-            continue;
-        } else {
-            std::runtime_error("Invalid event type");
+        if (type == "pitchEvent") {
+            Event = PitchEvent(Score, child);
+            m_PrevDuration = Event.Duration;
+            m_LastOnset = Event.OnsetExpected;
+            m_ScoreStates.push_back(Event);
         }
-        m_PrevDuration = Event.Duration;
-        m_LastOnset = Event.OnsetExpected;
-        m_ScoreStates.push_back(Event);
     }
+}
+
+// ─────────────────────────────────────
+std::string Score::GetChildStringFromId(const std::string &Score, TSNode node, std::string id) {
+    int child_count = ts_node_child_count(node);
+    for (int i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(node, i);
+        const char *type = ts_node_type(child);
+        if (id == type) {
+            return GetCodeStr(Score, child);
+        }
+    }
+    return "";
 }
 
 // ─────────────────────────────────────
@@ -289,17 +256,14 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
-        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (type == "bpm") {
-            uint32_t count = ts_node_child_count(Node);
-            TSNode value_node = ts_node_child(Node, i + 1);
-            std::string value = GetCodeStr(Score, value_node);
-            m_CurrentBPM = std::stof(value);
-        } else if (type == "transpose") {
-            uint32_t count = ts_node_child_count(Node);
-            TSNode value_node = ts_node_child(Node, i + 1);
-            std::string value = GetCodeStr(Score, value_node);
-            m_Transpose = std::stof(value);
+        if (type == "numberConfig") {
+            std::string configType = GetChildStringFromId(Score, child, "configId");
+            std::string number = GetChildStringFromId(Score, child, "numberSet");
+            if (configType == "BPM") {
+                m_CurrentBPM = std::stof(number);
+            } else if (type == "TRANSPOSE") {
+                m_Transpose = std::stof(number);
+            }
         }
     }
 }
@@ -307,7 +271,7 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
 // ─────────────────────────────────────
 void Score::ParseInput(const std::string &Score) {
     TSParser *parser = ts_parser_new();
-    ts_parser_set_language(parser, tree_sitter_score());
+    ts_parser_set_language(parser, tree_sitter_scofo());
     TSTree *tree = ts_parser_parse_string(parser, nullptr, Score.c_str(), Score.size());
     TSNode rootNode = ts_tree_root_node(tree);
 

@@ -23,12 +23,17 @@
                     <textarea class="text-input" spellcheck="false"></textarea>
                     <div class="highlight-output"></div>
                 </div>
-                <div style="margin-top: 40px" class="error-messages">Error message example here.</div>
+                <div style="margin-top: 40px" class="error-messages">
+                    <p style="color: var(--color-text)">Welcome to OScofo Online Editor!!!</p>
+                </div>
             </div>
             <div class="child-container" style="text-align: center">
                 <button id="upload-score"><i class="fa-solid fa-file-arrow-up"></i> Import Musicxml</button>
+                <button id="load-score"><i class="fa-solid fa-file-lines"></i> Load Score</button>
+                <input type="file" id="scoreXmlInput" accept=".xml, .musicxml, .mxl" style="display: none" />
+                <input type="file" id="scoreTxtInput" accept=".txt, .scofo" style="display: none" />
+                <hr />
                 <button id="download-score"><i class="fa-solid fa-download"></i> Download Score</button>
-                <input type="file" id="fileInput" accept=".xml, .musicxml, .mxl" style="display: none" />
                 <hr />
                 <div style="text-align: center; display: flex; justify-content: center">
                     <span class="pd4web-sound-switch" id="Pd4WebAudioSwitch"></span>
