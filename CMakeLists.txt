@@ -66,7 +66,7 @@ find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
 if(TREE_SITTER_EXECUTABLE)
     set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
-    set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Sources/OScofo/tree-sitter-score/src/parser.c)
+    set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
     add_custom_command(
         OUTPUT ${PARSER_OUTPUT_C}
