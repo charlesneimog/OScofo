@@ -1,0 +1,8 @@
+#N canvas 1282 23 632 1016 10;
+#X obj 13 12 bng 35 250 50 0 s-bng1 r-bng1 empty 0 -9 0 10 #fcfcfc #000000 #000000;
+#X obj 184 14 vu 18 80 r-vu1 empty -1 -9 0 10 #404040 #000000 0 0;
+#X obj 163 16 vsl 18 80 0 127 0 0 s-vsl1 r-vsl1 empty 0 -9 0 10 #fcfcfc #000000 #000000 0 1;
+#X text 56 18 Load Score;
+#X obj 13 49 tgl 35 0 s-tgl1 r-tgl1 empty 0 -9 0 10 #fcfcfc #000000 #000000 0 1;
+#X text 56 55 Following Score;
+#X coords 0 -1 1 1 200 90 1 10 10;

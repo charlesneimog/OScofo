@@ -1,6 +1,87 @@
+:root {
+    --color-background: #ffffff; /* Light background */
+    --color-text: #333333; /* Darker text for better readability */
+    --color-highlight-main1: #d32f2f; /* Main highlight color (strong red) */
+    --color-highlight-main2: #ff9800; /* Secondary main highlight color (warm orange) */
+    --color-highlight-pitch: #388e3c; /* Pitch highlight color (green) */
+    --color-highlight-comment: #757575; /* Comment color (gray) */
+    --color-highlight-number: #1976d2; /* Number color (golden yellow) */
+    --color-highlight-error: #d32f2f; /* Error color (same as main highlight red) */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-background: #333; /* Dark background */
+        --color-text: #e0e0e0; /* Light text for better readability */
+        --color-highlight-main1: #ff6f61; /* Main highlight color (vibrant red) */
+        --color-highlight-main2: #ffb74d; /* Secondary main highlight color (warm orange) */
+        --color-highlight-pitch: #66bb6a; /* Pitch highlight color (bright green) */
+        --color-highlight-duration: #; /* Duration highlight color (light blue) */
+        --color-highlight-comment: #bdbdbd; /* Comment color (light gray) */
+        --color-highlight-number: #64b5f6; /* Number color (golden yellow) */
+        --color-highlight-error: #f44336; /* Error color (strong red) */
+    }
+}
+
+body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+
+a {
+    text-decoration: none; /* Removes the underline from the link */
+    color: inherit; /* Inherits the color from the surrounding text (or the icon's color) */
+}
+
+h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+}
+h2 {
+    font-size: 1.5em;
+    margin: 0.83em 0;
+}
+h3 {
+    font-size: 1.17em;
+    margin: 1em 0;
+}
+
+p {
+    margin: 0.5em 0;
+}
+
+/* Container for the entire layout */
+.parent-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    justify-content: space-between;
+    width: 100%;
+    height: auto;
+}
+
+.child-container {
+    width: 48%;
+    margin: 1%;
+}
+
+@media (max-width: 768px) {
+    .container {
+        width: 100%;
+    }
+
+    .parent-container {
+        flex-direction: column;
+    }
+
+    .child-container {
+        width: 100%;
+        margin: 0 0 20px;
+    }
+}
+
 .container {
     position: relative;
-    width: 60%;
     height: 400px;
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0, 144, 0, 0.2); /* Initial shadow */
@@ -14,6 +95,31 @@
     poitner-events: pointer;
 }
 
+/* Style the scrollbar (WebKit browsers like Chrome, Edge, Safari) */
+.container::-webkit-scrollbar {
+    width: 1px; /* Width of the vertical scrollbar */
+    height: 1px; /* Height of the horizontal scrollbar */
+}
+
+.container::-webkit-scrollbar-thumb {
+    width: 1px; /* Width of the vertical scrollbar */
+    height: 1px; /* Height of the horizontal scrollbar */
+    border-radius: 1px; /* Rounded corners */
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    border-radius: 2px; /* Rounded corners for track */
+}
+
+.container::-webkit-scrollbar-track {
+    border-radius: 2px; /* Rounded corners for track */
+}
+
+/* Add styling for Firefox (scrollbar-width and scrollbar-color) */
+.container {
+    scrollbar-width: thin; /* Thin scrollbar */
+}
+
 .container:focus-within {
     box-shadow: 0 0 10px rgba(0, 144, 144, 0.7); /* Highlight when focused */
 }
@@ -23,14 +129,15 @@
     width: auto;
     min-width: 3%;
     min-height: 400px;
-    padding: 0px 5px;
+    padding: 0px 10px;
     overflow-x: hidden;
     overflow-y: hidden;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: var(--color-background);
+    color: var(--color-text);
     text-align: left;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     font-size: 16px;
+    box-shadow: 0 0 10px rgba(120, 120, 120, 0.2); /* Highlight when focused */
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
     line-height: 1.5;
@@ -40,23 +147,36 @@
     color: transparent;
     background-color: transparent;
     z-index: 1;
-    caret-color: black;
-    opacity: 0.2;
+    caret-color: var(--color-text);
+    opacity: 0.5;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    resize: none;
+}
+
+.container::-webkit-scrollbar-button {
+    display: none; /* Remove arrows */
 }
 
 .highlight-output {
     z-index: 0;
     opacity: 1;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .highlight-output,
 .text-input {
     position: absolute;
-    left: 5%;
+    top: 0;
+    left: 0;
+    margin-left: 55px;
     height: 100%;
-    width: 93%;
+    width: 90%;
     min-height: 400px;
-    min-width: 93%;
+    min-width: 90%;
     border: none;
     overflow: hidden;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
@@ -79,7 +199,7 @@
 .error-messages {
     bottom: 0; /* Position at the bottom of the container */
     left: 3%; /* Align with the text input and line numbers */
-    color: red;
+    color: var(--color-highlight-error);
     margin-top: 20%; /* Add spacing between textarea and error message */
     padding: 20px;
     font-size: 14px;
@@ -90,122 +210,63 @@
 }
 
 button {
+    margin-top: 10px;
     margin-left: 20px;
     padding: 10px 20px;
     font-size: 16px;
     font-weight: bold;
     border: none;
     border-radius: 5px;
-    background-color: #4caf50;
-    color: white;
+    background-color: var(--color-text);
+    color: var(--color-background);
     cursor: pointer;
     transition:
         background-color 0.3s ease,
         transform 0.2s ease;
 }
 
-.h1 {
-    font-size: 2em;
-    margin: 0.67em 0;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-}
-.h2 {
-    font-size: 1.5em;
-    margin: 0.83em 0;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-}
-.h3 {
-    font-size: 1.17em;
-    margin: 1em 0;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-}
-
-/* Hover effect for the button */
 button:hover {
-    background-color: #45a049; /* Slightly darker green on hover */
     transform: scale(1.05); /* Slightly scale up the button */
 }
 
 /* Active effect for the button */
 button:active {
-    background-color: #388e3c; /* Even darker green when clicked */
     transform: scale(0.98); /* Slightly scale down when clicked */
 }
 
-.eventId {
-    color: #a626a4; /* Purple */
+/* Hover effect for the button */
+
+.restEventId,
+.pitchEventId {
+    color: var(--color-highlight-main1);
     font-weight: bold;
 }
+.configId {
+    color: var(--color-highlight-main2);
+    font-weight: bold;
+}
+
 .pitch {
-    color: #50a14f; /* Green */
+    color: var(--color-highlight-pitch);
     text-decoration: none;
 }
 .duration {
-    color: #4078f2; /* Blue */
+    color: var(--color-highlight-duration);
 }
 .comment {
-    color: #6a737d;
-    opacity: 0.4;
+    color: var(--color-highlight-comment);
+    opacity: 0.7;
     font-style: italic;
 }
-.configId {
-    color: #d49e42;
-    font-style: bold;
-}
 
+.duration,
 .numberSet {
-    color: #aa0000;
+    color: var(--color-highlight-number);
     font-style: bold;
 }
-
 .error {
+    text-decoration-color: var(--color-highlight-error);
     text-decoration: underline;
-    text-decoration-color: red;
-}
-
-/* Change background color based on theme */
-@media (prefers-color-scheme: dark) {
-    .text-input {
-        caret-color: white;
-    }
-    body {
-        background-color: #333;
-        color: #f5f5f5;
-    }
-    .container {
-        background-color: #444;
-    }
-    .line-numbers {
-        background-color: #555;
-        color: #ccc;
-    }
-    button {
-        background-color: #1e8449;
-    }
-    button:hover {
-        background-color: #186a3b;
-    }
-    button:active {
-        background-color: #145a32;
-    }
-
-    /* Dark Mode - One Dark Theme */
-    .eventId {
-        color: #d291e4; /* Bright Purple for dark background */
-        font-weight: bold;
-    }
-    .pitch {
-        color: #7eca9c; /* Soft Green for dark background */
-        text-decoration: none;
-    }
-    .duration {
-        color: #82aaff; /* Bright Blue for dark background */
-    }
-    .comment {
-        color: #9aa5b1; /* Muted Gray-Blue for dark background */
-        opacity: 0.6; /* Slightly increased opacity for better readability */
-        font-style: italic;
-    }
 }
 
 /* Define the custom font */
