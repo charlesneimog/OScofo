@@ -13,27 +13,22 @@ module.exports = grammar({
         _lua_code: (_) => token(/.*/),
 
         // Config
-        configId: ($) =>
-            choice(
-                alias(token("BPM"), $.identifier),
-                alias(token("TRANSPOSE"), $.identifier),
-                alias(token("CONFIG2"), $.identifier),
-            ),
+        configId: ($) => choice(alias(token("BPM"), $.identifier), alias(token("TRANSPOSE"), $.identifier)),
 
         numberConfig: ($) => seq($.configId, $.numberSet),
         numberSet: ($) => $.number,
 
         // Events
-        eventId: ($) =>
+        pitchEventId: ($) =>
             choice(
                 alias(token("NOTE"), $.identifier), // Treat "NOTE" as an identifier
-                alias(token("REST"), $.identifier), // Treat "REST" as an identifier
                 alias(token("TRILL"), $.identifier), // Treat "TRILL" as an identifier
                 alias(token("CHORD"), $.identifier), // Treat "CHORD" as an identifier
             ),
+        restEventId: ($) => alias(token("REST"), $.identifier), // Treat "NOTE" as an identifier
 
-        pitchEvent: ($) => seq($.eventId, choice($.pitches, $.pitch), $.duration),
-        rest: ($) => seq($.eventId, $.duration),
+        pitchEvent: ($) => seq($.pitchEventId, choice($.pitches, $.pitch), $.duration),
+        rest: ($) => seq($.restEventId, $.duration),
 
         // Pitch
         pitches: ($) => seq("(", repeat1($.pitch), ")"),

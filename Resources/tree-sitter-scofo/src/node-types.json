@@ -69,21 +69,6 @@
     }
   },
   {
-    "type": "eventId",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "noteName",
     "named": true,
     "fields": {},
@@ -177,15 +162,30 @@
           "named": true
         },
         {
-          "type": "eventId",
-          "named": true
-        },
-        {
           "type": "pitch",
           "named": true
         },
         {
+          "type": "pitchEventId",
+          "named": true
+        },
+        {
           "type": "pitches",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pitchEventId",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
           "named": true
         }
       ]
@@ -219,7 +219,22 @@
           "named": true
         },
         {
-          "type": "eventId",
+          "type": "restEventId",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "restEventId",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
           "named": true
         }
       ]

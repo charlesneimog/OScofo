@@ -104,18 +104,6 @@
           },
           "named": true,
           "value": "identifier"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
-            "content": {
-              "type": "STRING",
-              "value": "CONFIG2"
-            }
-          },
-          "named": true,
-          "value": "identifier"
         }
       ]
     },
@@ -136,7 +124,7 @@
       "type": "SYMBOL",
       "name": "number"
     },
-    "eventId": {
+    "pitchEventId": {
       "type": "CHOICE",
       "members": [
         {
@@ -146,18 +134,6 @@
             "content": {
               "type": "STRING",
               "value": "NOTE"
-            }
-          },
-          "named": true,
-          "value": "identifier"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
-            "content": {
-              "type": "STRING",
-              "value": "REST"
             }
           },
           "named": true,
@@ -189,12 +165,24 @@
         }
       ]
     },
+    "restEventId": {
+      "type": "ALIAS",
+      "content": {
+        "type": "TOKEN",
+        "content": {
+          "type": "STRING",
+          "value": "REST"
+        }
+      },
+      "named": true,
+      "value": "identifier"
+    },
     "pitchEvent": {
       "type": "SEQ",
       "members": [
         {
           "type": "SYMBOL",
-          "name": "eventId"
+          "name": "pitchEventId"
         },
         {
           "type": "CHOICE",
@@ -220,7 +208,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "eventId"
+          "name": "restEventId"
         },
         {
           "type": "SYMBOL",
