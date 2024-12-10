@@ -23,7 +23,7 @@
                     <textarea class="text-input" spellcheck="false"></textarea>
                     <div class="highlight-output"></div>
                 </div>
-                <div class="error-messages">Error message example here.</div>
+                <div style="margin-top: 40px" class="error-messages">Error message example here.</div>
             </div>
             <div class="child-container" style="text-align: center">
                 <button id="upload-score"><i class="fa-solid fa-file-arrow-up"></i> Import Musicxml</button>
@@ -56,8 +56,8 @@
             document.getElementById("Pd4WebAudioSwitch").addEventListener(
                 "click",
                 async () => {
-                    // Pd4Web.init(), when using audio input, must be called after a user gesture
                     Pd4Web.init();
+                    console.log("Pd4Web initialized.");
                 },
                 { once: true },
             );

@@ -58,11 +58,12 @@ p {
     justify-content: space-between;
     width: 100%;
     height: auto;
+    margin: 5px;
 }
 
 .child-container {
     width: 48%;
-    margin: 1%;
+    margin: 10px;
 }
 
 @media (max-width: 768px) {
@@ -121,7 +122,7 @@ p {
 }
 
 .container:focus-within {
-    box-shadow: 0 0 10px rgba(0, 144, 144, 0.7); /* Highlight when focused */
+    box-shadow: 0 0 10px rgba(0, 144, 144, 0.9); /* Highlight when focused */
 }
 
 .line-numbers {
@@ -192,21 +193,22 @@ p {
 }
 
 .text-input::selection {
-    background-color: #b3d4fc; /* Highlight color for selected text */
-    color: transparent; /* Hide text color for selected text */
+    background-color: #b3d4fc;
+    color: transparent;
 }
 
 .error-messages {
-    bottom: 0; /* Position at the bottom of the container */
-    left: 3%; /* Align with the text input and line numbers */
+    bottom: 0;
+    left: 3%;
     color: var(--color-highlight-error);
-    margin-top: 20%; /* Add spacing between textarea and error message */
+    margin-top: 20%;
     padding: 20px;
     font-size: 14px;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     border-radius: 5px;
-    z-index: 2; /* Ensure it appears on top of other elements */
-    overflow-y: auto; /* Allow scrolling if the error messages are long */
+    z-index: 2;
+    overflow-y: auto;
+    box-shadow: 0 0 10px rgba(255, 80, 0, 0.2);
 }
 
 button {
@@ -236,19 +238,29 @@ button:active {
 
 /* Hover effect for the button */
 
+.error {
+    text-decoration: underline;
+    text-decoration-style: wavy;
+}
+
+.error {
+    color: inherit; /* Inherit color from the parent or other styles */
+}
+
 .restEventId,
 .pitchEventId {
+    text-decoration-color: red;
     color: var(--color-highlight-main1);
     font-weight: bold;
 }
 .configId {
+    text-decoration-color: red;
     color: var(--color-highlight-main2);
     font-weight: bold;
 }
 
 .pitch {
     color: var(--color-highlight-pitch);
-    text-decoration: none;
 }
 .duration {
     color: var(--color-highlight-duration);
@@ -263,10 +275,6 @@ button:active {
 .numberSet {
     color: var(--color-highlight-number);
     font-style: bold;
-}
-.error {
-    text-decoration-color: var(--color-highlight-error);
-    text-decoration: underline;
 }
 
 /* Define the custom font */

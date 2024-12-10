@@ -36,15 +36,64 @@ class ScofoOnlineEditor {
         return `<span class="highlight-selection">${selectedText}</span>`;
     }
 
-    showError(message) {
-        const errorContainer = document.querySelector(".error-messages");
-        const errorElement = document.createElement("p");
-        errorElement.textContent = message;
-        errorContainer.appendChild(errorElement);
+    updateLineNumbers(errors) {
+        const lineCount = this.textInput.value.split("\n").length;
+
+        this.lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, i) => {
+            const lineNumber = i + 1;
+            if (errors.includes(lineNumber)) {
+                return `<div style="width: 100%;;">❌</div>`;
+            } else {
+                return `<div>${lineNumber}</div>`;
+            }
+        }).join("");
+        this.syncScrollPosition();
+        this.adjustLineNumbersHeight();
     }
 
-    // Example usage
+    checkErrors(node) {
+        const errorContainer = document.querySelector(".error-messages");
+        const errorElement = document.createElement("p");
+        var lineWithErrors = [];
+
+        function checkNode(node) {
+            for (let i = 0; i < node.namedChildCount; i++) {
+                let child = node.namedChild(i);
+                if (child.hasError) {
+                    let message = "";
+                    lineWithErrors.push(child.startPosition.row + 1);
+                    if (child.type === "number") {
+                        console.log("here");
+                        if (child.text === "") {
+                            console.log("here");
+                            message =
+                                "Missing " +
+                                child.parent.type +
+                                " at line " +
+                                (child.parent.endPosition.row + 1) +
+                                ", column " +
+                                (child.parent.endPosition.column + 1);
+                        }
+                    } else if (child.type === "pitch") {
+                        if (child.text === "") {
+                            message = `Missing pitch at line ${child.endPosition.row + 1}`;
+                        }
+                    } else {
+                        // message = `Unknown error at line ${child.endPosition.row + 1}`;
+                    }
+                    errorElement.textContent = message;
+                    errorContainer.appendChild(errorElement);
+                }
+                checkNode(child);
+            }
+        }
+
+        checkNode(node);
+        this.updateLineNumbers(lineWithErrors);
+    }
+
     highlightCode(input, rootNode) {
+        this.checkErrors(rootNode);
         const desiredTypes = ["pitchEventId", "restEventId", "pitch", "duration", "comment", "configId", "numberSet"];
         let result = "";
         let lastIndex = 0;
@@ -56,16 +105,16 @@ class ScofoOnlineEditor {
                 if (start == end) {
                     end++;
                 }
-
-                let hasError = myClass.checkErrors(node);
-                let classCss = node.type;
-                if (hasError) {
-                    classCss += " error";
+                let thereIsError = false;
+                let classCss;
+                if ((node.hasError || node.parent.hasError) && node.type != "comment") {
+                    classCss = "error";
+                    thereIsError = true;
                 }
-
                 if (start > lastIndex) {
-                    result += `<span>${input.slice(lastIndex, start)}</span>`;
+                    result += `<span class="${classCss}">${input.slice(lastIndex, start)}</span>`;
                 }
+                classCss += " " + node.type;
                 result += `<span class="${classCss}">${input.slice(start, end)}</span>`;
                 lastIndex = end;
             }
@@ -77,40 +126,12 @@ class ScofoOnlineEditor {
             const eventNode = rootNode.namedChild(i);
             processNode(this, eventNode);
         }
+
         if (lastIndex < input.length) {
             result += `<span>${input.slice(lastIndex)}</span>`;
         }
-        this.checkErrors(rootNode);
         this.resizeInputCanvas();
         return result;
-    }
-
-    checkErrors(node, errors = {}) {
-        if (node.text == "" && node.type != "score") {
-            let line = node.parent.startPosition.row;
-            errors[line] = {};
-            errors[line].line = line;
-            errors[line].init = node.startIndex;
-            errors[line].end = node.endIndex;
-            errors[line].error = true;
-            errors[line].message = "Error: " + node.parent.type + " is empty";
-            return true;
-        }
-        return false;
-    }
-
-    updateLineNumbers(errors) {
-        const lineCount = this.textInput.value.split("\n").length;
-        this.lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, i) => {
-            const lineNumber = i + 1;
-            if (errors[lineNumber]) {
-                return `<div class="line-number-error">❌</div>`;
-            } else {
-                return `<div>${lineNumber}</div>`;
-            }
-        }).join("");
-        this.syncScrollPosition();
-        this.adjustLineNumbersHeight();
     }
 
     resizeInputCanvas() {
@@ -137,7 +158,6 @@ class ScofoOnlineEditor {
         let styledCode = this.highlightCode(value, tree.rootNode);
 
         this.highlightOutput.innerHTML = styledCode;
-        this.updateLineNumbers(errors);
 
         for (let errorLine in errors) {
             this.showError("Error at line " + errorLine + ".");
@@ -333,7 +353,7 @@ class ScofoOnlineEditor {
                     score += `${type} ${pitches[0]} ${duration}`;
                 }
                 if (note.isTied) {
-                    score += " // TIED";
+                    score += " // tied";
                 }
             }
         }
