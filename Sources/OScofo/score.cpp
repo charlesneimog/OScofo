@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -89,7 +88,7 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         }
     }
     int midi = classNote + 12 + (12 * std::stoi(octave));
-    return midi;
+    return m_Tunning * pow(2, (midi - 69.0) / 12);
 }
 
 // ─────────────────────────────────────
@@ -144,7 +143,6 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
         std::string type = ts_node_type(child);
         if (type == "pitchEventId") {
             std::string id = GetCodeStr(Score, child);
-            printf("%s ", id.c_str());
             if (id == "NOTE") {
                 Note.Type = NOTE;
             } else if (id == "TRILL") {
@@ -160,11 +158,9 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
             SubState.Markov = MARKOV;
             SubState.Type = NOTE;
             SubState.Freq = PitchNode2Freq(Score, child);
-            printf("%f ", SubState.Freq);
             Note.SubStates.push_back(SubState);
         } else if (type == "pitches") {
             uint32_t pitchCount = ts_node_child_count(child);
-            printf("(");
             for (int j = 0; j < pitchCount; j++) {
                 TSNode eventPitch = ts_node_child(child, j);
                 std::string eventPitchId = ts_node_type(eventPitch);
@@ -174,15 +170,12 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
                     SubState.Type = NOTE;
                     SubState.Freq = PitchNode2Freq(Score, eventPitch);
                     Note.SubStates.push_back(SubState);
-                    printf("%f ", SubState.Freq);
                 }
             }
-            printf(") ");
 
         } else if (type == "duration") {
             double duration = GetDurationFromNode(Score, child);
             Note.Duration = duration;
-            printf(" %f", duration);
         } else if (type == "ACTION") {
             // TODO:
             continue;
@@ -191,7 +184,6 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
         }
     }
     ProcessEventTime(Note);
-    printf("\n");
     return Note;
 }
 

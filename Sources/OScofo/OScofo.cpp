@@ -24,6 +24,11 @@ void OScofo::SetPitchTemplateSigma(double Sigma) {
 }
 
 // ─────────────────────────────────────
+void OScofo::SetMinEntropy(double EntropyValue) {
+    m_MDP.SetMinEntropy(EntropyValue);
+}
+
+// ─────────────────────────────────────
 void OScofo::SetHarmonics(int Harmonics) {
     m_MDP.SetHarmonics(Harmonics);
     m_MDP.UpdateAudioTemplate();

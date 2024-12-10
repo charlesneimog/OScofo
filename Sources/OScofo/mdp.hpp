@@ -22,6 +22,8 @@ class MDP {
 
     // Init Functions
     void SetScoreStates(States States);
+    void SetMinEntropy(double EntropyValue);
+
     void UpdateAudioTemplate();
     void UpdatePhaseValues();
 
@@ -61,6 +63,7 @@ class MDP {
     double m_FFTSize;
     double m_HopSize;
     double m_Harmonics = 5;
+    double m_MinEntropy = 0;
     double m_dBTreshold = -55;
     int m_BufferSize = 1000;
 

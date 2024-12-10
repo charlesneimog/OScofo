@@ -163,6 +163,11 @@ void MDP::SetHarmonics(int Harmonics) {
 }
 
 // ─────────────────────────────────────
+void MDP::SetMinEntropy(double EntropyValue) {
+    m_MinEntropy = EntropyValue;
+}
+
+// ─────────────────────────────────────
 int MDP::GetTunning() {
     return m_Tunning;
 }
@@ -661,11 +666,15 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
     double entropy = calculateEntropy(Probs);
     double maxEntropy = log(Probs.size());
     double confidence = 1.0 - (entropy / maxEntropy);
-    if (confidence > 0.02) {
-        return BestState;
-    } else {
-        return CurrentState;
+
+    if (m_MinEntropy > 0) {
+        if (confidence > 0.02) {
+            return BestState;
+        } else {
+            return CurrentState;
+        }
     }
+    return BestState;
 }
 
 // ─────────────────────────────────────
@@ -683,6 +692,9 @@ int MDP::GetEvent(Description &Desc) {
     if (m_Tau == 0) {
         std::vector<double> InitialProb = GetInitialDistribution();
         for (int j = m_CurrentStateIndex; j < m_MaxScoreState; j++) {
+            if (j < 0) {
+                continue;
+            }
             MacroState &StateJ = m_States[j];
             StateJ.InitProb = InitialProb[j - m_CurrentStateIndex];
         }

@@ -23,6 +23,7 @@ class OScofo {
     void SetdBTreshold(double dB);
     void SetTunning(double Tunning);
     void SetCurrentEvent(int Event);
+    void SetMinEntropy(double EntropyValue);
 
     // Get Functions
     double GetLiveBPM();

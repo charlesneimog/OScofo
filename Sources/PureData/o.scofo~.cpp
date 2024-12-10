@@ -65,20 +65,24 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
 // ─────────────────────────────────────
 static void oscofo_set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
     if (argv[0].a_type != A_SYMBOL) {
-        pd_error(x, "[follower~] First argument of set method must be a symbol");
+        pd_error(x, "[o.scofo~] First argument of set method must be a symbol");
         return;
     }
     std::string method = atom_getsymbol(argv)->s_name;
     if (method == "sigma") {
         x->OpenScofo->SetPitchTemplateSigma(atom_getfloat(argv + 1));
-        post("[follower~] Sigma set to %f", atom_getfloat(argv + 1));
+        post("[o.scofo~] Sigma set to %f", atom_getfloat(argv + 1));
     } else if (method == "harmonics") {
         x->OpenScofo->SetHarmonics(atom_getint(argv + 1));
-        post("[follower~] Using pitch template with %d harmonics", atom_getint(argv + 1));
+        post("[o.scofo~] Using pitch template with %d harmonics", atom_getint(argv + 1));
     } else if (method == "threshold") {
         double dB = atom_getfloat(argv + 1);
         x->OpenScofo->SetdBTreshold(dB);
-        post("[follower~] Treshold set to %f", atom_getfloat(argv + 1));
+        post("[o.scofo~] Entropy set to %f", atom_getfloat(argv + 1));
+    } else if (method == "entropy") {
+        double minEntropy = atom_getfloat(argv + 1);
+        x->OpenScofo->SetMinEntropy(minEntropy);
+        post("[o.scofo~] Minimal entropy to trigger new event set to %f", minEntropy);
     } else if (method == "tunning") {
         x->OpenScofo->SetTunning(atom_getfloat(argv + 1));
 
@@ -87,14 +91,14 @@ static void oscofo_set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
         x->Event = f;
         x->OpenScofo->SetCurrentEvent(f);
     } else {
-        pd_error(x, "[follower~] Unknown method");
+        pd_error(x, "[o.scofo~] Unknown method");
     }
 }
 
 // ─────────────────────────────────────
 static void oscofo_following(PdOScofo *x, t_float f) {
     if (!x->OpenScofo->ScoreIsLoaded()) {
-        pd_error(x, "[follower~] Score not loaded");
+        pd_error(x, "[o.scofo~] Score not loaded");
         return;
     }
     if (f == 1) {
