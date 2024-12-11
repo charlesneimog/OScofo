@@ -1,0 +1,267 @@
+.CodeMirror {
+    height: 300px;
+    direction: ltr;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+
+.CodeMirror-lines {
+    padding: 4px 0;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror pre.CodeMirror-line,
+.CodeMirror pre.CodeMirror-line-like {
+    padding: 0 4px;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror-gutter-filler,
+.CodeMirror-scrollbar-filler {
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror-gutters {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.CodeMirror-linenumber {
+    padding: 0 3px 0 5px;
+    min-width: 20px;
+    text-align: right;
+    white-space: nowrap;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror-cursor {
+    border-left: 1px solid var(--color-text);
+    border-right: none;
+    width: 0;
+}
+
+.CodeMirror-composing {
+    border-bottom: 2px solid;
+}
+
+.CodeMirror-sizer {
+    position: relative;
+    border-right: 50px solid transparent;
+}
+
+.CodeMirror-gutter-filler,
+.CodeMirror-hscrollbar,
+.CodeMirror-scrollbar-filler,
+.CodeMirror-vscrollbar {
+    position: absolute;
+    z-index: 6;
+    display: none;
+    outline: 0;
+}
+
+.CodeMirror-hscrollbar {
+    bottom: 0;
+    left: 0;
+    overflow-y: hidden;
+    overflow-x: scroll;
+}
+
+.CodeMirror-gutters {
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-height: 100%;
+    z-index: 3;
+}
+
+.CodeMirror-gutter {
+    white-space: normal;
+    height: 100%;
+    display: inline-block;
+    vertical-align: top;
+    margin-bottom: -50px;
+}
+
+.CodeMirror-gutter-wrapper {
+    position: absolute;
+    z-index: 4;
+    background: 0 0 !important;
+    border: none !important;
+}
+
+.CodeMirror-gutter-background {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 4;
+}
+
+.CodeMirror-gutter-elt {
+    position: absolute;
+    cursor: default;
+    z-index: 4;
+}
+
+.CodeMirror-gutter-wrapper ::selection {
+    background-color: transparent;
+}
+
+.CodeMirror-gutter-wrapper ::-moz-selection {
+    background-color: transparent;
+}
+
+.CodeMirror-lines {
+    cursor: text;
+    min-height: 1px;
+    background: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror pre.CodeMirror-line,
+.CodeMirror pre.CodeMirror-line-like {
+    -moz-border-radius: 0;
+    -webkit-border-radius: 0;
+    border-radius: 0;
+    border-width: 0;
+    background: 0 0;
+    font-family: inherit;
+    font-size: inherit;
+    margin: 0;
+    white-space: pre;
+    word-wrap: normal;
+    line-height: inherit;
+    color: inherit;
+    z-index: 2;
+    position: relative;
+    overflow: visible;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-variant-ligatures: contextual;
+    font-variant-ligatures: contextual;
+}
+
+.CodeMirror-wrap pre.CodeMirror-line,
+.CodeMirror-wrap pre.CodeMirror-line-like {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    word-break: normal;
+}
+
+.CodeMirror-linebackground {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror-linewidget {
+    position: relative;
+    z-index: 2;
+    padding: 0.1px;
+}
+
+.CodeMirror-rtl pre {
+    direction: rtl;
+}
+.CodeMirror-code {
+    outline: 0;
+}
+
+.CodeMirror-gutter,
+.CodeMirror-gutters,
+.CodeMirror-linenumber,
+.CodeMirror-scroll,
+.CodeMirror-sizer {
+    -moz-box-sizing: content-box;
+    box-sizing: content-box;
+}
+
+.CodeMirror-measure {
+    position: absolute;
+    width: 100%;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+}
+
+.CodeMirror-cursor {
+    position: absolute;
+    pointer-events: none;
+}
+.CodeMirror-measure pre {
+    position: static;
+}
+
+div.CodeMirror-cursors {
+    visibility: hidden;
+    position: relative;
+    z-index: 3;
+}
+
+div.CodeMirror-dragcursors {
+    visibility: visible;
+}
+
+.CodeMirror-focused div.CodeMirror-cursors {
+    visibility: visible;
+}
+
+.CodeMirror-selected {
+    background: #d9d9d9;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background: #d7d4f0;
+}
+
+.CodeMirror-crosshair {
+    cursor: crosshair;
+}
+
+.CodeMirror-line::selection,
+.CodeMirror-line > span::selection,
+.CodeMirror-line > span > span::selection {
+    background: #d7d4f0;
+}
+
+.CodeMirror-line::-moz-selection,
+.CodeMirror-line > span::-moz-selection,
+.CodeMirror-line > span > span::-moz-selection {
+    background: #d7d4f0;
+}
+
+.cm-searching {
+    background-color: #ffa;
+    background-color: rgba(255, 255, 0, 0.4);
+}
+
+.cm-force-border {
+    padding-right: 0.1px;
+}
+
+@media print {
+    .CodeMirror div.CodeMirror-cursors {
+        visibility: hidden;
+    }
+}
+.cm-tab-wrap-hack:after {
+    content: "";
+}
+
+span.CodeMirror-selectedtext {
+    background: 0 0;
+}
+
+@font-face {
+    font-family: "FiraCodeNerdFont";
+    src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}

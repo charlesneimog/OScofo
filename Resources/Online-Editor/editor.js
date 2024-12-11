@@ -1,59 +1,224 @@
-class ScofoOnlineEditor {
-    constructor(textInputSelector, highlightOutputSelector, lineNumbersSelector, parserLanguageUrl) {
-        this.textInput = document.querySelector(textInputSelector);
-        this.highlightOutput = document.querySelector(highlightOutputSelector);
-        this.lineNumbers = document.querySelector(lineNumbersSelector);
+function myCustomAutocomplete(cm) {
+    cm.showHint({
+        hint: customHint,
+    });
+}
 
+function customHint(editor) {
+    var cur = editor.getCursor();
+    var token = editor.getTokenAt(cur);
+    var word = token.string;
+
+    var keywords = ["NOTE", "REST", "TRILL", "CHORD", "BPM"];
+
+    var matches = keywords.filter(function (kw) {
+        return kw.startsWith(word);
+    });
+
+    return {
+        list: matches,
+        from: { line: cur.line, ch: token.start },
+        to: { line: cur.line, ch: token.end },
+    };
+}
+
+class ScofoOnlineEditor {
+    constructor(parserLanguageUrl) {
         this.Parser = window.TreeSitter;
+
         this.ScofoParser = null;
         this.parserLanguageUrl = parserLanguageUrl;
         this.htmlFormatterCode = "";
-        this.linesWithErrors = {}; // Track lines with errors
+        this.linesWithErrors = {};
         this.musicxmlScore = {};
-        this.lastUpdate = Date.now();
-        this.highglightIds = ["pitch", "duration"];
+
         this.htmlFormatter = {};
         this.bigTextWarning = false;
-
         this.previousTree = null;
         this.currentTree = null;
 
-        // Initialize the parser and setup event listeners
         this.initParser().then(() => {
-            this.initEventListeners();
+            this.handleCodeChange();
+        });
+
+        this.codeInput = document.getElementById("code-input");
+        this.codeEditor = CodeMirror.fromTextArea(this.codeInput, {
+            lineNumbers: true,
+            showCursorWhenSelecting: true,
+            extraKeys: {
+                "Ctrl-Space": function (cm) {
+                    myCustomAutocomplete(cm);
+                },
+            },
+        });
+
+        // defin
+
+        this.codeContainer = document.getElementById("code-container");
+
+        this.loadState();
+        this.saveStateOnChange = this.debounce(this.saveState, 2000);
+        this.runTreeQueryOnChange = this.debounce(this.runTreeQuery, 50);
+
+        this.handleCodeChange = this.handleCodeChange.bind(this);
+        this.treeEditForEditorChange = this.treeEditForEditorChange.bind(this);
+        this.codeEditor.on("changes", this.handleCodeChange);
+        this.codeEditor.on("scroll", this.handleCodeChange);
+        this.codeEditor.on("click", this.handleCodeChange);
+
+        // Styles
+        this.keyCssStyle = {
+            keyword: "color: var(--color-highlight-main1); font-weight: bold",
+            pitch: "color: var(--color-highlight-pitch)",
+            duration: "color: var(--color-highlight-number)",
+            comment: "color: var(--color-highlight-comment); opacity: 0.7; font-style: italic;",
+            config: "color: var(--color-highlight-main2); font-weight: bold;",
+            error: "text-decoration: underline;text-decoration-style: wavy; text-decoration-color: red;",
+        };
+        this.treeSitterQuery = `
+            (pitchEventId) @keyword
+            (restEventId) @keyword
+            (configId) @config
+            (comment) @comment
+            (pitch) @pitch
+            (duration) @duration
+            (numberSet) @duration
+            (ERROR) @error
+        `;
+
+        // Buttons
+        const downloadButton = document.querySelector("#download-score");
+        const uploadButtom = document.querySelector("#upload-score");
+        const loadButtom = document.querySelector("#load-score");
+
+        if (downloadButton && uploadButtom && loadButtom) {
+            downloadButton.addEventListener("click", () => this.downloadScore());
+            uploadButtom.addEventListener("click", () => this.uploadScore());
+            loadButtom.addEventListener("click", () => this.loadTxtScore());
+        } else {
+            alert("Buttons not found");
+        }
+    }
+
+    //╭─────────────────────────────────────╮
+    //│      Editor and Text Rendering      │
+    //╰─────────────────────────────────────╯
+    cssForCaptureName(capture) {
+        return this.keyCssStyle[capture] || "";
+    }
+
+    async handleCodeChange(_, changes) {
+        const newText = this.codeEditor.getValue() + "\n";
+        const edits = this.tree && changes && changes.map(this.treeEditForEditorChange);
+        if (edits) {
+            for (const edit of edits) {
+                this.tree.edit(edit);
+            }
+        }
+        const newTree = this.ScofoParser.parse(newText, this.tree);
+        if (this.tree) this.tree.delete();
+        this.tree = newTree;
+        this.parseCount++;
+        this.runTreeQueryOnChange();
+        this.saveStateOnChange();
+    }
+
+    treeEditForEditorChange(change) {
+        const oldLineCount = change.removed.length;
+        const newLineCount = change.text.length;
+        const lastLineLength = change.text[newLineCount - 1].length;
+        const startPosition = { row: change.from.line, column: change.from.ch };
+        const oldEndPosition = { row: change.to.line, column: change.to.ch };
+        const newEndPosition = {
+            row: startPosition.row + newLineCount - 1,
+            column: newLineCount === 1 ? startPosition.column + lastLineLength : lastLineLength,
+        };
+        const startIndex = this.codeEditor.indexFromPos(change.from);
+        let newEndIndex = startIndex + newLineCount - 1;
+        let oldEndIndex = startIndex + oldLineCount - 1;
+        for (let i = 0; i < newLineCount; i++) newEndIndex += change.text[i].length;
+        for (let i = 0; i < oldLineCount; i++) oldEndIndex += change.removed[i].length;
+        return {
+            startIndex,
+            oldEndIndex,
+            newEndIndex,
+            startPosition,
+            oldEndPosition,
+            newEndPosition,
+        };
+    }
+
+    runTreeQuery(_, startRow, endRow) {
+        if (endRow == null) {
+            const viewport = this.codeEditor.getViewport();
+            startRow = viewport.from;
+            endRow = viewport.to;
+        }
+        this.codeEditor.operation(() => {
+            const marks = this.codeEditor.getAllMarks();
+            marks.forEach((m) => m.clear());
+            if (this.tree && this.query) {
+                const captures = this.query.captures(
+                    this.tree.rootNode,
+                    { row: startRow, column: 0 },
+                    { row: endRow, column: 0 },
+                );
+                let lastNodeId;
+                for (const { name, node } of captures) {
+                    if (node.id === lastNodeId) continue;
+                    lastNodeId = node.id;
+                    const { startPosition, endPosition } = node;
+                    this.codeEditor.markText(
+                        { line: startPosition.row, ch: startPosition.column },
+                        { line: endPosition.row, ch: endPosition.column },
+                        {
+                            inclusiveLeft: true,
+                            inclusiveRight: true,
+                            css: `${this.cssForCaptureName(name)}`,
+                        },
+                    );
+                }
+            }
         });
     }
+
+    loadState() {
+        const sourceCode = localStorage.getItem("sourceCode");
+        if (sourceCode) {
+            this.codeInput.value = sourceCode;
+        } else {
+            this.codeInput.value = `// Edit you score here`;
+        }
+    }
+
+    saveState() {
+        localStorage.setItem("sourceCode", this.codeEditor.getValue());
+    }
+
+    debounce(func, wait, immediate) {
+        var timeout;
+        return function () {
+            var context = this,
+                args = arguments;
+            var later = function () {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    }
+
+    // ─────────────────────────────────────
 
     async initParser() {
         await this.Parser.init();
         this.ScofoParser = new this.Parser();
-        await this.setScofoParse();
-    }
-
-    async setScofoParse() {
         const scoreScofo = await this.Parser.Language.load(this.parserLanguageUrl);
         this.ScofoParser.setLanguage(scoreScofo);
-        // console.log(this.ScofoParser.language);
-    }
-
-    applySelection(text, selectionStart, selectionEnd) {
-        const selectedText = text.slice(selectionStart, selectionEnd);
-        return `<span class="highlight-selection">${selectedText}</span>`;
-    }
-
-    updateLineNumbers(errors) {
-        const lineCount = this.textInput.value.split("\n").length;
-
-        this.lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, i) => {
-            const lineNumber = i + 1;
-            if (errors.includes(lineNumber)) {
-                return `<div style="width: 100%;;">❌</div>`;
-            } else {
-                return `<div>${lineNumber}</div>`;
-            }
-        }).join("");
-        this.syncScrollPosition();
-        this.adjustLineNumbersHeight();
+        this.query = this.ScofoParser.getLanguage().query(this.treeSitterQuery);
     }
 
     checkErrors(node) {
@@ -96,131 +261,16 @@ class ScofoOnlineEditor {
                     errorContainer.appendChild(errorElement);
                 }
 
-                console.log(child.toString());
+                // console.log(child.toString());
                 checkNode(child);
             }
         }
 
         checkNode(node);
-        this.updateLineNumbers(lineWithErrors);
-    }
-
-    highlightCode(input, rootNode) {
-        console.log(rootNode.toString());
-        // const cursorPosition = this.textInput.selectionStart; // Get cursor position
-        // const textUntilCursor = input.slice(0, cursorPosition); // Get text until
-        const lineNumber = input.split("\n").length; // Get the line number
-        if (lineNumber > 200 && !this.bigTextWarning) {
-            setTimeout(() => {
-                alert("Your score is too big, it may slow down the editor for now! :(");
-            }, 3000);
-            this.bigTextWarning = true;
-        }
-
-        this.checkErrors(rootNode);
-        const desiredTypes = ["pitchEventId", "restEventId", "pitch", "duration", "comment", "configId", "numberSet"];
-        let result = "";
-        let lastIndex = 0;
-
-        function processNode(myClass, node) {
-            if (desiredTypes.includes(node.type)) {
-                if (node.type === "pitchEventId" || node.type == "restEventId") {
-                    let previousChar = input[node.startIndex - 1];
-                    if (previousChar !== "\n" && previousChar !== undefined) {
-                        myClass.textInput.value = input.slice(0, node.startIndex) + "\n" + input.slice(node.startIndex);
-                    }
-                }
-
-                const start = node.startIndex;
-                let end = node.endIndex;
-                if (start == end) {
-                    end++;
-                }
-                let thereIsError = false;
-                let classCss;
-                if ((node.hasError || node.parent.hasError) && node.type != "comment") {
-                    classCss = "error";
-                    thereIsError = true;
-                }
-                if (start > lastIndex) {
-                    let text = input.slice(lastIndex, start);
-                    if (text != "") {
-                        result += `<span class="${classCss}">${text}</span>`;
-                    }
-                }
-                classCss += " " + node.type;
-                let text = input.slice(start, end);
-                result += `<span class="${classCss}">${text}</span>`;
-                lastIndex = end;
-            }
-            for (let i = 0; i < node.namedChildCount; i++) {
-                processNode(myClass, node.namedChild(i));
-            }
-        }
-        for (let i = 0; i < rootNode.namedChildCount; i++) {
-            const eventNode = rootNode.namedChild(i);
-            processNode(this, eventNode);
-        }
-
-        if (lastIndex < input.length) {
-            result += `<span>${input.slice(lastIndex)}</span>`;
-        }
-
-        this.resizeInputCanvas();
-        return result;
-    }
-
-    resizeInputCanvas() {
-        let lines = this.textInput.value.split("\n");
-        let biggerLine = lines.reduce((a, b) => (a.length > b.length ? a : b));
-        let width = biggerLine.length + "ch";
-        this.textInput.style.width = width;
-        let widthInPixels = this.textInput.getBoundingClientRect().width;
-        let heightInPixels = this.textInput.getBoundingClientRect().height;
-        this.highlightOutput.style.width = widthInPixels + "px";
-        this.highlightOutput.style.height = heightInPixels + "px";
-    }
-
-    updateHighlightOutput() {
-        const errorContainer = document.querySelector(".error-messages");
-        errorContainer.innerHTML = "";
-
-        this.resizeInputCanvas();
-
-        // this.resizeInput();
-        const value = this.textInput.value;
-
-        if (value === this.previousTree) {
-            return;
-        }
-
-        const tree = this.ScofoParser.parse(value);
-        // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(this.ScofoParser)));
-
-        let styledCode = this.highlightCode(value, tree.rootNode);
-
-        this.highlightOutput.innerHTML = styledCode;
-
-        this.adjustTextInputHeight();
-
-        if (typeof FS_createDataFile === "function") {
-            return;
-            var byteArray = new TextEncoder().encode(value);
-            FS_unlink("/score.scofo.txt");
-            FS_createDataFile("/", "score.scofo.txt", byteArray, true, true, true);
-        }
-    }
-
-    adjustTextInputHeight() {
-        this.textInput.style.height = `${this.textInput.scrollHeight}px`;
-    }
-
-    adjustLineNumbersHeight() {
-        this.lineNumbers.style.height = `${this.textInput.scrollHeight}px`;
     }
 
     downloadScore() {
-        const content = this.textInput.value;
+        const content = this.codeInput.value;
         const blob = new Blob([content], { type: "text/plain" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -228,21 +278,16 @@ class ScofoOnlineEditor {
         a.click();
     }
 
-    syncScrollPosition() {
-        this.highlightOutput.scrollTop = this.textInput.scrollTop;
-        this.highlightOutput.scrollLeft = this.textInput.scrollLeft;
-        this.lineNumbers.scrollTop = this.textInput.scrollTop; // Sync the line numbers with text input
-    }
-
     click() {
-        if (this.textInput.value === "// Edit your score here") {
-            this.textInput.value = "";
+        if (this.codeInput.value === "// Edit your score here") {
+            this.codeInput.value = "";
         }
-
-        this.textInput.focus();
-        // this.updateHighlightOutput();
+        this.codeInput.focus();
     }
 
+    //╭─────────────────────────────────────╮
+    //│            Import Module            │
+    //╰─────────────────────────────────────╯
     getPitch(note) {
         let pitch = `${note.step}`;
         if (note.alter) {
@@ -397,8 +442,8 @@ class ScofoOnlineEditor {
             }
         }
 
-        this.textInput.value = score;
-        this.updateHighlightOutput();
+        this.codeEditor.setValue(score);
+        this.handleCodeChange();
     }
 
     parseScore(doc) {
@@ -481,7 +526,14 @@ class ScofoOnlineEditor {
                         alter = null;
                     }
                 }
-                let duration = note.getElementsByTagName("duration")[0].textContent;
+
+                let duration = note.getElementsByTagName("duration");
+                if (duration.length == 0) {
+                    duration = 0;
+                } else {
+                    duration = note.getElementsByTagName("duration")[0].textContent;
+                }
+
                 let rest = note.getElementsByTagName("rest")[0];
                 let noteObj = {
                     bpm: bpm,
@@ -507,7 +559,7 @@ class ScofoOnlineEditor {
             this.musicxmlScore.measures[measureNumber] = measureNotes;
         }
         this.generateOScofoScore();
-        this.resizeInputCanvas();
+        this.handleCodeChange();
     }
 
     uploadScore() {
@@ -528,16 +580,26 @@ class ScofoOnlineEditor {
             if (file.name.endsWith(".mxl")) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    // Create a JSZip object from the file content
                     JSZip.loadAsync(e.target.result)
                         .then((zip) => {
-                            zip.file("score.xml")
-                                .async("string")
-                                .then((xmlString) => {
-                                    const parser = new DOMParser();
-                                    const doc = parser.parseFromString(xmlString, "application/xml");
-                                    this.parseScore(doc); // Parse the MusicXML
-                                });
+                            const xmlFile = Object.keys(zip.files).find(
+                                (fileName) => fileName.endsWith(".xml") && !fileName.includes("META-INF/"),
+                            );
+                            console.log(xmlFile);
+                            if (xmlFile) {
+                                zip.file(xmlFile)
+                                    .async("string")
+                                    .then((xmlString) => {
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(xmlString, "application/xml");
+                                        this.parseScore(doc); // Parse the MusicXML
+                                    })
+                                    .catch((error) => {
+                                        alert("Error parsing XML:", error);
+                                    });
+                            } else {
+                                alert("No XML file found in the ZIP archive.");
+                            }
                         })
                         .catch((error) => {
                             alert("Error extracting MXL file:", error);
@@ -582,7 +644,9 @@ class ScofoOnlineEditor {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const fileContent = e.target.result; // Contains the content of the file
-                this.textInput.value = fileContent;
+                this.codeEditor.setValue(fileContent);
+
+                this.handleCodeChange();
             };
             reader.onerror = (e) => {
                 console.error("Error reading file:", e);
@@ -590,97 +654,7 @@ class ScofoOnlineEditor {
             reader.readAsText(file); // Read file as plain text
         };
     }
-
-    saveToCookies() {
-        let input = document.querySelector(".text-input");
-        const value = input.value;
-        const chunkSize = 3000;
-        const chunks = [];
-        for (let i = 0; i < value.length; i += chunkSize) {
-            chunks.push(value.slice(i, i + chunkSize));
-        }
-        chunks.forEach((chunk, index) => {
-            document.cookie = `textInputValue_${index}=${encodeURIComponent(chunk)}; path=/; max-age=86400; SameSite=None; Secure`;
-        });
-        document.cookie = `textInputValue_chunks=${chunks.length}; path=/; max-age=86400; SameSite=None; Secure`;
-    }
-
-    // Helper function to get a cookie by name
-    getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return decodeURIComponent(parts.pop().split(";").shift());
-        return null;
-    }
-
-    getFromCookies() {
-        const chunksCount = parseInt(this.getCookie("textInputValue_chunks"), 10);
-        if (isNaN(chunksCount) || chunksCount <= 0) return null;
-
-        let reconstructedValue = "";
-        for (let i = 0; i < chunksCount; i++) {
-            const chunk = this.getCookie(`textInputValue_${i}`);
-            if (chunk === null) return null; // Return null if any chunk is missing
-            reconstructedValue += chunk;
-        }
-
-        return reconstructedValue;
-    }
-
-    preventDefault(e) {
-        if (e.key === "Tab") {
-            e.preventDefault();
-            let currentCursorPosition = this.textInput.selectionStart;
-            let textBeforeCursor = this.textInput.value.slice(0, currentCursorPosition);
-            let textAfterCursor = this.textInput.value.slice(currentCursorPosition);
-            this.textInput.value = textBeforeCursor + "    " + textAfterCursor;
-            // set the cursor
-            this.textInput.selectionEnd = currentCursorPosition + 4;
-        }
-    }
-
-    initEventListeners() {
-        this.textInput.addEventListener("input", () => this.updateHighlightOutput());
-        this.textInput.addEventListener("keydown", (e) => this.preventDefault(e));
-        this.textInput.addEventListener("scroll", () => this.syncScrollPosition());
-        this.textInput.addEventListener("click", () => this.click());
-        setInterval(this.saveToCookies, 15000);
-
-        const downloadButton = document.querySelector("#download-score");
-        const uploadButtom = document.querySelector("#upload-score");
-        const loadButtom = document.querySelector("#load-score");
-
-        if (downloadButton && uploadButtom && loadButtom) {
-            downloadButton.addEventListener("click", () => this.downloadScore());
-            uploadButtom.addEventListener("click", () => this.uploadScore());
-            loadButtom.addEventListener("click", () => this.loadTxtScore());
-        } else {
-            alert("Buttons not found");
-        }
-
-        /*
-        const recoveredValue = this.getFromCookies();
-        if (recoveredValue) {
-            let recoverConfirmation = confirm("Do you want to recover your last session?");
-            if (recoverConfirmation) {
-                this.textInput.value = recoveredValue;
-            }
-        }
-
-        if (!recoveredValue) {
-            this.textInput.value = "// Edit your score here";
-        }
-        */
-
-        this.updateHighlightOutput();
-        this.resizeInputCanvas();
-    }
 }
 
 // Instantiate the class
-const scofoEditor = new ScofoOnlineEditor(
-    ".text-input",
-    ".highlight-output",
-    ".line-numbers",
-    "tree-sitter-scofo.wasm",
-);
+const scofoEditor = new ScofoOnlineEditor("tree-sitter-scofo.wasm");

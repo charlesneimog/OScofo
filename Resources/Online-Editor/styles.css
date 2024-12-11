@@ -1,25 +1,25 @@
 :root {
-    --color-background: #ffffff; /* Light background */
-    --color-text: #333333; /* Darker text for better readability */
-    --color-highlight-main1: #d32f2f; /* Main highlight color (strong red) */
-    --color-highlight-main2: #ff9800; /* Secondary main highlight color (warm orange) */
-    --color-highlight-pitch: #388e3c; /* Pitch highlight color (green) */
-    --color-highlight-comment: #757575; /* Comment color (gray) */
-    --color-highlight-number: #1976d2; /* Number color (golden yellow) */
-    --color-highlight-error: #d32f2f; /* Error color (same as main highlight red) */
+    --color-background: #ffffff;
+    --color-text: #333333;
+    --color-highlight-main1: #d32f2f;
+    --color-highlight-main2: #ff9800;
+    --color-highlight-pitch: #388e3c;
+    --color-highlight-comment: #757575;
+    --color-highlight-number: #1976d2;
+    --color-highlight-error: #d32f2f;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --color-background: #333; /* Dark background */
-        --color-text: #e0e0e0; /* Light text for better readability */
-        --color-highlight-main1: #ff6f61; /* Main highlight color (vibrant red) */
-        --color-highlight-main2: #ffb74d; /* Secondary main highlight color (warm orange) */
-        --color-highlight-pitch: #66bb6a; /* Pitch highlight color (bright green) */
-        --color-highlight-duration: #; /* Duration highlight color (light blue) */
-        --color-highlight-comment: #bdbdbd; /* Comment color (light gray) */
-        --color-highlight-number: #64b5f6; /* Number color (golden yellow) */
-        --color-highlight-error: #f44336; /* Error color (strong red) */
+        --color-background: #333;
+        --color-text: #e0e0e0;
+        --color-highlight-main1: #ff6f61;
+        --color-highlight-main2: #ffb74d;
+        --color-highlight-pitch: #66bb6a;
+        --color-highlight-duration: #;
+        --color-highlight-comment: #bdbdbd;
+        --color-highlight-number: #64b5f6;
+        --color-highlight-error: #f44336;
     }
 }
 
@@ -57,7 +57,14 @@ hr {
 }
 
 p {
-    margin: 0.5em 0;
+    margin: 1em 0;
+    font-size: 1.2em;
+}
+
+.CodeMirror {
+    min-height: 400px;
+    min-width: 100%;
+    background-color: var(--color-background);
 }
 
 /* Container for the entire layout */
@@ -245,45 +252,35 @@ button:active {
     transform: scale(0.98); /* Slightly scale down when clicked */
 }
 
-/* Hover effect for the button */
+/*
+ *╭─────────────────────────────────────╮
+ *│            Window PopUp             │
+ *╰─────────────────────────────────────╯
+*/
 
-.error {
-    text-decoration: underline;
-    text-decoration-style: wavy;
-}
-
-.error {
-    color: inherit; /* Inherit color from the parent or other styles */
-}
-
-.restEventId,
-.pitchEventId {
-    text-decoration-color: red;
-    color: var(--color-highlight-main1);
-    font-weight: bold;
-}
-.configId {
-    text-decoration-color: red;
-    color: var(--color-highlight-main2);
-    font-weight: bold;
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 2;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    color: var(--color-background);
+    color-text: var(--color-text);
 }
 
-.pitch {
-    color: var(--color-highlight-pitch);
-}
-.duration {
-    color: var(--color-highlight-duration);
-}
-.comment {
-    color: var(--color-highlight-comment);
-    opacity: 0.7;
-    font-style: italic;
-}
-
-.duration,
-.numberSet {
-    color: var(--color-highlight-number);
-    font-style: bold;
+.modal-content {
+    margin: 15% auto;
+    z-index: 2;
+    padding: 20px;
+    width: 300px;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    color: var(--color-text);
+    background-color: var(--color-background);
 }
 
 /* Define the custom font */

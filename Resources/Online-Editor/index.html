@@ -4,24 +4,49 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Tree-sitter Syntax Highlighting</title>
+
+        <!-- ─────────────── FontAwesome ─────────────── -->
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" />
-        <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js"></script>
+
+        <!-- ─────────────── Zip ─────────────── -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-        <script src="tree-sitter.js"></script>
+
+        <!-- ─────────────── Pd4Web ─────────────── -->
         <script src="./pd4web.threads.js"></script>
         <script src="./pd4web.js"></script>
+
+        <!-- ─────────────── TreeSitter ─────────────── -->
+        <script src="tree-sitter.js"></script>
+
+        <!-- ─────────────── Editor ─────────────── -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+        <link rel="stylesheet" href="codemirror.6.65.7.min.css" media="screen" type="text/css" />
+
+        <!-- ─────────────── Style ─────────────── -->
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
         <h1 style="text-align: center">OScofo Score Editor</h1>
         <p style="text-align: center"><i>by Charles K. Neimog</i></p>
 
+        <div id="recoverModal" class="modal">
+            <div class="modal-content">
+                <p>Do you want to recover your last session?</p>
+                <button id="confirmRecover">Yes</button>
+                <button id="cancelRecover">No</button>
+            </div>
+        </div>
+        <div id="warningWindow" class="modal">
+            <div class="modal-content">
+                <p>This is a warning message</p>
+                <button id="warningButtom">Ok</button>
+            </div>
+        </div>
+
         <div class="parent-container">
             <div class="child-container">
-                <div class="container">
-                    <div class="line-numbers"></div>
-                    <textarea class="text-input" spellcheck="false"></textarea>
-                    <div class="highlight-output"></div>
+                <div id="code-container" class="container">
+                    <textarea id="code-input"> </textarea>
                 </div>
                 <div style="margin-top: 40px" class="error-messages">
                     <p style="color: var(--color-text)">Welcome to OScofo Online Editor!!!</p>
