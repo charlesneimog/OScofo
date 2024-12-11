@@ -45,6 +45,7 @@ class ScofoOnlineEditor {
         this.codeEditor = CodeMirror.fromTextArea(this.codeInput, {
             lineNumbers: true,
             showCursorWhenSelecting: true,
+            placeholder: "// Editor your score here",
             extraKeys: {
                 "Ctrl-Space": function (cm) {
                     myCustomAutocomplete(cm);
@@ -52,9 +53,22 @@ class ScofoOnlineEditor {
             },
         });
 
-        // defin
+        this.codeEditor.on("cursorActivity", () => {
+            const cursorPos = this.codeEditor.getCursor();
+            this.showCodeSuggestions(this.codeEditor, cursorPos);
+        });
 
         this.codeContainer = document.getElementById("code-container");
+
+        this.codeContainer.addEventListener("scroll", () => {
+            let codeInput = document.getElementById("code-input");
+            let lines = codeInput.value.split("\n");
+            let biggerLine = lines.reduce((a, b) => (a.length > b.length ? a : b));
+            let width = biggerLine.length + "ch";
+            let height = lines.length + "em";
+            codeInput.style.width = width;
+            codeInput.style.height = height;
+        });
 
         this.loadState();
         this.saveStateOnChange = this.debounce(this.saveState, 2000);
@@ -63,7 +77,6 @@ class ScofoOnlineEditor {
         this.handleCodeChange = this.handleCodeChange.bind(this);
         this.treeEditForEditorChange = this.treeEditForEditorChange.bind(this);
         this.codeEditor.on("changes", this.handleCodeChange);
-        this.codeEditor.on("scroll", this.handleCodeChange);
         this.codeEditor.on("click", this.handleCodeChange);
 
         // Styles
@@ -103,6 +116,25 @@ class ScofoOnlineEditor {
     //╭─────────────────────────────────────╮
     //│      Editor and Text Rendering      │
     //╰─────────────────────────────────────╯
+    showCodeSuggestions(cm, startPos) {
+        const line = startPos.line;
+        const ch = startPos.ch;
+        const currentWord = cm.getLine(line).slice(0, ch).split(/\s+/).pop();
+        const suggestions = {
+            NOTE: "NOTE",
+            TRILL: "TRILL()",
+            CHORD: "CHORD()",
+        };
+
+        if (suggestions[currentWord]) {
+            this.addGhostText(line, suggestions[currentWord]);
+        }
+    }
+
+    addGhostText(line, text) {
+        return;
+    }
+
     cssForCaptureName(capture) {
         return this.keyCssStyle[capture] || "";
     }
@@ -148,14 +180,27 @@ class ScofoOnlineEditor {
         };
     }
 
+    runFormatter(node, name, startPosition) {
+        if (name === "keyword") {
+            const line = startPosition.row;
+            const ch = startPosition.column;
+            if (ch > 0) {
+                this.codeEditor.replaceRange("\n", { line, ch }, { line, ch });
+            }
+        }
+    }
+
     runTreeQuery(_, startRow, endRow) {
         if (endRow == null) {
             const viewport = this.codeEditor.getViewport();
             startRow = viewport.from;
             endRow = viewport.to;
         }
+
         this.codeEditor.operation(() => {
             const marks = this.codeEditor.getAllMarks();
+
+            // Formatter and Highlight
             marks.forEach((m) => m.clear());
             if (this.tree && this.query) {
                 const captures = this.query.captures(
@@ -168,6 +213,8 @@ class ScofoOnlineEditor {
                     if (node.id === lastNodeId) continue;
                     lastNodeId = node.id;
                     const { startPosition, endPosition } = node;
+                    this.runFormatter(node, name, startPosition);
+
                     this.codeEditor.markText(
                         { line: startPosition.row, ch: startPosition.column },
                         { line: endPosition.row, ch: endPosition.column },
@@ -180,6 +227,8 @@ class ScofoOnlineEditor {
                 }
             }
         });
+
+        const marks = this.codeEditor.getAllMarks();
     }
 
     loadState() {

@@ -7,6 +7,7 @@
     --color-highlight-comment: #757575;
     --color-highlight-number: #1976d2;
     --color-highlight-error: #d32f2f;
+    --color-selection: rgba(215, 212, 240, 0.4);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,6 +21,7 @@
         --color-highlight-comment: #bdbdbd;
         --color-highlight-number: #64b5f6;
         --color-highlight-error: #f44336;
+        --color-selection: rgba(215, 212, 240, 0.1);
     }
 }
 
@@ -61,13 +63,35 @@ p {
     font-size: 1.2em;
 }
 
-.CodeMirror {
-    min-height: 400px;
-    min-width: 100%;
-    background-color: var(--color-background);
+button {
+    margin-top: 10px;
+    margin-left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--color-text);
+    color: var(--color-background);
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
 }
 
-/* Container for the entire layout */
+button:hover {
+    transform: scale(1.05); /* Slightly scale up the button */
+}
+
+/* Active effect for the button */
+button:active {
+    transform: scale(0.98); /* Slightly scale down when clicked */
+}
+/*
+ *╭─────────────────────────────────────╮
+ *│   Container for the entire layout   │
+ *╰─────────────────────────────────────╯
+*/
 .parent-container {
     display: flex;
     flex-wrap: wrap; /* Allow wrapping on smaller screens */
@@ -138,79 +162,17 @@ p {
 }
 
 .container:focus-within {
-    box-shadow: 0 0 10px rgba(0, 144, 144, 0.9); /* Highlight when focused */
-}
-
-.line-numbers {
-    position: absolute;
-    width: auto;
-    min-width: 3%;
-    min-height: 400px;
-    padding: 0px 10px;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    background-color: var(--color-background);
-    color: var(--color-text);
-    text-align: left;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-    font-size: 16px;
-    box-shadow: 0 0 10px rgba(120, 120, 120, 0.2); /* Highlight when focused */
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
-    line-height: 1.5;
-}
-
-.text-input {
-    color: transparent;
-    background-color: transparent;
-    z-index: 1;
-    caret-color: var(--color-text);
-    opacity: 0.5;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    resize: none;
+    box-shadow: 0 0 10px rgba(0, 144, 144, 0.4); /* Highlight when focused */
 }
 
 .container::-webkit-scrollbar-button {
     display: none; /* Remove arrows */
 }
 
-.highlight-output {
-    z-index: 0;
-    opacity: 1;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-.highlight-output,
-.text-input {
-    position: absolute;
-    top: 0;
-    left: 0;
-    margin-left: 55px;
-    height: 100%;
-    width: 90%;
-    min-height: 400px;
-    min-width: 90%;
-    border: none;
-    overflow: hidden;
-    font-family: "FiraCodeNerdFont", "Courier New", monospace;
-    font-size: 16px;
-    white-space: pre-wrap;
-    line-height: 1.5;
-}
-
-.text-input:focus {
-    outline: none;
-    border: none;
-    color: transparent;
-}
-
-.text-input::selection {
-    background-color: rgba(179, 212, 252, 0.3);
-    color: transparent;
+.ghost-text {
+    color: #999;
+    font-style: italic;
+    opacity: 0.5;
 }
 
 .error-messages {
@@ -226,30 +188,45 @@ p {
     overflow-y: auto;
     box-shadow: 0 0 10px rgba(255, 80, 0, 0.2);
 }
-
-button {
-    margin-top: 10px;
-    margin-left: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    font-weight: bold;
+/*
+ *╭─────────────────────────────────────╮
+ *│         Code Mirror Changes         │
+ *╰─────────────────────────────────────╯
+*/
+.CodeMirror {
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-background);
+    color: var(--color-text);
     border: none;
-    border-radius: 5px;
-    background-color: var(--color-text);
-    color: var(--color-background);
-    cursor: pointer;
-    transition:
-        background-color 0.3s ease,
-        transform 0.2s ease;
 }
 
-button:hover {
-    transform: scale(1.05); /* Slightly scale up the button */
+.CodeMirror-lines {
+    color: var(--color-text);
+    background-color: var(--color-background);
 }
 
-/* Active effect for the button */
-button:active {
-    transform: scale(0.98); /* Slightly scale down when clicked */
+.CodeMirror-gutter,
+.CodeMirror-linenumber {
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+.CodeMirror-gutters {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    box-shadow: 0 0 10px rgba(40, 80, 90, 0.5); /* Fixed typo */
+    border: none;
+}
+
+.CodeMirror-cursor {
+    border-left: 2px solid var(--color-text);
+    border-right: none;
+    width: 0;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background: var(--color-selection);
 }
 
 /*
