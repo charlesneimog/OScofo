@@ -1,39 +1,52 @@
+/* Default Light Theme */
 :root {
-    --color-background: #ffffff;
-    --color-text: #333333;
-    --color-highlight-main1: #d32f2f;
-    --color-highlight-main2: #ff9800;
-    --color-highlight-pitch: #388e3c;
-    --color-highlight-comment: #757575;
-    --color-highlight-number: #1976d2;
-    --color-highlight-error: #d32f2f;
-    --color-selection: rgba(215, 212, 240, 0.4);
+    --bg: #ffffff;
+    --fg: #6a6a6a;
+    --red: #b5212e;
+    --orange: #9d590b;
+    --yellow: #9e6c10;
+    --green: #15820d;
+    --cyan: #0f7eae;
+    --blue: #118dc3;
+    --purple: #8459c5;
+    --white: #fafafa;
+    --black: #6a6a6a;
+    --gray: #bebebe;
+    --highlight: #8f681e;
+    --comment: #9b9fa6;
+    --none: none;
 }
 
+/* Dark Theme */
 @media (prefers-color-scheme: dark) {
     :root {
-        --color-background: #333;
-        --color-text: #e0e0e0;
-        --color-highlight-main1: #ff6f61;
-        --color-highlight-main2: #ffb74d;
-        --color-highlight-pitch: #66bb6a;
-        --color-highlight-duration: #;
-        --color-highlight-comment: #bdbdbd;
-        --color-highlight-number: #64b5f6;
-        --color-highlight-error: #f44336;
-        --color-selection: rgba(215, 212, 240, 0.1);
+        --bg: #333;
+        --fg: #c0c0c0;
+        --red: #e05661;
+        --orange: #ee9025;
+        --yellow: #eea825;
+        --green: #1da912;
+        --cyan: #56b6c2;
+        --blue: #118dc3;
+        --purple: #9a77cf;
+        --white: #ffffff;
+        --black: #000000;
+        --gray: #4a4a4a;
+        --highlight: #e2be7d;
+        --comment: #6b6f76;
+        --none: none;
     }
 }
 
 body {
-    background-color: var(--color-background);
-    color: var(--color-text);
+    background-color: var(--bg);
+    color: var(--fg);
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
 }
 
 a {
-    text-decoration: none; /* Removes the underline from the link */
-    color: inherit; /* Inherits the color from the surrounding text (or the icon's color) */
+    text-decoration: none;
+    color: inherit;
 }
 
 h1 {
@@ -54,7 +67,7 @@ hr {
     margin: 20px auto;
     border: none;
     height: 1px;
-    background-color: #ccc;
+    background-color: var(--fg);
     align: center;
 }
 
@@ -71,8 +84,8 @@ button {
     font-weight: bold;
     border: none;
     border-radius: 5px;
-    background-color: var(--color-text);
-    color: var(--color-background);
+    background-color: var(--fg);
+    color: var(--bg);
     cursor: pointer;
     transition:
         background-color 0.3s ease,
@@ -94,7 +107,7 @@ button:active {
 */
 .parent-container {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
     height: auto;
@@ -125,52 +138,50 @@ button:active {
     position: relative;
     height: 400px;
     border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 144, 0, 0.2); /* Initial shadow */
+    box-shadow: 0 0 1px var(--green, 0.1);
     overflow-x: auto;
     overflow-y: auto;
-    box-sizing: border-box; /* Ensure padding doesn't cause overflow */
+    box-sizing: border-box;
     font-size: 16px;
-    transition: box-shadow 0.3s ease-in-out; /* Smooth transition */
-    line-height: 1.5; /* Adjust line height for the entire container */
+    transition: box-shadow 0.3s ease-in-out;
+    line-height: 1.5;
     scroll-behavior: smooth;
     poitner-events: pointer;
 }
 
-/* Style the scrollbar (WebKit browsers like Chrome, Edge, Safari) */
 .container::-webkit-scrollbar {
-    width: 1px; /* Width of the vertical scrollbar */
-    height: 1px; /* Height of the horizontal scrollbar */
+    width: 1px;
+    height: 1px;
 }
 
 .container::-webkit-scrollbar-thumb {
-    width: 1px; /* Width of the vertical scrollbar */
-    height: 1px; /* Height of the horizontal scrollbar */
-    border-radius: 1px; /* Rounded corners */
+    width: 1px;
+    height: 1px;
+    border-radius: 1px;
 }
 
 .container::-webkit-scrollbar-thumb:hover {
-    border-radius: 2px; /* Rounded corners for track */
+    border-radius: 2px;
 }
 
 .container::-webkit-scrollbar-track {
-    border-radius: 2px; /* Rounded corners for track */
+    border-radius: 2px;
 }
 
-/* Add styling for Firefox (scrollbar-width and scrollbar-color) */
 .container {
-    scrollbar-width: thin; /* Thin scrollbar */
+    scrollbar-width: thin;
 }
 
 .container:focus-within {
-    box-shadow: 0 0 10px rgba(0, 144, 144, 0.4); /* Highlight when focused */
+    box-shadow: 0 0 1px var(--blue);
 }
 
 .container::-webkit-scrollbar-button {
-    display: none; /* Remove arrows */
+    display: none;
 }
 
 .ghost-text {
-    color: #999;
+    color: var(--comment);
     font-style: italic;
     opacity: 0.5;
 }
@@ -178,16 +189,41 @@ button:active {
 .error-messages {
     bottom: 0;
     left: 3%;
-    color: var(--color-highlight-error);
     margin-top: 20%;
     padding: 20px;
-    font-size: 14px;
+    font-size: 10px;
     font-family: "FiraCodeNerdFont", "Courier New", monospace;
     border-radius: 5px;
     z-index: 2;
     overflow-y: auto;
-    box-shadow: 0 0 10px rgba(255, 80, 0, 0.2);
+    box-shadow: 0 0 1px var(--red);
+    color: var(--red);
 }
+
+.editor-buttom {
+    margin-top: 10px;
+    margin-bottom: 0px;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 5px;
+    border: 1px solid var(--fg);
+    background-color: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
+}
+
+.editor-button:hover {
+    transform: scale(1.05);
+}
+
+.editor-button:active {
+    transform: scale(0.98);
+}
+
 /*
  *╭─────────────────────────────────────╮
  *│         Code Mirror Changes         │
@@ -196,37 +232,37 @@ button:active {
 .CodeMirror {
     width: 100%;
     height: 100%;
-    background-color: var(--color-background);
-    color: var(--color-text);
+    background-color: var(--bg);
+    color: var(--fg);
     border: none;
 }
 
 .CodeMirror-lines {
-    color: var(--color-text);
-    background-color: var(--color-background);
+    color: var(--fg);
+    background-color: var(--bg);
 }
 
 .CodeMirror-gutter,
 .CodeMirror-linenumber {
-    background-color: var(--color-background);
-    color: var(--color-text);
+    background-color: var(--bg);
+    color: var(--fg);
 }
 
 .CodeMirror-gutters {
-    background-color: var(--color-background);
-    color: var(--color-text);
-    box-shadow: 0 0 10px rgba(40, 80, 90, 0.5); /* Fixed typo */
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: 0 0 1px var(--cyan);
     border: none;
 }
 
 .CodeMirror-cursor {
-    border-left: 2px solid var(--color-text);
+    border-left: 2px solid var(--fg);
     border-right: none;
     width: 0;
 }
 
 .CodeMirror-focused .CodeMirror-selected {
-    background: var(--color-selection);
+    background: color-mix(in srgb, var(--cyan) 20%, transparent 0%);
 }
 
 /*
@@ -244,8 +280,7 @@ button:active {
     width: 100%;
     height: 100%;
     overflow: auto;
-    color: var(--color-background);
-    color-text: var(--color-text);
+    color-text: var(--fg);
 }
 
 .modal-content {
@@ -255,9 +290,9 @@ button:active {
     width: 300px;
     text-align: center;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    color: var(--color-text);
-    background-color: var(--color-background);
+    box-shadow: 0 2px 10px var(--fg);
+    color: var(--fg);
+    background-color: var(--bg);
 }
 
 /* Define the custom font */

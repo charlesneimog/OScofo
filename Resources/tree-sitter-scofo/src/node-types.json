@@ -1,5 +1,28 @@
 [
   {
+    "type": "ACTION",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "exec",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "timedAction",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "CONFIG",
     "named": true,
     "fields": {},
@@ -34,6 +57,25 @@
     }
   },
   {
+    "type": "LUA",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "lua_body",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "alteration",
     "named": true,
     "fields": {}
@@ -47,7 +89,7 @@
       "required": true,
       "types": [
         {
-          "type": "identifier",
+          "type": "keyword",
           "named": true
         }
       ]
@@ -63,6 +105,82 @@
       "types": [
         {
           "type": "number",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "exec",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "lua_call",
+          "named": true
+        },
+        {
+          "type": "pdargs",
+          "named": true
+        },
+        {
+          "type": "receiver",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "lua_body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "lua_body",
+          "named": true
+        },
+        {
+          "type": "lua_comment",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "lua_call",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "lua_call",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "luafunction",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
           "named": true
         }
       ]
@@ -131,6 +249,25 @@
     }
   },
   {
+    "type": "pdargs",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "symbol",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "pitch",
     "named": true,
     "fields": {},
@@ -157,6 +294,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "ACTION",
+          "named": true
+        },
         {
           "type": "duration",
           "named": true
@@ -185,7 +326,7 @@
       "required": true,
       "types": [
         {
-          "type": "identifier",
+          "type": "keyword",
           "named": true
         }
       ]
@@ -201,6 +342,21 @@
       "types": [
         {
           "type": "pitch",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "receiver",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
           "named": true
         }
       ]
@@ -234,7 +390,7 @@
       "required": true,
       "types": [
         {
-          "type": "identifier",
+          "type": "keyword",
           "named": true
         }
       ]
@@ -255,6 +411,43 @@
         {
           "type": "EVENT",
           "named": true
+        },
+        {
+          "type": "LUA",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "symbol",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "timeUnit",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "timedAction",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "actionKey",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "timeUnit",
+          "named": true
         }
       ]
     }
@@ -272,8 +465,16 @@
     "named": false
   },
   {
-    "type": "LUA",
+    "type": "[",
     "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "actionKey",
+    "named": true
   },
   {
     "type": "b",
@@ -288,8 +489,24 @@
     "named": true
   },
   {
+    "type": "keyword",
+    "named": true
+  },
+  {
+    "type": "lua_comment",
+    "named": true
+  },
+  {
     "type": "midi",
     "named": true
+  },
+  {
+    "type": "ms",
+    "named": false
+  },
+  {
+    "type": "ns",
+    "named": false
   },
   {
     "type": "octave",
@@ -298,6 +515,18 @@
   {
     "type": "pitchname",
     "named": true
+  },
+  {
+    "type": "s",
+    "named": false
+  },
+  {
+    "type": "tempo",
+    "named": false
+  },
+  {
+    "type": "us",
+    "named": false
   },
   {
     "type": "{",

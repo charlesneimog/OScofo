@@ -7,3 +7,6 @@
 [submodule "Sources/Max/max-sdk-base"]
 	path = Sources/Max/max-sdk-base
 	url = https://github.com/Cycling74/max-sdk-base.git
+[submodule "Resources/Online-Editor/tree-sitter-lua"]
+	path = Resources/Online-Editor/tree-sitter-lua
+	url = https://github.com/tjdevries/tree-sitter-lua.git

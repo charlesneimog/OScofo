@@ -18,25 +18,135 @@
         {
           "type": "SYMBOL",
           "name": "EVENT"
-        }
-      ]
-    },
-    "identifier": {
-      "type": "PATTERN",
-      "value": "[a-zA-Z_][a-zA-Z0-9_]*"
-    },
-    "EVENT": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "pitchEvent"
         },
         {
           "type": "SYMBOL",
-          "name": "rest"
+          "name": "LUA"
         }
       ]
+    },
+    "keyword": {
+      "type": "PATTERN",
+      "value": "[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "LUA": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "LUA"
+            }
+          },
+          "named": true,
+          "value": "identifier"
+        },
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "lua_body"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        }
+      ]
+    },
+    "lua_body": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "[^{}`]+"
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "{"
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "lua_body"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "STRING",
+                "value": "}"
+              }
+            ]
+          },
+          {
+            "type": "SYMBOL",
+            "name": "lua_comment"
+          }
+        ]
+      }
+    },
+    "lua_call": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "[^()`]+"
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "("
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "lua_call"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "STRING",
+                "value": ")"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "lua_comment": {
+      "type": "PATTERN",
+      "value": "--[^\\n]*"
     },
     "CONFIG": {
       "type": "CHOICE",
@@ -46,37 +156,6 @@
           "name": "numberConfig"
         }
       ]
-    },
-    "luaBlock": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "LUA"
-        },
-        {
-          "type": "STRING",
-          "value": "{"
-        },
-        {
-          "type": "REPEAT",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_lua_code"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "}"
-        }
-      ]
-    },
-    "_lua_code": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": ".*"
-      }
     },
     "configId": {
       "type": "CHOICE",
@@ -91,7 +170,7 @@
             }
           },
           "named": true,
-          "value": "identifier"
+          "value": "keyword"
         },
         {
           "type": "ALIAS",
@@ -103,7 +182,19 @@
             }
           },
           "named": true,
-          "value": "identifier"
+          "value": "keyword"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "ENTROPY"
+            }
+          },
+          "named": true,
+          "value": "keyword"
         }
       ]
     },
@@ -124,6 +215,19 @@
       "type": "SYMBOL",
       "name": "number"
     },
+    "EVENT": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "pitchEvent"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "rest"
+        }
+      ]
+    },
     "pitchEventId": {
       "type": "CHOICE",
       "members": [
@@ -137,7 +241,7 @@
             }
           },
           "named": true,
-          "value": "identifier"
+          "value": "keyword"
         },
         {
           "type": "ALIAS",
@@ -149,7 +253,7 @@
             }
           },
           "named": true,
-          "value": "identifier"
+          "value": "keyword"
         },
         {
           "type": "ALIAS",
@@ -161,7 +265,7 @@
             }
           },
           "named": true,
-          "value": "identifier"
+          "value": "keyword"
         }
       ]
     },
@@ -175,7 +279,7 @@
         }
       },
       "named": true,
-      "value": "identifier"
+      "value": "keyword"
     },
     "pitchEvent": {
       "type": "SEQ",
@@ -200,6 +304,18 @@
         {
           "type": "SYMBOL",
           "name": "duration"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "ACTION"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -306,6 +422,222 @@
       "type": "SYMBOL",
       "name": "number"
     },
+    "ACTION": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": "ACTION"
+                }
+              },
+              "named": true,
+              "value": "keyword"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "timedAction"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "exec"
+          }
+        }
+      ]
+    },
+    "timedAction": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": "delay"
+                }
+              },
+              "named": true,
+              "value": "actionKey"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "number"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "timeUnit"
+            }
+          ]
+        }
+      ]
+    },
+    "actionKeyword": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "luafunction"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "keyword"
+        }
+      ]
+    },
+    "exec": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": "send"
+                }
+              },
+              "named": true,
+              "value": "keyword"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "receiver"
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": "sendto"
+                }
+              },
+              "named": true,
+              "value": "keyword"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "receiver"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": "["
+                    },
+                    {
+                      "type": "REPEAT",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "pdargs"
+                      }
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "]"
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": "call"
+                }
+              },
+              "named": true,
+              "value": "keyword"
+            },
+            {
+              "type": "STRING",
+              "value": "("
+            },
+            {
+              "type": "SYMBOL",
+              "name": "lua_call"
+            },
+            {
+              "type": "STRING",
+              "value": ")"
+            }
+          ]
+        }
+      ]
+    },
+    "pdargs": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "symbol"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "number"
+        }
+      ]
+    },
+    "receiver": {
+      "type": "SYMBOL",
+      "name": "keyword"
+    },
+    "luafunction": {
+      "type": "SYMBOL",
+      "name": "keyword"
+    },
+    "actionKey": {
+      "type": "PATTERN",
+      "value": "[a-zA-Z][a-zA-Z0-9_]*"
+    },
     "number": {
       "type": "CHOICE",
       "members": [
@@ -318,6 +650,10 @@
           "value": "[0-9]+\\.[0-9]+"
         }
       ]
+    },
+    "symbol": {
+      "type": "PATTERN",
+      "value": "[a-zA-Z][a-zA-Z0-9_]*"
     },
     "comment": {
       "type": "TOKEN",
@@ -356,6 +692,31 @@
           }
         ]
       }
+    },
+    "timeUnit": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "tempo"
+        },
+        {
+          "type": "STRING",
+          "value": "s"
+        },
+        {
+          "type": "STRING",
+          "value": "ms"
+        },
+        {
+          "type": "STRING",
+          "value": "us"
+        },
+        {
+          "type": "STRING",
+          "value": "ns"
+        }
+      ]
     }
   },
   "extras": [

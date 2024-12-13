@@ -23,11 +23,16 @@ function customHint(editor) {
 }
 
 class ScofoOnlineEditor {
-    constructor(parserLanguageUrl) {
+    constructor() {
         this.Parser = window.TreeSitter;
 
+        // debug option
+        this.showTree = true;
+
         this.ScofoParser = null;
-        this.parserLanguageUrl = parserLanguageUrl;
+        this.parserOScofoWasm = "tree-sitter-scofo.wasm";
+        this.parserLuaWasm = "tree-sitter-lua.wasm";
+
         this.htmlFormatterCode = "";
         this.linesWithErrors = {};
         this.musicxmlScore = {};
@@ -47,8 +52,35 @@ class ScofoOnlineEditor {
             showCursorWhenSelecting: true,
             placeholder: "// Editor your score here",
             extraKeys: {
+                "Ctrl-Z": function (cm) {
+                    console.log("Ctrl-Z");
+                    cm.undo();
+                },
+                "Ctrl-Y": function (cm) {
+                    cm.redo();
+                },
+                "Cmd-Z": function (cm) {
+                    cm.undo();
+                },
+                "Cmd-Shift-Z": function (cm) {
+                    cm.redo();
+                },
                 "Ctrl-Space": function (cm) {
                     myCustomAutocomplete(cm);
+                },
+                "Ctrl-;": function (cm) {
+                    const selection = cm.getSelection();
+                    if (selection) {
+                        cm.replaceSelection(`/* ${selection} */`);
+                    } else {
+                        const cursor = cm.getCursor();
+                        const line = cm.getLine(cursor.line);
+                        cm.replaceRange(
+                            "// " + line,
+                            { line: cursor.line, ch: 0 },
+                            { line: cursor.line, ch: line.length },
+                        );
+                    }
                 },
             },
         });
@@ -72,31 +104,90 @@ class ScofoOnlineEditor {
 
         this.loadState();
         this.saveStateOnChange = this.debounce(this.saveState, 2000);
-        this.runTreeQueryOnChange = this.debounce(this.runTreeQuery, 50);
+        this.runTreeQueryOnChange = this.debounce(this.runTreeQuery, 100);
 
         this.handleCodeChange = this.handleCodeChange.bind(this);
         this.treeEditForEditorChange = this.treeEditForEditorChange.bind(this);
         this.codeEditor.on("changes", this.handleCodeChange);
-        this.codeEditor.on("click", this.handleCodeChange);
 
         // Styles
         this.keyCssStyle = {
-            keyword: "color: var(--color-highlight-main1); font-weight: bold",
-            pitch: "color: var(--color-highlight-pitch)",
-            duration: "color: var(--color-highlight-number)",
-            comment: "color: var(--color-highlight-comment); opacity: 0.7; font-style: italic;",
-            config: "color: var(--color-highlight-main2); font-weight: bold;",
-            error: "text-decoration: underline;text-decoration-style: wavy; text-decoration-color: red;",
+            keyword: "color: var(--red); font-weight: bold;", // Destaque forte para palavras-chave
+            pitch: "color: var(--blue); font-weight: bold;", // Azul para elementos relacionados a tons
+            duration: "color: var(--yellow); font-weight: bold;", // Amarelo para duração, indicando tempo
+            comment: "color: var(--comment); opacity: 0.7; font-style: italic;", // Cinza opaco para comentários
+            config: "color: var(--purple); font-weight: bold;", // Laranja para configuração, chamativo e legível
+            error: "text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--red);", // Vermelho ondulado para erros
+            action: "color: var(--green);", // Verde para ações, representando movimento ou execução
+
+            //
+            actionKey: "color: var(--purple);",
+            timeUnit: "color: var(--highlight);",
+            number: "color: var(--highlight);",
+            exec: "color: var(--fg); font-weight: bold;",
+            receiver: "color: var(--green);",
+            pdargs: "color: var(--fg); font-style: italic;",
+
+            // Lua
+            luastring: "color: var(--purple); font-style: italic; font-weight: 100",
+            luafor: "color: var(--orange); font-weight: 100;",
+            luaidentifier: "color: var(--cyan); font-weight: 100;",
+            luakeyword: "color: var(--red); font-weight: 100;",
+            luanumber: "color: var(--yellow); font-weight: 100;",
+            luacomment: "color: var(--comment); font-style: italic; opacity: 0.7;", // Cinza opaco para comentários Lua
+            luaif: "color: var(--green); font-weight: 100;",
+            timedAction: "color: var(--highlight); font-weight: 100;",
         };
-        this.treeSitterQuery = `
+
+        this.OScofoStringQuery = `
             (pitchEventId) @keyword
             (restEventId) @keyword
+            (identifier) @keyword
             (configId) @config
             (comment) @comment
             (pitch) @pitch
             (duration) @duration
             (numberSet) @duration
+            (ACTION (keyword) @ACTION)
+            (actionKey) @actionKey
+            (timedAction (number) @number)
+
+            (timeUnit) @timeUnit
+            (exec (keyword) @exec) 
+            (receiver) @receiver
+            ((pdargs)  @pdargs)
+            ((EVENT) @EVENT)
+
+            (lua_body) @lua_body
+            (lua_call) @lua_body
+
             (ERROR) @error
+        `;
+
+        this.LuaStringQuery = `
+            ((string) @luastring)
+            (((comment) @luacomment))
+
+            ((for_start) @luakeyword)
+            ((for_in) @luafor)
+            ((for_do) @luafor)
+            ((for_end) @luafor)
+            ((if_start) @luafor)
+            ((if_then) @luafor)
+            ((if_end) @luafor)
+            ((if_else) @luafor)
+            ((if_elseif) @luafor)
+            ((function_start) @luafor)
+            ((function_end) @luafor)
+
+            (function_call (identifier) @luaidentifier)
+            (function_body (return_statement) @luakeyword)
+
+            ((local) @luakeyword)
+            ((variable_declarator (identifier)) @luakeyword)
+            (number) @luanumber
+
+
         `;
 
         // Buttons
@@ -122,8 +213,8 @@ class ScofoOnlineEditor {
         const currentWord = cm.getLine(line).slice(0, ch).split(/\s+/).pop();
         const suggestions = {
             NOTE: "NOTE",
-            TRILL: "TRILL()",
-            CHORD: "CHORD()",
+            TRILL: "TRILL",
+            CHORD: "CHORD",
         };
 
         if (suggestions[currentWord]) {
@@ -140,14 +231,25 @@ class ScofoOnlineEditor {
     }
 
     async handleCodeChange(_, changes) {
-        const newText = this.codeEditor.getValue() + "\n";
+        const newText = this.codeEditor.getValue();
         const edits = this.tree && changes && changes.map(this.treeEditForEditorChange);
         if (edits) {
             for (const edit of edits) {
                 this.tree.edit(edit);
             }
         }
+
         const newTree = this.ScofoParser.parse(newText, this.tree);
+
+        console.log(newTree.rootNode.toString());
+        let needParse = this.runFormatterAfterParse(newTree.rootNode);
+        if (needParse) {
+            this.handleCodeChange(_, changes);
+            return;
+        }
+
+        this.checkErrors(newTree);
+
         if (this.tree) this.tree.delete();
         this.tree = newTree;
         this.parseCount++;
@@ -180,14 +282,151 @@ class ScofoOnlineEditor {
         };
     }
 
-    runFormatter(node, name, startPosition) {
-        if (name === "keyword") {
-            const line = startPosition.row;
-            const ch = startPosition.column;
-            if (ch > 0) {
-                this.codeEditor.replaceRange("\n", { line, ch }, { line, ch });
-            }
+    luaFormatter(luaTree, luaPositionStart) {
+        return;
+    }
+
+    luaHighlight(luaNode, luaPositionStart) {
+        let luaTxt = luaNode.text;
+        let luaTree = this.LuaParser.parse(luaTxt);
+        console.log(luaTree.rootNode.toString());
+        console.log(luaTxt);
+
+        this.luaFormatter(luaTree, luaPositionStart);
+        const captures = this.LuaQuery.captures(
+            luaTree.rootNode,
+            { row: 0, column: 0 },
+            { row: Infinity, column: Infinity },
+        );
+
+        for (const { name, node } of captures) {
+            const { startPosition, endPosition } = node;
+            let luaStart = {
+                row: startPosition.row + luaPositionStart.row,
+                column: startPosition.column + (startPosition.row === 0 ? luaPositionStart.column : 0),
+            };
+            let luaEnd = {
+                row: endPosition.row + luaPositionStart.row,
+                column: endPosition.column + (endPosition.row === 0 ? luaPositionStart.column : 0),
+            };
+
+            this.codeEditor.markText(
+                { line: luaStart.row, ch: luaStart.column },
+                { line: luaEnd.row, ch: luaEnd.column },
+                {
+                    inclusiveLeft: true,
+                    inclusiveRight: true,
+                    css: this.cssForCaptureName(name),
+                },
+            );
         }
+    }
+
+    luaChildOfLuaBody(node) {
+        let parent = node.parent;
+        while (parent) {
+            if (parent.type === "lua_body") {
+                return true;
+            }
+            parent = parent.parent;
+        }
+        return false;
+    }
+
+    luaIndentBody(node) {
+        return false;
+        if (node.parent.hasError) {
+            return false;
+        }
+        let luaTxt = node.text;
+        if (luaTxt.trim(" ") === "") {
+            return false;
+        }
+        let lines = luaTxt.split("\n");
+
+        const cursorPos = this.codeEditor.getCursor();
+        const cursorLine = cursorPos.line;
+        const cursorCh = cursorPos.ch;
+        let needIndent = false;
+        let indentedLines = lines.map((line, index) => {
+            let modifiedLine = line;
+            let addedSpaces = 0;
+            if (!(line.startsWith("    ") || line.startsWith("\t")) && index !== lines.length - 1) {
+                needIndent = true;
+                const match = line.match(/^(\s*)/);
+                let neededSpaces = 4;
+                if (match) {
+                    neededSpaces = 4 - (match[1].length % 4);
+                }
+                modifiedLine = " ".repeat(neededSpaces) + line;
+                addedSpaces = neededSpaces;
+            }
+            if (index === cursorLine && addedSpaces > 0 && cursorCh <= line.length) {
+                cursorPos.ch += addedSpaces;
+            }
+            return modifiedLine;
+        });
+
+        if (needIndent) {
+            const indentedText = indentedLines.join("\n");
+            const startPosition = { line: node.startPosition.row, ch: node.startPosition.column };
+            const endPosition = { line: node.endPosition.row, ch: node.endPosition.column };
+            this.codeEditor.replaceRange(indentedText, startPosition, endPosition);
+            this.codeEditor.setCursor(cursorPos);
+            return true;
+        }
+
+        return false;
+    }
+
+    runFormatterBeforeParser() {
+        return;
+    }
+
+    runFormatterAfterParse(node) {
+        let oscofoFormatter = {
+            EVENT: { column: 0, toLowerCase: false, toUpperCase: false },
+            ACTION: { column: 4, toLowerCase: false, toUpperCase: false },
+            pitch: { column: null, toLowerCase: false, toUpperCase: true },
+        };
+        let wasFormatted = false;
+
+        function formatNode(node, formatter) {
+            if (formatter && node.type in formatter) {
+                let thingFormat = formatter[node.type];
+                const startPos = { line: node.startPosition.row, column: node.startPosition.column };
+                let lineText = this.codeEditor.getLine(node.startPosition.row);
+                let lineTextBefore = lineText.substring(0, node.startPosition.column);
+
+                // place
+                if (thingFormat.column !== null) {
+                    if (lineTextBefore.trim() === "" && startPos.column !== formatter[node.type].column) {
+                        this.codeEditor.replaceRange(node.text, { line: node.startPosition.row, ch: 0 }, startPos);
+                        wasFormatted = true;
+                    } else if (startPos.column !== formatter[node.type].column && lineTextBefore.trim() !== "") {
+                        wasFormatted = true;
+                        let intendation = " ".repeat(formatter[node.type].column);
+                        this.codeEditor.replaceRange(
+                            lineTextBefore + "\n" + intendation + node.text,
+                            { line: node.startPosition.row, ch: 0 },
+                            startPos,
+                        );
+                    }
+                }
+
+                // check if the text
+                if (thingFormat.toUpperCase) {
+                    return;
+                    let newText = node.text.toUpperCase();
+                    this.codeEditor.replaceRange(newText, startPos, startPos);
+                }
+            }
+
+            node.children.forEach((child) => formatNode.call(this, child, formatter));
+        }
+
+        formatNode.call(this, node, oscofoFormatter);
+        return wasFormatted;
     }
 
     runTreeQuery(_, startRow, endRow) {
@@ -199,36 +438,38 @@ class ScofoOnlineEditor {
 
         this.codeEditor.operation(() => {
             const marks = this.codeEditor.getAllMarks();
-
-            // Formatter and Highlight
             marks.forEach((m) => m.clear());
-            if (this.tree && this.query) {
-                const captures = this.query.captures(
+
+            if (this.tree && this.OScofoQuery) {
+                const captures = this.OScofoQuery.captures(
                     this.tree.rootNode,
                     { row: startRow, column: 0 },
                     { row: endRow, column: 0 },
                 );
+
                 let lastNodeId;
                 for (const { name, node } of captures) {
                     if (node.id === lastNodeId) continue;
                     lastNodeId = node.id;
                     const { startPosition, endPosition } = node;
-                    this.runFormatter(node, name, startPosition);
-
-                    this.codeEditor.markText(
-                        { line: startPosition.row, ch: startPosition.column },
-                        { line: endPosition.row, ch: endPosition.column },
-                        {
-                            inclusiveLeft: true,
-                            inclusiveRight: true,
-                            css: `${this.cssForCaptureName(name)}`,
-                        },
-                    );
+                    if (name === "lua_body" && !this.luaChildOfLuaBody(node)) {
+                        if (!this.luaIndentBody(node)) {
+                            this.luaHighlight(node, startPosition);
+                        }
+                    } else {
+                        this.codeEditor.markText(
+                            { line: startPosition.row, ch: startPosition.column },
+                            { line: endPosition.row, ch: endPosition.column },
+                            {
+                                inclusiveLeft: true,
+                                inclusiveRight: true,
+                                css: this.cssForCaptureName(name),
+                            },
+                        );
+                    }
                 }
             }
         });
-
-        const marks = this.codeEditor.getAllMarks();
     }
 
     loadState() {
@@ -264,19 +505,45 @@ class ScofoOnlineEditor {
 
     async initParser() {
         await this.Parser.init();
+
+        // OScofo
         this.ScofoParser = new this.Parser();
-        const scoreScofo = await this.Parser.Language.load(this.parserLanguageUrl);
+        const scoreScofo = await this.Parser.Language.load(this.parserOScofoWasm);
         this.ScofoParser.setLanguage(scoreScofo);
-        this.query = this.ScofoParser.getLanguage().query(this.treeSitterQuery);
+
+        // Lua
+        this.LuaParser = new this.Parser();
+        const luaParser = await this.Parser.Language.load(this.parserLuaWasm);
+        this.LuaParser.setLanguage(luaParser);
+
+        this.OScofoQuery = this.ScofoParser.getLanguage().query(this.OScofoStringQuery);
+        this.LuaQuery = this.LuaParser.getLanguage().query(this.LuaStringQuery);
+    }
+
+    getMissing(node, list) {
+        for (let i = 0; i < node.namedChildCount; i++) {
+            let child = node.namedChild(i);
+            console.log(child.toString());
+            if (child.isMissing) {
+                list.push(child);
+            }
+            this.getMissing(child);
+        }
     }
 
     checkErrors(node) {
+        node = node.rootNode;
         var lineWithErrors = [];
         var lineWithUnexpected = [];
+        const errorContainer = document.querySelector(".error-messages");
+        errorContainer.innerHTML = "";
+
+        // let missing = [];
+        // this.getMissing(node, missing);
+        // console.log(missing);
 
         function checkNode(node) {
             for (let i = 0; i < node.namedChildCount; i++) {
-                const errorContainer = document.querySelector(".error-messages");
                 const errorElement = document.createElement("p");
                 let child = node.namedChild(i);
                 if (child.hasError) {
@@ -303,14 +570,11 @@ class ScofoOnlineEditor {
                     errorContainer.appendChild(errorElement);
                 }
                 let treeString = child.toString();
-                // check if treeString starts with (UNEXPECTED if it does, add to lineWithUnexpected
                 if (treeString.startsWith("(UNEXPECTED") && !lineWithUnexpected.includes(child.startPosition.row + 1)) {
                     lineWithUnexpected.push(child.startPosition.row + 1);
                     errorElement.textContent = "UNEXPECTED keyword at line " + (child.startPosition.row + 1);
                     errorContainer.appendChild(errorElement);
                 }
-
-                // console.log(child.toString());
                 checkNode(child);
             }
         }
@@ -325,13 +589,6 @@ class ScofoOnlineEditor {
         a.href = URL.createObjectURL(blob);
         a.download = "score.scofo.txt";
         a.click();
-    }
-
-    click() {
-        if (this.codeInput.value === "// Edit your score here") {
-            this.codeInput.value = "";
-        }
-        this.codeInput.focus();
     }
 
     //╭─────────────────────────────────────╮
