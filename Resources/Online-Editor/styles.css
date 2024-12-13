@@ -262,7 +262,7 @@ button:active {
 }
 
 .CodeMirror-focused .CodeMirror-selected {
-    background: color-mix(in srgb, var(--cyan) 20%, transparent 0%);
+    background-color: color-mix(in srgb, var(--cyan), transparent 90%);
 }
 
 /*
