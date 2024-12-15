@@ -30,12 +30,14 @@ jobs:
           arch -x86_64 /usr/local/bin/brew install pd
           arch -x86_64 /usr/local/bin/brew install boost
           arch -x86_64 /usr/local/bin/brew install pybind11
+          npm install tree-sitter-cli
       - name: Install PureData and Deps arm64 Mac
         if: ${{ matrix.arch == 'arm64' }}
         run: |
           brew install pd
           brew install boost
           brew install pybind11
+          npm install tree-sitter-cli
       - name: Build Object for Arm
         if: ${{ matrix.arch == 'arm64' }}
         run: |
@@ -84,10 +86,12 @@ jobs:
         if: matrix.precision == '32'
         run: |
           winget install -e --id MillerPuckette.PureData --accept-source-agreements
+          npm install tree-sitter-cli
       - name: Install PureData Float 64
         if: matrix.precision == '64'
         run: |
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
+          npm install tree-sitter-cli
       - name: Configure and build Visual Studio
         if: matrix.compiler == 'msvc'
         run: |
@@ -125,6 +129,7 @@ jobs:
           sudo apt install puredata -y
           sudo apt install libboost-all-dev
           sudo apt install python3-pybind11 -y
+          npm install tree-sitter-cli
       - name: Install aarch64 gcc
         if: matrix.arch == 'aarch64'
         run: |
