@@ -4,3 +4,4 @@ UseTab: Never
 TabWidth: 4
 ColumnLimit: 150
 AllowShortFunctionsOnASingleLine: None
+SortIncludes: false
