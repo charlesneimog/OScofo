@@ -85,6 +85,7 @@ class OScofoTest(unittest.TestCase):
         OpenScofo = OScofo(sr, fft_size, hop_size)
         OpenScofo.ParseScore(score_file)
         samples, sr = librosa.load(wav_file, sr=sr)
+        print(samples)
 
         event = 0
         onset = 0
