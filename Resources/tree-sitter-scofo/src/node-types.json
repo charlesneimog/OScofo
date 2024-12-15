@@ -46,11 +46,15 @@
       "required": true,
       "types": [
         {
+          "type": "freeEvent",
+          "named": true
+        },
+        {
           "type": "pitchEvent",
           "named": true
         },
         {
-          "type": "rest",
+          "type": "restEvent",
           "named": true
         }
       ]
@@ -111,6 +115,11 @@
     }
   },
   {
+    "type": "eventId",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "exec",
     "named": true,
     "fields": {},
@@ -132,6 +141,33 @@
         },
         {
           "type": "receiver",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "freeEvent",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "ACTION",
+          "named": true
+        },
+        {
+          "type": "duration",
+          "named": true
+        },
+        {
+          "type": "eventId",
+          "named": true
+        },
+        {
+          "type": "timeEventId",
           "named": true
         }
       ]
@@ -363,13 +399,17 @@
     }
   },
   {
-    "type": "rest",
+    "type": "restEvent",
     "named": true,
     "fields": {},
     "children": {
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "ACTION",
+          "named": true
+        },
         {
           "type": "duration",
           "named": true
@@ -425,6 +465,21 @@
     "fields": {}
   },
   {
+    "type": "timeEventId",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "timeUnit",
     "named": true,
     "fields": {}
@@ -465,6 +520,10 @@
     "named": false
   },
   {
+    "type": ",",
+    "named": false
+  },
+  {
     "type": "[",
     "named": false
   },
@@ -487,6 +546,10 @@
   {
     "type": "identifier",
     "named": true
+  },
+  {
+    "type": "internal",
+    "named": false
   },
   {
     "type": "keyword",
@@ -522,6 +585,10 @@
   },
   {
     "type": "tempo",
+    "named": false
+  },
+  {
+    "type": "timed",
     "named": false
   },
   {

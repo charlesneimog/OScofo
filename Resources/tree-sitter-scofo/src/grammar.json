@@ -224,7 +224,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "rest"
+          "name": "restEvent"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "freeEvent"
         }
       ]
     },
@@ -270,16 +274,38 @@
       ]
     },
     "restEventId": {
-      "type": "ALIAS",
-      "content": {
-        "type": "TOKEN",
-        "content": {
-          "type": "STRING",
-          "value": "REST"
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "REST"
+            }
+          },
+          "named": true,
+          "value": "keyword"
         }
-      },
-      "named": true,
-      "value": "keyword"
+      ]
+    },
+    "timeEventId": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "EVENT"
+            }
+          },
+          "named": true,
+          "value": "keyword"
+        }
+      ]
     },
     "pitchEvent": {
       "type": "SEQ",
@@ -306,20 +332,15 @@
           "name": "duration"
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "ACTION"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "ACTION"
+          }
         }
       ]
     },
-    "rest": {
+    "restEvent": {
       "type": "SEQ",
       "members": [
         {
@@ -329,6 +350,50 @@
         {
           "type": "SYMBOL",
           "name": "duration"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "ACTION"
+          }
+        }
+      ]
+    },
+    "freeEvent": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "timeEventId"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "eventId"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "duration"
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "ACTION"
+          }
+        }
+      ]
+    },
+    "eventId": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "timed"
+        },
+        {
+          "type": "STRING",
+          "value": "internal"
         }
       ]
     },
@@ -458,10 +523,26 @@
           ]
         },
         {
-          "type": "REPEAT1",
+          "type": "SYMBOL",
+          "name": "exec"
+        },
+        {
+          "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "exec"
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "TOKEN",
+                "content": {
+                  "type": "STRING",
+                  "value": ","
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "exec"
+              }
+            ]
           }
         }
       ]

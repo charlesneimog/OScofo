@@ -1,5 +1,6 @@
 module.exports = grammar({
     name: "scofo",
+    precedence: "left",
     rules: {
         score: ($) => repeat($._statement),
         _statement: ($) => choice($.CONFIG, $.EVENT, $.LUA),
@@ -34,23 +35,24 @@ module.exports = grammar({
         //╭─────────────────────────────────────╮
         //│               Events                │
         //╰─────────────────────────────────────╯
-        EVENT: ($) => choice($.pitchEvent, $.rest),
+        EVENT: ($) => choice($.pitchEvent, $.restEvent, $.freeEvent),
         pitchEventId: ($) =>
             choice(
                 alias(token("NOTE"), $.keyword),
                 alias(token("TRILL"), $.keyword),
                 alias(token("CHORD"), $.keyword),
             ),
-        restEventId: ($) => alias(token("REST"), $.keyword, optional(repeat($.ACTION))), // Treat "NOTE" as an identifier
+        restEventId: ($) => seq(alias(token("REST"), $.keyword)),
+        timeEventId: ($) => seq(alias(token("EVENT"), $.keyword)),
 
         pitchEvent: ($) =>
-            seq(
-                $.pitchEventId,
-                choice($.pitches, $.pitch),
-                $.duration,
-                optional($.ACTION),
-            ),
-        rest: ($) => seq($.restEventId, $.duration),
+            seq($.pitchEventId, choice($.pitches, $.pitch), $.duration, repeat($.ACTION)),
+        restEvent: ($) => seq($.restEventId, $.duration, repeat($.ACTION)),
+        freeEvent: ($) => seq($.timeEventId, $.eventId, $.duration, repeat1($.ACTION)),
+
+        //
+
+        eventId: (_) => choice("timed", "internal"),
 
         // Pitch
         pitches: ($) => seq("(", repeat1($.pitch), ")"),
@@ -73,8 +75,10 @@ module.exports = grammar({
             seq(
                 optional(alias(token("ACTION"), $.keyword)),
                 optional($.timedAction),
-                repeat1($.exec),
+                $.exec,
+                repeat(seq(token(","), $.exec)),
             ),
+
         timedAction: ($) =>
             choice(
                 seq(alias(token("delay"), $.actionKey), $.number, $.timeUnit),
