@@ -15,6 +15,7 @@
     --highlight: #8f681e;
     --comment: #9b9fa6;
     --none: none;
+    --lua-opacity: 0.8;
 }
 
 /* Dark Theme */
@@ -35,6 +36,7 @@
         --highlight: #e2be7d;
         --comment: #6b6f76;
         --none: none;
+        --lua-opacity: 0.8;
     }
 }
 
@@ -196,7 +198,7 @@ button:active {
     border-radius: 5px;
     z-index: 2;
     overflow-y: auto;
-    box-shadow: 0 0 1px var(--red);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--red), transparent 80%);
     color: var(--red);
 }
 

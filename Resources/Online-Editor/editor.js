@@ -39,8 +39,6 @@ class ScofoOnlineEditor {
 
         this.htmlFormatter = {};
         this.bigTextWarning = false;
-        this.previousTree = null;
-        this.currentTree = null;
 
         this.initParser().then(() => {
             this.handleCodeChange();
@@ -92,15 +90,15 @@ class ScofoOnlineEditor {
 
         this.codeContainer = document.getElementById("code-container");
 
-        this.codeContainer.addEventListener("scroll", () => {
-            let codeInput = document.getElementById("code-input");
-            let lines = codeInput.value.split("\n");
-            let biggerLine = lines.reduce((a, b) => (a.length > b.length ? a : b));
-            let width = biggerLine.length + "ch";
-            let height = lines.length + "em";
-            codeInput.style.width = width;
-            codeInput.style.height = height;
-        });
+        // this.codeContainer.addEventListener("scroll", () => {
+        //     let codeInput = document.getElementById("code-input");
+        //     let lines = codeInput.value.split("\n");
+        //     let biggerLine = lines.reduce((a, b) => (a.length > b.length ? a : b));
+        //     let width = biggerLine.length + "ch";
+        //     let height = lines.length + "em";
+        //     codeInput.style.width = width;
+        //     codeInput.style.height = height;
+        // });
 
         this.loadState();
         this.saveStateOnChange = this.debounce(this.saveState, 2000);
@@ -111,37 +109,44 @@ class ScofoOnlineEditor {
         this.codeEditor.on("changes", this.handleCodeChange);
 
         // Styles
-        this.keyCssStyle = {
-            keyword: "color: var(--red); font-weight: bold;", // Destaque forte para palavras-chave
-            pitch: "color: var(--blue); font-weight: bold;", // Azul para elementos relacionados a tons
-            duration: "color: var(--yellow); font-weight: bold;", // Amarelo para duração, indicando tempo
-            comment: "color: var(--comment); opacity: 0.7; font-style: italic;", // Cinza opaco para comentários
-            config: "color: var(--purple); font-weight: bold;", // Laranja para configuração, chamativo e legível
-            error: "text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--red);", // Vermelho ondulado para erros
-            action: "color: var(--green);", // Verde para ações, representando movimento ou execução
+        this.highlights = {
+            oscofo: {
+                keyword: "color: var(--red); font-weight: bold;",
+                pitch: "color: var(--blue); font-weight: bold;",
+                duration: "color: var(--yellow); font-weight: bold;",
+                comment: "color: var(--comment); opacity: 0.7; font-style: italic;",
+                config: "color: var(--purple); font-weight: bold;",
+                error: "text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--red);",
+                action: "color: var(--green);",
+                actionKey: "color: var(--purple);",
+                timeUnit: "color: var(--highlight);",
+                number: "color: var(--highlight);",
+                exec: "color: var(--fg); font-weight: bold;",
+                receiver: "color: var(--green);",
+                pdargs: "color: var(--fg); font-style: italic;",
+                timedAction: "color: var(--highlight); font-weight: 100;",
+            },
+            lua: {
+                comment: "color: var(--comment); opacity: 0.4; font-style: italic; opacity: var(--lua-opacity)",
+                string: "color: var(--green); font-style: italic; font-weight: 100, opacity: var(--lua-opacity)",
 
-            //
-            actionKey: "color: var(--purple);",
-            timeUnit: "color: var(--highlight);",
-            number: "color: var(--highlight);",
-            exec: "color: var(--fg); font-weight: bold;",
-            receiver: "color: var(--green);",
-            pdargs: "color: var(--fg); font-style: italic;",
+                "function.bracket": "color: var(--fg); font-weight: bold; opacity: var(--lua-opacity)",
+                "function.call.lua": "color: var(--cyan); font-weight: 100; opacity: var(--lua-opacity)",
+                "function.name": "color: var(--cyan); font-weight: 100; opacity: var(--lua-opacity)",
 
-            // Lua
-            luastring: "color: var(--purple); font-style: italic; font-weight: 100",
-            luafor: "color: var(--orange); font-weight: 100;",
-            luaidentifier: "color: var(--cyan); font-weight: 100;",
-            luakeyword: "color: var(--red); font-weight: 100;",
-            luanumber: "color: var(--yellow); font-weight: 100;",
-            luacomment: "color: var(--comment); font-style: italic; opacity: 0.7;", // Cinza opaco para comentários Lua
-            luaif: "color: var(--green); font-weight: 100;",
-            timedAction: "color: var(--highlight); font-weight: 100;",
+                "keyword.repeat": "color: var(--cyan); font-weight: 100; opacity: var(--lua-opacity)",
+                "keyword.conditional": "color: var(--cyan); font-weight: 100; opacity: var(--lua-opacity)",
+                "keyword.return": "color: var(--purple); opacity: var(--lua-opacity)",
+                "keyword.function": "color: var(--red); opacity: var(--lua-opacity)",
+
+                variable: "color: var(--blue); opacity: var(--lua-opacity)",
+            },
         };
 
-        this.OScofoStringQuery = `
+        this.OScofoHighlightQuery = `
             (pitchEventId) @keyword
             (restEventId) @keyword
+            (timeEventId) @keyword
             (identifier) @keyword
             (configId) @config
             (comment) @comment
@@ -156,7 +161,6 @@ class ScofoOnlineEditor {
             (exec (keyword) @exec) 
             (receiver) @receiver
             ((pdargs)  @pdargs)
-            ((EVENT) @EVENT)
 
             (lua_body) @lua_body
             (lua_call) @lua_body
@@ -164,31 +168,8 @@ class ScofoOnlineEditor {
             (ERROR) @error
         `;
 
-        this.LuaStringQuery = `
-            ((string) @luastring)
-            (((comment) @luacomment))
-
-            ((for_start) @luakeyword)
-            ((for_in) @luafor)
-            ((for_do) @luafor)
-            ((for_end) @luafor)
-            ((if_start) @luafor)
-            ((if_then) @luafor)
-            ((if_end) @luafor)
-            ((if_else) @luafor)
-            ((if_elseif) @luafor)
-            ((function_start) @luafor)
-            ((function_end) @luafor)
-
-            (function_call (identifier) @luaidentifier)
-            (function_body (return_statement) @luakeyword)
-
-            ((local) @luakeyword)
-            ((variable_declarator (identifier)) @luakeyword)
-            (number) @luanumber
-
-
-        `;
+        this.LuaStringQuery = null;
+        this.fetchTextFile("highlight/lua.scm");
 
         // Buttons
         const downloadButton = document.querySelector("#download-score");
@@ -222,12 +203,25 @@ class ScofoOnlineEditor {
         }
     }
 
+    async fetchTextFile(filePath) {
+        try {
+            const response = await fetch(filePath);
+            if (!response.ok) {
+                throw new Error(`Error fetching file: ${response.statusText}`);
+            }
+            const text = await response.text(); // Get the text content
+            this.LuaStringQuery = text;
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    }
+
     addGhostText(line, text) {
         return;
     }
 
-    cssForCaptureName(capture) {
-        return this.keyCssStyle[capture] || "";
+    getHighlights(language, capture) {
+        return this.highlights[language][capture] || "";
     }
 
     async handleCodeChange(_, changes) {
@@ -238,10 +232,7 @@ class ScofoOnlineEditor {
                 this.tree.edit(edit);
             }
         }
-
         const newTree = this.ScofoParser.parse(newText, this.tree);
-
-        console.log(newTree.rootNode.toString());
         let needParse = this.runFormatterAfterParse(newTree.rootNode);
         if (needParse) {
             this.handleCodeChange(_, changes);
@@ -249,10 +240,8 @@ class ScofoOnlineEditor {
         }
 
         this.checkErrors(newTree);
-
         if (this.tree) this.tree.delete();
         this.tree = newTree;
-        this.parseCount++;
         this.runTreeQueryOnChange();
         this.saveStateOnChange();
     }
@@ -283,16 +272,18 @@ class ScofoOnlineEditor {
     }
 
     luaFormatter(luaTree, luaPositionStart) {
+        console.log("here");
         return;
     }
 
     luaHighlight(luaNode, luaPositionStart) {
         let luaTxt = luaNode.text;
         let luaTree = this.LuaParser.parse(luaTxt);
-        console.log(luaTree.rootNode.toString());
-        console.log(luaTxt);
 
-        this.luaFormatter(luaTree, luaPositionStart);
+        if (luaTree.hasError) {
+            return;
+        }
+
         const captures = this.LuaQuery.captures(
             luaTree.rootNode,
             { row: 0, column: 0 },
@@ -316,7 +307,7 @@ class ScofoOnlineEditor {
                 {
                     inclusiveLeft: true,
                     inclusiveRight: true,
-                    css: this.cssForCaptureName(name),
+                    css: this.getHighlights("lua", name),
                 },
             );
         }
@@ -334,7 +325,6 @@ class ScofoOnlineEditor {
     }
 
     luaIndentBody(node) {
-        return false;
         if (node.parent.hasError) {
             return false;
         }
@@ -436,6 +426,8 @@ class ScofoOnlineEditor {
             endRow = viewport.to;
         }
 
+        console.log(this.tree.rootNode.toString());
+
         this.codeEditor.operation(() => {
             const marks = this.codeEditor.getAllMarks();
             marks.forEach((m) => m.clear());
@@ -452,20 +444,22 @@ class ScofoOnlineEditor {
                     if (node.id === lastNodeId) continue;
                     lastNodeId = node.id;
                     const { startPosition, endPosition } = node;
-                    if (name === "lua_body" && !this.luaChildOfLuaBody(node)) {
-                        if (!this.luaIndentBody(node)) {
-                            this.luaHighlight(node, startPosition);
+                    if (!node.hasError) {
+                        if (name === "lua_body" && !this.luaChildOfLuaBody(node)) {
+                            if (!this.luaIndentBody(node)) {
+                                this.luaHighlight(node, startPosition);
+                            }
+                        } else {
+                            this.codeEditor.markText(
+                                { line: startPosition.row, ch: startPosition.column },
+                                { line: endPosition.row, ch: endPosition.column },
+                                {
+                                    inclusiveLeft: true,
+                                    inclusiveRight: true,
+                                    css: this.getHighlights("oscofo", name),
+                                },
+                            );
                         }
-                    } else {
-                        this.codeEditor.markText(
-                            { line: startPosition.row, ch: startPosition.column },
-                            { line: endPosition.row, ch: endPosition.column },
-                            {
-                                inclusiveLeft: true,
-                                inclusiveRight: true,
-                                css: this.cssForCaptureName(name),
-                            },
-                        );
                     }
                 }
             }
@@ -516,7 +510,7 @@ class ScofoOnlineEditor {
         const luaParser = await this.Parser.Language.load(this.parserLuaWasm);
         this.LuaParser.setLanguage(luaParser);
 
-        this.OScofoQuery = this.ScofoParser.getLanguage().query(this.OScofoStringQuery);
+        this.OScofoQuery = this.ScofoParser.getLanguage().query(this.OScofoHighlightQuery);
         this.LuaQuery = this.LuaParser.getLanguage().query(this.LuaStringQuery);
     }
 
