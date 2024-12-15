@@ -1,7 +1,8 @@
 #include <OScofo.hpp>
 
-#include <filesystem>
 #include <m_pd.h>
+
+#include "pdlua.hpp"
 
 static t_class *OScofoObj;
 
@@ -15,6 +16,9 @@ class PdOScofo {
     // Clock
     t_clock *ClockEvent;
     t_clock *ClockInfo;
+
+    // Lua
+    OScofo::PdLua *Lua;
 
     // OScofo
     OScofo::OScofo *OpenScofo;
@@ -228,12 +232,15 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->PatchDir = canvas_getdir(x->Canvas)->s_name;
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
+    x->Lua = new OScofo::PdLua();
+
     return (x);
 }
 
 // ─────────────────────────────────────
 static void oscofo_free(PdOScofo *x) {
     delete x->OpenScofo;
+    delete x->Lua;
 }
 
 // ─────────────────────────────────────

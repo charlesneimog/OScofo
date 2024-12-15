@@ -100,7 +100,6 @@ States OScofo::GetStates() {
     if (m_States.size() != 0) {
         return m_States;
     }
-    printf("ok\n");
     throw std::runtime_error("No states found, please use the ScoreParse first");
 }
 

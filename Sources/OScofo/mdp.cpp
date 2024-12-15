@@ -381,7 +381,7 @@ double MDP::UpdatePsiN(int StateIndex) {
 // ╭─────────────────────────────────────╮
 // │     Markov Description Process      │
 // ╰─────────────────────────────────────╯
-void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T) {
+void MDP::GetAudioObservations(int FirstStateIndex, int LastStateIndex, int T) {
     std::unordered_map<double, double> PitchObs;
 
     for (int j = FirstStateIndex; j <= LastStateIndex; j++) {
@@ -401,7 +401,7 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
                     continue;
                 }
                 if (AudioState.Type == NOTE) {
-                    KL = GetPitchSimilarity(AudioState.Freq, Desc);
+                    KL = GetPitchSimilarity(AudioState.Freq);
                     PitchObs[AudioState.Freq] = KL;
                     AudioState.Obs[BufferIndex] = KL;
                 }
@@ -418,7 +418,7 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
                     AudioState.Obs[BufferIndex] = PitchObs[AudioState.Freq];
                     continue;
                 }
-                double KL = GetPitchSimilarity(AudioState.Freq, Desc);
+                double KL = GetPitchSimilarity(AudioState.Freq);
                 if (KL > bestProb) {
                     bestProb = KL;
                 }
@@ -430,7 +430,7 @@ void MDP::GetAudioObservations(Description &Desc, int FirstStateIndex, int LastS
 }
 
 // ─────────────────────────────────────
-double MDP::GetPitchSimilarity(double Freq, Description &Desc) {
+double MDP::GetPitchSimilarity(double Freq) {
     double KLDiv = 0.0;
     double RootBinFreq = round(Freq / (m_Sr / m_FFTSize));
     PitchTemplateArray PitchTemplate;
@@ -442,8 +442,8 @@ double MDP::GetPitchSimilarity(double Freq, Description &Desc) {
     }
 
     for (size_t i = 0; i < m_FFTSize / 2; i++) {
-        double P = PitchTemplate[i] * Desc.MaxAmp;
-        double Q = Desc.NormSpectralPower[i];
+        double P = PitchTemplate[i] * m_Desc.MaxAmp;
+        double Q = m_Desc.NormSpectralPower[i];
         if (P > 0 && Q > 0) {
             KLDiv += P * log(P / Q) - P + Q;
         } else if (P == 0 && Q >= 0) {
@@ -455,6 +455,7 @@ double MDP::GetPitchSimilarity(double Freq, Description &Desc) {
 
     return KLDiv;
 }
+
 // ─────────────────────────────────────
 std::vector<double> MDP::GetInitialDistribution() {
     int Size = m_MaxScoreState - m_CurrentStateIndex;
@@ -679,8 +680,9 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
 
 // ─────────────────────────────────────
 int MDP::GetEvent(Description &Desc) {
+    m_Desc = Desc;
     m_MaxScoreState = GetMaxJIndex(m_CurrentStateIndex);
-    GetAudioObservations(Desc, m_CurrentStateIndex - 1, m_MaxScoreState, m_Tau);
+    GetAudioObservations(m_CurrentStateIndex - 1, m_MaxScoreState, m_Tau);
 
     if (Desc.Silence || m_CurrentStateIndex == m_States.size()) {
         if (m_CurrentStateIndex == -1) {

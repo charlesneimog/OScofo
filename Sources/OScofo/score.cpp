@@ -88,6 +88,9 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         }
     }
     int midi = classNote + 12 + (12 * std::stoi(octave));
+
+    midi = midi + m_Transpose;
+
     return m_Tunning * pow(2, (midi - 69.0) / 12);
 }
 
@@ -255,6 +258,9 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
                 m_CurrentBPM = std::stof(number);
             } else if (type == "TRANSPOSE") {
                 m_Transpose = std::stof(number);
+                if (m_Transpose < -36 || m_Transpose > 36) {
+                    throw std::runtime_error("Invalid transpose value, must be between -36 and 36");
+                }
             }
         }
     }
@@ -302,6 +308,7 @@ States Score::Parse(std::string ScoreFile) {
     m_ScorePosition = 0;
     m_LastOnset = 0;
     m_PrevDuration = 0;
+    m_Transpose = 0;
     std::string Line;
     double LastOnset = 0;
     double PreviousDuration = 0;

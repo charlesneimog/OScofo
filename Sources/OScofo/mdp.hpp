@@ -119,12 +119,13 @@ class MDP {
     std::unordered_map<double, PitchTemplateArray> m_PitchTemplates;
 
     // Audio Observations
-    void GetAudioObservations(Description &Desc, int FirstStateIndex, int LastStateIndex, int T);
+    void GetAudioObservations(int FirstStateIndex, int LastStateIndex, int T);
+    Description m_Desc;
 
     // Markov
     bool m_EventDetected = false;
-    double GetBestEvent(Description &Desc);
-    double GetPitchSimilarity(double Freq, Description &Desc);
+    double GetBestEvent();
+    double GetPitchSimilarity(double Freq);
     int GetMaxJIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);

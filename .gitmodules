@@ -10,3 +10,6 @@
 [submodule "Resources/Online-Editor/tree-sitter-lua"]
 	path = Resources/Online-Editor/tree-sitter-lua
 	url = https://github.com/tjdevries/tree-sitter-lua.git
+[submodule "Libraries/lua"]
+	path = Libraries/lua
+	url = https://github.com/lua/lua.git
