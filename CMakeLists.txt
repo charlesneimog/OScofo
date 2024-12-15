@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+project(OScofo)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +12,7 @@ option(BUILD_ALL "Build Python Module and PureData Object" OFF)
 
 # check if it is EMSCRIPTEN
 if(EMSCRIPTEN)
+    message(STATUS "Emscripten compilation")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_BOOST_HEADERS=1")
 endif()
 
@@ -71,7 +73,7 @@ if(TREE_SITTER_EXECUTABLE)
     add_custom_command(
         OUTPUT ${PARSER_OUTPUT_C}
         COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
-        WORKING_DIRECTORY ${TREE_SITTER_WORKING_DIR} # Set the correct working directory
+        WORKING_DIRECTORY ${TREE_SITTER_WORKING_DIR}
         RESULT_VARIABLE result OUTPUT_VARIABLE
         output ERROR_VARIABLE error_output
         VERBATIM)
@@ -98,19 +100,20 @@ target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include
 # ╭──────────────────────────────────────╮
 # │                OScofo                │
 # ╰──────────────────────────────────────╯
-list(APPEND SCofoSrc Sources/OScofo/mdp.cpp)
-list(APPEND SCofoSrc Sources/OScofo/mir.cpp)
-list(APPEND SCofoSrc Sources/OScofo/score.cpp)
-list(APPEND SCofoSrc Sources/OScofo/OScofo.cpp)
-add_library(OScofo STATIC ${SCofoSrc})
+list(APPEND ScofoSrc Sources/OScofo/mdp.cpp)
+list(APPEND ScofoSrc Sources/OScofo/mir.cpp)
+list(APPEND ScofoSrc Sources/OScofo/score.cpp)
+list(APPEND ScofoSrc Sources/OScofo/OScofo.cpp)
+add_library(OScofo STATIC ${ScofoSrc})
 
-target_include_directories(OScofo PUBLIC Resources/tree-sitter-score/src)
-
-include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
-target_link_libraries(OScofo PUBLIC fftw3)
-set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(OScofo
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score/src")
+target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua")
+target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fftw-3.3.10/api")
 target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
-target_link_libraries(OScofo PUBLIC tree-sitter score_parser)
+
+set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(OScofo PUBLIC fftw3 tree-sitter score_parser lualan)
 
 # Boost Libraries
 if(NOT EMSCRIPTEN)
@@ -121,7 +124,7 @@ if(NOT EMSCRIPTEN)
 endif()
 
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
-add_dependencies(OScofo generate_tree_sitter_parser)
+add_dependencies(OScofo generate_tree_sitter_parser lualan)
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │
@@ -135,7 +138,6 @@ endif()
 # ╰──────────────────────────────────────╯
 if(BUILD_PD_OBJECT)
     add_subdirectory(Sources/PureData)
-    target_compile_options(o.scofo_tilde PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
 endif()
 
 # ╭──────────────────────────────────────╮
