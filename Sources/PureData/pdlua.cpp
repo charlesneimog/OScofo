@@ -7,11 +7,29 @@ namespace OScofo {
 // ╭─────────────────────────────────────╮
 // │          OScofo Lua Module          │
 // ╰─────────────────────────────────────╯
-// ─────────────────────────────────────
 static int oscofo_Post(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     post("%s", r);
-    return 1;
+    return 0;
+}
+
+// ─────────────────────────────────────
+static int oscofo_Error(lua_State *L) {
+    const char *r = luaL_checkstring(L, 1);
+    post("%s", r);
+    return 0;
+}
+
+// ─────────────────────────────────────
+static int oscofo_sendBang(lua_State *L) {
+    const char *r = luaL_checkstring(L, 1);
+    t_symbol *symbol = gensym(r);
+    if (symbol->s_thing) {
+        pd_bang(symbol->s_thing);
+    } else {
+        luaL_error(L, "Receiver not found");
+    }
+    return 0;
 }
 
 // ─────────────────────────────────────
@@ -24,7 +42,7 @@ static int oscofo_sendFloat(lua_State *L) {
     } else {
         luaL_error(L, "Receiver not found");
     }
-    return 1;
+    return 0;
 }
 
 // ─────────────────────────────────────
@@ -37,7 +55,36 @@ static int oscofo_sendSymbol(lua_State *L) {
     } else {
         luaL_error(L, "Receiver not found");
     }
-    return 1;
+    return 0;
+}
+
+// ─────────────────────────────────────
+static int oscofo_sendList(lua_State *L) {
+    const char *r = luaL_checkstring(L, 1);
+    luaL_checktype(L, 2, LUA_TTABLE);
+    t_symbol *symbol = gensym(r);
+    if (!symbol->s_thing) {
+        return luaL_error(L, "Receiver not found");
+    }
+
+    int listSize = luaL_len(L, 2);
+    t_atom list[listSize];
+
+    for (int i = 0; i < listSize; i++) {
+        lua_rawgeti(L, 2, i + 1);
+        if (lua_isnumber(L, -1)) {
+            SETFLOAT(&list[i], lua_tonumber(L, -1));
+        } else if (lua_isstring(L, -1)) {
+            SETSYMBOL(&list[i], gensym(lua_tostring(L, -1)));
+        } else {
+            return luaL_error(L, "Table contains unsupported value type");
+        }
+        lua_pop(L, 1);
+    }
+
+    pd_list(symbol->s_thing, &s_list, listSize, list);
+
+    return 0;
 }
 
 // ─────────────────────────────────────
@@ -52,14 +99,23 @@ static int oscofo_getPitchProb(lua_State *L) {
 static const luaL_Reg oscofo_funcs[] = {
 
     // Log
+    {"getPitchProb", oscofo_getPitchProb},
+
+    // Sentinela
+    {NULL, NULL}};
+
+// ─────────────────────────────────────
+static const luaL_Reg pd_funcs[] = {
+
+    // Log
     {"post", oscofo_Post},
+    {"error", oscofo_Error},
 
     // PureData
+    {"sendBang", oscofo_sendBang},
     {"sendFloat", oscofo_sendFloat},
     {"sendSymbol", oscofo_sendSymbol},
-
-    // OScofo
-    {"getPitchProb", oscofo_getPitchProb},
+    {"sendList", oscofo_sendList},
 
     // Sentinela
     {NULL, NULL}};
@@ -70,6 +126,12 @@ int luaopen_oscofo(lua_State *L) {
     return 1;
 }
 
+// ─────────────────────────────────────
+int luaopen_pd(lua_State *L) {
+    luaL_newlib(L, pd_funcs);
+    return 1;
+}
+
 // ╭─────────────────────────────────────╮
 // │           OScofo Lua API            │
 // ╰─────────────────────────────────────╯
@@ -77,6 +139,7 @@ PdLua::PdLua() {
     m_L = luaL_newstate();
     luaL_openlibs(m_L);
     luaL_requiref(m_L, "oscofo", luaopen_oscofo, 1);
+    luaL_requiref(m_L, "pd", luaopen_pd, 1);
 }
 
 // ─────────────────────────────────────

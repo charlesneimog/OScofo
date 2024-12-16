@@ -1,10 +1,21 @@
 #include <OScofo.hpp>
 
+#include <vector>
+#include <algorithm>
 #include <m_pd.h>
 
 #include "pdlua.hpp"
 
 static t_class *OScofoObj;
+
+struct Action {
+    double time;
+    bool isLua;
+    std::string Receiver;
+    std::string LuaCode;
+    t_atom *PdArgs;
+    int PdArgsSize;
+};
 
 // ─────────────────────────────────────
 class PdOScofo {
@@ -16,6 +27,10 @@ class PdOScofo {
     // Clock
     t_clock *ClockEvent;
     t_clock *ClockInfo;
+    t_clock *ClockActions;
+
+    // Action
+    std::vector<Action> Actions;
 
     // Lua
     OScofo::PdLua *Lua;
@@ -130,6 +145,37 @@ static void oscofo_following(PdOScofo *x, t_float f) {
 }
 
 // ─────────────────────────────────────
+static void oscofo_tickactions(PdOScofo *x) {
+    double thisTime = clock_getlogicaltime();
+    double nextBlock = 1 / x->Sr * x->BlockSize;
+    double nextTime = clock_getsystimeafter(nextBlock);
+
+    for (auto it = x->Actions.begin(); it != x->Actions.end();) {
+        Action CurAction = *it;
+        if (thisTime < CurAction.time && CurAction.time <= nextTime) {
+            if (CurAction.isLua) {
+                bool success = x->Lua->execute(CurAction.LuaCode.c_str());
+                if (!success) {
+                    std::string error = x->Lua->getError();
+                    pd_error(x, "[o.scofo~] Lua error");
+                    pd_error(x, "[o.scofo~] %s", error.c_str());
+                    post("");
+                }
+            } else {
+                if (CurAction.PdArgs != nullptr) {
+                    pd_list(gensym(CurAction.Receiver.c_str())->s_thing, nullptr, CurAction.PdArgsSize, CurAction.PdArgs);
+                } else {
+                    pd_bang(gensym(CurAction.Receiver.c_str())->s_thing);
+                }
+            }
+            it = x->Actions.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// ─────────────────────────────────────
 static void oscofo_ticknewevent(PdOScofo *x) {
     int PrevEvent = x->Event;
     x->Event = x->OpenScofo->GetEventIndex();
@@ -139,8 +185,8 @@ static void oscofo_ticknewevent(PdOScofo *x) {
 
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, x->OpenScofo->GetEventIndex());
-
     OScofo::ActionVec Actions = x->OpenScofo->GetEventActions(x->Event - 1);
+
     for (OScofo::Action &Act : Actions) {
         double time = Act.Time;
         if (Act.AbsoluteTime && Act.Time != 0) {
@@ -154,9 +200,12 @@ static void oscofo_ticknewevent(PdOScofo *x) {
                     std::string error = x->Lua->getError();
                     pd_error(x, "[o.scofo~] Lua error");
                     pd_error(x, "[o.scofo~] %s", error.c_str());
+                    post("");
                 }
             } else {
-                // TODO: schedule
+                double sysTime = clock_getsystimeafter(time);
+                Action action = {sysTime, true, "", Act.Lua, nullptr, 0};
+                x->Actions.push_back(action);
             }
 
         } else {
@@ -190,7 +239,10 @@ static void oscofo_ticknewevent(PdOScofo *x) {
                     return;
                 }
             } else {
-                // TODO: schedule
+                post("time %f\n", time);
+                double sysTime = clock_getsystimeafter(time);
+                Action action = {sysTime, false, Act.Receiver, "", args, size};
+                x->Actions.push_back(action);
             }
         }
     }
@@ -219,6 +271,7 @@ static t_int *oscofo_perform(t_int *w) {
     PdOScofo *x = (PdOScofo *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
+    clock_delay(x->ClockActions, 0);
 
     if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
         return (w + 4);
@@ -282,6 +335,8 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
 
     x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);
     x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
+    x->ClockActions = clock_new(x, (t_method)oscofo_tickactions);
+
     x->FFTSize = 4096.0f;
     x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
