@@ -12,52 +12,32 @@ env:
   LIBNAME: o.scofo~
   LIBVERSION: 0.0.1
 jobs:
-  macos-universal-build:
-    runs-on: macos-latest
+  macos-build:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [amd64, arm64]
+        os: [macos-latest, macos-13]
         precision: [32, 64]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 1
-      - name: Install PureData and Deps x86_64 Mac
-        if: ${{ matrix.arch == 'amd64' }}
-        run: |
-          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          arch -x86_64 /usr/local/bin/brew install pd
-          arch -x86_64 /usr/local/bin/brew install boost
-          arch -x86_64 /usr/local/bin/brew install pybind11
-          npm install tree-sitter-cli
       - name: Install PureData and Deps arm64 Mac
-        if: ${{ matrix.arch == 'arm64' }}
         run: |
           brew install pd
           brew install boost
           brew install pybind11
-          npm install tree-sitter-cli
+          brew install tree-sitter
       - name: Build Object for Arm
-        if: ${{ matrix.arch == 'arm64' }}
         run: |
-          export CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH:/opt/homebrew/include/"
-          export LDFLAGS="-L/opt/homebrew/lib"
-          cmake . -B build -DCMAKE_OSX_ARCHITECTURES=arm64 -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
-          cmake --build build -j $(sysctl -n hw.logicalcpu)
-          make install -C build
-      - name: Build Object for x86_64
-        if: ${{ matrix.arch == 'amd64' }}
-        run: |
-          export CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH:/usr/local/include/"
-          export LDFLAGS="-L/usr/local/lib"
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           make install -C build
       - name: Upload Object
         uses: actions/upload-artifact@v4
         with:
-          name: ${{env.LIBNAME}}-macos-${{matrix.arch}}-${{matrix.precision}}
+          name: ${{env.LIBNAME}}-macos-${{matrix.os}}-${{matrix.precision}}
           path: ${{env.LIBNAME}}
   windows-build:
     runs-on: windows-latest
@@ -129,7 +109,7 @@ jobs:
           sudo apt install puredata -y
           sudo apt install libboost-all-dev
           sudo apt install python3-pybind11 -y
-          npm install tree-sitter-cli
+          sudo apt install tree-sitter -y
       - name: Install aarch64 gcc
         if: matrix.arch == 'aarch64'
         run: |
@@ -164,7 +144,7 @@ jobs:
           name: ${{ env.LIBNAME }}-linux-${{matrix.arch}}-${{matrix.precision}}
           path: ${{env.LIBNAME}}
   package-artifacts:
-    needs: [macos-universal-build, windows-build, linux-build]
+    needs: [macos-build, windows-build, linux-build]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
@@ -181,10 +161,10 @@ jobs:
         run: |
           mkdir -p ${PWD}/package
           docker run --rm --user $(id -u) \
-          --volume ${PWD}/artifacts:/artifacts \
+          --volume ${PWD}/artifacts:/${{env.LIBNAME}} \
           --volume ${PWD}/package:/package \
           registry.git.iem.at/pd/deken \
-          deken package /artifacts --output-dir /package -v ${{env.LIBVERSION}} -n ${{env.LIBNAME}}
+          deken package /${{env.LIBNAME}} --output-dir /package -v ${{env.LIBVERSION}} -n ${{env.LIBNAME}}
       - name: Clear Artifacts
         uses: geekyeggo/delete-artifact@v5
         with:
