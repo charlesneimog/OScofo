@@ -2,10 +2,31 @@
   {
     "type": "ACTION",
     "named": true,
-    "fields": {},
+    "fields": {
+      "exec": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "exec",
+            "named": true
+          }
+        ]
+      },
+      "timedAction": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "timedAction",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "exec",
@@ -13,10 +34,6 @@
         },
         {
           "type": "keyword",
-          "named": true
-        },
-        {
-          "type": "timedAction",
           "named": true
         }
       ]
@@ -87,16 +104,17 @@
   {
     "type": "configId",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "keyword",
-          "named": true
-        }
-      ]
+    "fields": {
+      "configId": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -122,28 +140,59 @@
   {
     "type": "exec",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "keyword",
-          "named": true
-        },
-        {
-          "type": "lua_call",
-          "named": true
-        },
-        {
-          "type": "pdargs",
-          "named": true
-        },
-        {
-          "type": "receiver",
-          "named": true
-        }
-      ]
+    "fields": {
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "luacall",
+            "named": false
+          },
+          {
+            "type": "sendto",
+            "named": false
+          }
+        ]
+      },
+      "luabody": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "lua_call",
+            "named": true
+          }
+        ]
+      },
+      "pdargs": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "pdargs",
+            "named": true
+          }
+        ]
+      },
+      "receiver": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "receiver",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -195,20 +244,29 @@
   {
     "type": "lua_call",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "lua_call",
-          "named": true
-        }
-      ]
+    "fields": {
+      "lua_call": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "lua_call",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
-    "type": "luafunction",
+    "type": "lua_function",
     "named": true,
     "fields": {},
     "children": {
@@ -285,19 +343,35 @@
     }
   },
   {
+    "type": "pdarg",
+    "named": true,
+    "fields": {
+      "pdarg": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "pdargs",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "symbol",
+          "type": "pdarg",
           "named": true
         }
       ]
@@ -356,16 +430,17 @@
   {
     "type": "pitchEventId",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "keyword",
-          "named": true
-        }
-      ]
+    "fields": {
+      "pitchEventId": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -482,29 +557,61 @@
   {
     "type": "timeUnit",
     "named": true,
-    "fields": {}
+    "fields": {
+      "timeUnit": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "ms",
+            "named": false
+          },
+          {
+            "type": "sec",
+            "named": false
+          },
+          {
+            "type": "tempo",
+            "named": false
+          }
+        ]
+      }
+    }
   },
   {
     "type": "timedAction",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "actionKey",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "timeUnit",
-          "named": true
-        }
-      ]
+    "fields": {
+      "actionKey": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "delay",
+            "named": false
+          }
+        ]
+      },
+      "timeUnit": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "timeUnit",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -532,16 +639,16 @@
     "named": false
   },
   {
-    "type": "actionKey",
-    "named": true
-  },
-  {
     "type": "b",
     "named": false
   },
   {
     "type": "comment",
     "named": true
+  },
+  {
+    "type": "delay",
+    "named": false
   },
   {
     "type": "identifier",
@@ -560,15 +667,15 @@
     "named": true
   },
   {
+    "type": "luacall",
+    "named": false
+  },
+  {
     "type": "midi",
     "named": true
   },
   {
     "type": "ms",
-    "named": false
-  },
-  {
-    "type": "ns",
     "named": false
   },
   {
@@ -580,7 +687,11 @@
     "named": true
   },
   {
-    "type": "s",
+    "type": "sec",
+    "named": false
+  },
+  {
+    "type": "sendto",
     "named": false
   },
   {
@@ -589,10 +700,6 @@
   },
   {
     "type": "timed",
-    "named": false
-  },
-  {
-    "type": "us",
     "named": false
   },
   {

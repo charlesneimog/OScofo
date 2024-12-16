@@ -108,41 +108,49 @@
       }
     },
     "lua_call": {
-      "type": "REPEAT1",
+      "type": "FIELD",
+      "name": "lua_call",
       "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "PATTERN",
-            "value": "[^()`]+"
-          },
-          {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "STRING",
-                "value": "("
-              },
-              {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "lua_call"
-                  },
-                  {
-                    "type": "BLANK"
-                  }
-                ]
-              },
-              {
-                "type": "STRING",
-                "value": ")"
-              }
-            ]
-          }
-        ]
+        "type": "REPEAT1",
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": "[^()`]+"
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "("
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "lua_call"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                },
+                {
+                  "type": "STRING",
+                  "value": ")"
+                }
+              ]
+            }
+          ]
+        }
       }
+    },
+    "lua_function": {
+      "type": "SYMBOL",
+      "name": "keyword"
     },
     "lua_comment": {
       "type": "PATTERN",
@@ -158,45 +166,49 @@
       ]
     },
     "configId": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+      "type": "FIELD",
+      "name": "configId",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "BPM"
-            }
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "BPM"
+              }
+            },
+            "named": true,
+            "value": "keyword"
           },
-          "named": true,
-          "value": "keyword"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "TRANSPOSE"
-            }
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "TRANSPOSE"
+              }
+            },
+            "named": true,
+            "value": "keyword"
           },
-          "named": true,
-          "value": "keyword"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "ENTROPY"
-            }
-          },
-          "named": true,
-          "value": "keyword"
-        }
-      ]
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "ENTROPY"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        ]
+      }
     },
     "numberConfig": {
       "type": "SEQ",
@@ -233,45 +245,49 @@
       ]
     },
     "pitchEventId": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+      "type": "FIELD",
+      "name": "pitchEventId",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "NOTE"
-            }
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "NOTE"
+              }
+            },
+            "named": true,
+            "value": "keyword"
           },
-          "named": true,
-          "value": "keyword"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "TRILL"
-            }
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "TRILL"
+              }
+            },
+            "named": true,
+            "value": "keyword"
           },
-          "named": true,
-          "value": "keyword"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
+          {
+            "type": "ALIAS",
             "content": {
-              "type": "STRING",
-              "value": "CHORD"
-            }
-          },
-          "named": true,
-          "value": "keyword"
-        }
-      ]
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "CHORD"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        ]
+      }
     },
     "restEventId": {
       "type": "SEQ",
@@ -514,8 +530,12 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SYMBOL",
-              "name": "timedAction"
+              "type": "FIELD",
+              "name": "timedAction",
+              "content": {
+                "type": "SYMBOL",
+                "name": "timedAction"
+              }
             },
             {
               "type": "BLANK"
@@ -523,8 +543,12 @@
           ]
         },
         {
-          "type": "SYMBOL",
-          "name": "exec"
+          "type": "FIELD",
+          "name": "exec",
+          "content": {
+            "type": "SYMBOL",
+            "name": "exec"
+          }
         },
         {
           "type": "REPEAT",
@@ -554,24 +578,31 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "ALIAS",
+              "type": "FIELD",
+              "name": "actionKey",
               "content": {
                 "type": "TOKEN",
                 "content": {
                   "type": "STRING",
                   "value": "delay"
                 }
-              },
-              "named": true,
-              "value": "actionKey"
+              }
             },
             {
-              "type": "SYMBOL",
-              "name": "number"
+              "type": "FIELD",
+              "name": "value",
+              "content": {
+                "type": "SYMBOL",
+                "name": "number"
+              }
             },
             {
-              "type": "SYMBOL",
-              "name": "timeUnit"
+              "type": "FIELD",
+              "name": "timeUnit",
+              "content": {
+                "type": "SYMBOL",
+                "name": "timeUnit"
+              }
             }
           ]
         }
@@ -582,7 +613,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "luafunction"
+          "name": "lua_function"
         },
         {
           "type": "SYMBOL",
@@ -597,69 +628,31 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "ALIAS",
-              "content": {
-                "type": "TOKEN",
-                "content": {
-                  "type": "STRING",
-                  "value": "send"
-                }
-              },
-              "named": true,
-              "value": "keyword"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "receiver"
-            }
-          ]
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "ALIAS",
+              "type": "FIELD",
+              "name": "keyword",
               "content": {
                 "type": "TOKEN",
                 "content": {
                   "type": "STRING",
                   "value": "sendto"
                 }
-              },
-              "named": true,
-              "value": "keyword"
+              }
             },
             {
-              "type": "SYMBOL",
-              "name": "receiver"
+              "type": "FIELD",
+              "name": "receiver",
+              "content": {
+                "type": "SYMBOL",
+                "name": "receiver"
+              }
             },
             {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SEQ",
-                  "members": [
-                    {
-                      "type": "STRING",
-                      "value": "["
-                    },
-                    {
-                      "type": "REPEAT",
-                      "content": {
-                        "type": "SYMBOL",
-                        "name": "pdargs"
-                      }
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "]"
-                    }
-                  ]
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
+              "type": "FIELD",
+              "name": "pdargs",
+              "content": {
+                "type": "SYMBOL",
+                "name": "pdargs"
+              }
             }
           ]
         },
@@ -667,51 +660,79 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "ALIAS",
+              "type": "FIELD",
+              "name": "keyword",
               "content": {
                 "type": "TOKEN",
                 "content": {
                   "type": "STRING",
-                  "value": "call"
+                  "value": "luacall"
                 }
-              },
-              "named": true,
-              "value": "keyword"
+              }
             },
             {
-              "type": "STRING",
-              "value": "("
-            },
-            {
-              "type": "SYMBOL",
-              "name": "lua_call"
-            },
-            {
-              "type": "STRING",
-              "value": ")"
+              "type": "FIELD",
+              "name": "luabody",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "("
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "lua_call"
+                  },
+                  {
+                    "type": "STRING",
+                    "value": ")"
+                  }
+                ]
+              }
             }
           ]
         }
       ]
     },
     "pdargs": {
-      "type": "CHOICE",
+      "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "symbol"
+          "type": "STRING",
+          "value": "["
         },
         {
-          "type": "SYMBOL",
-          "name": "number"
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "pdarg"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "]"
         }
       ]
     },
-    "receiver": {
-      "type": "SYMBOL",
-      "name": "keyword"
+    "pdarg": {
+      "type": "FIELD",
+      "name": "pdarg",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "symbol"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        ]
+      }
     },
-    "luafunction": {
+    "receiver": {
       "type": "SYMBOL",
       "name": "keyword"
     },
@@ -775,29 +796,25 @@
       }
     },
     "timeUnit": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "tempo"
-        },
-        {
-          "type": "STRING",
-          "value": "s"
-        },
-        {
-          "type": "STRING",
-          "value": "ms"
-        },
-        {
-          "type": "STRING",
-          "value": "us"
-        },
-        {
-          "type": "STRING",
-          "value": "ns"
-        }
-      ]
+      "type": "FIELD",
+      "name": "timeUnit",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "tempo"
+          },
+          {
+            "type": "STRING",
+            "value": "sec"
+          },
+          {
+            "type": "STRING",
+            "value": "ms"
+          }
+        ]
+      }
     }
   },
   "extras": [
