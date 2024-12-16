@@ -64,6 +64,23 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     } else {
         pd_error(nullptr, "[o.scofo~] Error loading score");
     }
+    x->OpenScofo->SetCurrentEvent(-1);
+    x->Event = -1;
+}
+
+// ─────────────────────────────────────
+static void oscofo_start(PdOScofo *x) {
+    if (!x->OpenScofo->ScoreIsLoaded()) {
+        pd_error(nullptr, "[o.scofo~] Score not loaded");
+        return;
+    }
+    x->OpenScofo->SetCurrentEvent(-1);
+    x->Event = -1;
+
+    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+    outlet_float(x->EventOut, 0);
+    x->Following = true;
+    post("[o.scofo~] Start following");
 }
 
 // ─────────────────────────────────────
@@ -113,28 +130,69 @@ static void oscofo_following(PdOScofo *x, t_float f) {
 }
 
 // ─────────────────────────────────────
-static void oscofo_start(PdOScofo *x) {
-    if (!x->OpenScofo->ScoreIsLoaded()) {
-        pd_error(nullptr, "[o.scofo~] Score not loaded");
-        return;
-    }
-    x->OpenScofo->SetCurrentEvent(-1);
-    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
-    outlet_float(x->EventOut, 0);
-    x->Following = true;
-    post("[o.scofo~] Start following");
-}
-
-// ─────────────────────────────────────
-static void oscofo_tickevent(PdOScofo *x) {
+static void oscofo_ticknewevent(PdOScofo *x) {
     int PrevEvent = x->Event;
     x->Event = x->OpenScofo->GetEventIndex();
-    if (PrevEvent == x->Event) {
+    if (PrevEvent == x->Event || x->Event == 0) {
         return;
     }
-    if (x->Event != 0) {
-        outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
-        outlet_float(x->EventOut, x->OpenScofo->GetEventIndex());
+
+    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+    outlet_float(x->EventOut, x->OpenScofo->GetEventIndex());
+
+    OScofo::ActionVec Actions = x->OpenScofo->GetEventActions(x->Event - 1);
+    for (OScofo::Action &Act : Actions) {
+        double time = Act.Time;
+        if (Act.AbsoluteTime && Act.Time != 0) {
+            time = 60.0 / x->OpenScofo->GetLiveBPM() * Act.Time;
+        }
+
+        if (Act.isLua) {
+            if (time == 0) {
+                bool sucess = x->Lua->execute(Act.Lua.c_str());
+                if (!sucess) {
+                    std::string error = x->Lua->getError();
+                    pd_error(x, "[o.scofo~] Lua error");
+                    pd_error(x, "[o.scofo~] %s", error.c_str());
+                }
+            } else {
+                // TODO: schedule
+            }
+
+        } else {
+            int size = Act.PdArgs.size();
+            t_atom args[size];
+            t_pd *receiver = gensym(Act.Receiver.c_str())->s_thing;
+            if (receiver == nullptr) {
+                pd_error(x, "[o.scofo~] Receiver %s not found", Act.Receiver.c_str());
+                continue;
+            }
+
+            for (int i = 0; i < size; i++) {
+                std::variant<float, int, std::string> arg = Act.PdArgs[i];
+                if (std::holds_alternative<float>(arg)) {
+                    SETFLOAT(&args[i], std::get<float>(arg));
+                } else if (std::holds_alternative<int>(arg)) {
+                    SETFLOAT(&args[i], std::get<int>(arg));
+                } else if (std::holds_alternative<std::string>(arg)) {
+                    SETSYMBOL(&args[i], gensym(std::get<std::string>(arg).c_str()));
+                }
+            }
+
+            if (time == 0) {
+                if (size > 0) {
+                    t_pd *receiver = gensym(Act.Receiver.c_str())->s_thing;
+                    pd_list(receiver, nullptr, size, args);
+                } else if (size == 0) {
+                    pd_bang(gensym(Act.Receiver.c_str())->s_thing);
+                } else {
+                    pd_error(x, "[o.scofo~] Wrong number of arguments for %s", Act.Receiver.c_str());
+                    return;
+                }
+            } else {
+                // TODO: schedule
+            }
+        }
     }
 }
 
@@ -176,8 +234,10 @@ static t_int *oscofo_perform(t_int *w) {
     x->BlockIndex = 0;
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {
+        pd_error(nullptr, "[o.scofo~] Error processing block");
         return (w + 4);
     }
+
     clock_delay(x->ClockEvent, 0);
     clock_delay(x->ClockInfo, 0);
     return (w + 4);
@@ -220,7 +280,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         }
     }
 
-    x->ClockEvent = clock_new(x, (t_method)oscofo_tickevent);
+    x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);
     x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
     x->FFTSize = 4096.0f;
     x->HopSize = 1024.0f;

@@ -24,6 +24,13 @@ void Score::PrintTreeSitterNode(TSNode node, int indent) {
 }
 
 // ─────────────────────────────────────
+TSNode Score::GetField(TSNode Node, std::string s) {
+    int strLen = s.length();
+    TSNode field = ts_node_child_by_field_name(Node, s.c_str(), strLen);
+    return field;
+}
+
+// ─────────────────────────────────────
 void Score::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
@@ -45,9 +52,9 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         throw std::runtime_error("Invalid pitch type");
     }
 
-    char pitchName = GetChildStringFromId(Score, pitch, "pitchname")[0];
-    std::string alt = GetChildStringFromId(Score, pitch, "alteration");
-    std::string octave = GetChildStringFromId(Score, pitch, "octave");
+    char pitchName = GetChildStringFromField(Score, pitch, "pitchname")[0];
+    std::string alt = GetChildStringFromField(Score, pitch, "alteration");
+    std::string octave = GetChildStringFromField(Score, pitch, "octave");
 
     int classNote = -1;
     switch (pitchName) {
@@ -144,6 +151,7 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
+
         if (type == "pitchEventId") {
             std::string id = GetCodeStr(Score, child);
             if (id == "NOTE") {
@@ -180,7 +188,7 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
             double duration = GetDurationFromNode(Score, child);
             Note.Duration = duration;
         } else if (type == "ACTION") {
-            // TODO:
+            ProcessAction(Score, child, Note);
             continue;
         } else {
             throw std::runtime_error("Invalid note event");
@@ -232,7 +240,7 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-std::string Score::GetChildStringFromId(const std::string &Score, TSNode node, std::string id) {
+std::string Score::GetChildStringFromField(const std::string &Score, TSNode node, std::string id) {
     int child_count = ts_node_child_count(node);
     for (int i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(node, i);
@@ -252,8 +260,8 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
         if (type == "numberConfig") {
-            std::string configType = GetChildStringFromId(Score, child, "configId");
-            std::string number = GetChildStringFromId(Score, child, "numberSet");
+            std::string configType = GetChildStringFromField(Score, child, "configId");
+            std::string number = GetChildStringFromField(Score, child, "numberSet");
             if (configType == "BPM") {
                 m_CurrentBPM = std::stof(number);
             } else if (type == "TRANSPOSE") {
@@ -264,6 +272,84 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
             }
         }
     }
+}
+// ─────────────────────────────────────
+void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Event) {
+    int child_count = ts_node_child_count(Node);
+    Action NewAction;
+    NewAction.AbsoluteTime = true;
+    NewAction.Time = 0;
+
+    TSNode actionKeyNode = GetField(Node, "timedAction");
+
+    if (!ts_node_is_null(actionKeyNode)) {
+        TSNode key = GetField(actionKeyNode, "actionKey");
+        TSNode number = GetField(actionKeyNode, "value");
+        TSNode timeUnit = GetField(actionKeyNode, "timeUnit");
+
+        if (!ts_node_is_null(key)) {
+            std::string keyStr = GetCodeStr(Score, key);
+            if (keyStr != "delay") {
+                std::runtime_error("Invalid action key");
+            }
+        }
+
+        if (!ts_node_is_null(number)) {
+            NewAction.Time = std::stof(GetCodeStr(Score, number));
+        }
+
+        if (!ts_node_is_null(timeUnit)) {
+            std::string unit = GetCodeStr(Score, timeUnit);
+            if (unit == "sec") {
+                NewAction.Time *= 1000;
+                NewAction.AbsoluteTime = true;
+            } else if (unit == "ms") {
+                NewAction.AbsoluteTime = true;
+            } else if (unit == "tempo") {
+                NewAction.AbsoluteTime = false;
+            }
+        }
+    }
+
+    TSNode execNode = GetField(Node, "exec");
+    if (!ts_node_is_null(execNode)) {
+        TSNode key = GetField(execNode, "keyword");
+        if (!ts_node_is_null(key)) {
+            std::string keyStr = GetCodeStr(Score, key);
+            if (keyStr == "luacall") {
+                std::string luacall = GetChildStringFromField(Score, execNode, "lua_call");
+                NewAction.Lua = luacall;
+                NewAction.isLua = true;
+            } else if (keyStr == "sendto") {
+                std::string receiver = GetChildStringFromField(Score, execNode, "receiver");
+                NewAction.Receiver = receiver;
+                NewAction.isLua = false;
+            }
+
+            // Arguments
+            TSNode args = GetField(execNode, "pdargs");
+            if (!ts_node_is_null(args)) {
+                int argsCount = ts_node_child_count(args);
+                for (int i = 0; i < argsCount; i++) {
+                    TSNode arg = ts_node_child(args, i);
+                    std::string argType = ts_node_type(arg);
+                    if (argType == "pdarg") {
+                        TSNode pdarg = ts_node_child(arg, 0);
+                        std::string pdargType = ts_node_type(pdarg);
+                        std::string token = GetCodeStr(Score, pdarg);
+                        if (pdargType == "number") {
+                            NewAction.PdArgs.push_back(std::stof(token));
+                        } else if (pdargType == "symbol") {
+                            NewAction.PdArgs.push_back(token);
+                        }
+                    }
+                }
+            } else {
+                NewAction.PdArgs.push_back("bang");
+            }
+        }
+    }
+    Event.Actions.push_back(NewAction);
 }
 
 // ─────────────────────────────────────

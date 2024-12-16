@@ -83,6 +83,11 @@ double OScofo::GetLiveBPM() {
 }
 
 // ─────────────────────────────────────
+ActionVec OScofo::GetEventActions(int Index) {
+    return m_MDP.GetEventActions(Index);
+}
+
+// ─────────────────────────────────────
 double OScofo::GetKappa() {
     return m_MDP.GetKappa();
 }
@@ -129,6 +134,7 @@ std::vector<double> OScofo::GaussianProbTimeOnset(int j, double sigma) {
 // │           Main Functions            │
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
+    m_States.clear();
     m_States = m_Score.Parse(ScorePath);
     m_MDP.SetScoreStates(m_States);
     return true;
@@ -137,7 +143,7 @@ bool OScofo::ParseScore(std::string ScorePath) {
 // ─────────────────────────────────────
 bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
     if (!m_Score.ScoreIsLoaded()) {
-        return true;
+        return false;
     }
 
     m_MIR.GetDescription(AudioBuffer, m_Desc);

@@ -37,6 +37,7 @@ class MDP {
 
     // Get Functions
     int GetTunning();
+    ActionVec GetEventActions(int Index);
 
     std::vector<MacroState> GetStates();
     MacroState GetState(int Index);

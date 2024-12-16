@@ -77,8 +77,30 @@ PdLua::PdLua() {
     m_L = luaL_newstate();
     luaL_openlibs(m_L);
     luaL_requiref(m_L, "oscofo", luaopen_oscofo, 1);
-
-    // Execute oscofo.hello
-    luaL_dostring(m_L, "print(oscofo.post('hello from lua'))");
 }
+
+// ─────────────────────────────────────
+bool PdLua::execute(std::string code) {
+    int status = luaL_loadstring(m_L, code.c_str());
+    if (status == LUA_OK) {
+        status = lua_pcall(m_L, 0, LUA_MULTRET, 0);
+        if (status != LUA_OK) {
+            return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// ─────────────────────────────────────
+std::string PdLua::getError() {
+    if (lua_isstring(m_L, -1)) {
+        std::string errorMsg = lua_tostring(m_L, -1);
+        lua_pop(m_L, 1);
+        return errorMsg;
+    }
+    return "Unknown error";
+}
+
 } // namespace OScofo

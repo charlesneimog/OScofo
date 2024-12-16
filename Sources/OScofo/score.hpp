@@ -33,10 +33,12 @@ class Score {
     // bool SpaceTab(const std::string &line, int numSpaces);
     void ParseInput(const std::string &Score);
     void PrintTreeSitterNode(TSNode node, int indent = 0);
+    TSNode GetField(TSNode Node, std::string s);
 
     void ProcessEvent(const std::string &Score, TSNode Event);
     void ProcessEventTime(MacroState &Event);
     void ProcessConfig(const std::string &Score, TSNode Node);
+    void ProcessAction(const std::string &Score, TSNode Node, MacroState &Event);
 
     void ProcessNote(TSNode Note);
 
@@ -44,7 +46,7 @@ class Score {
     std::string GetCodeStr(const std::string &Score, TSNode Node);
     // double GetFreqsFromNode(const std::string &Score, TSNode Node);
     double GetDurationFromNode(const std::string &Score, TSNode Node);
-    std::string GetChildStringFromId(const std::string &Score, TSNode node, std::string id);
+    std::string GetChildStringFromField(const std::string &Score, TSNode node, std::string id);
 
     // Events
     MacroState PitchEvent(const std::string &Score, TSNode Node);

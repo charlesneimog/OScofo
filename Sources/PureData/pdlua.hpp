@@ -14,6 +14,8 @@ namespace OScofo {
 class PdLua {
   public:
     PdLua();
+    bool execute(std::string code);
+    std::string getError();
 
   private:
     lua_State *m_L;

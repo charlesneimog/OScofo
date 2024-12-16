@@ -26,6 +26,17 @@ MDP::MDP(float Sr, float FFTSize, float HopSize) {
 }
 
 // ─────────────────────────────────────
+ActionVec MDP::GetEventActions(int Index) {
+
+    if (Index < 0 || Index >= m_States.size()) {
+        return ActionVec();
+    }
+
+    MacroState State = m_States[Index];
+    return State.Actions;
+}
+
+// ─────────────────────────────────────
 void MDP::SetScoreStates(States ScoreStates) {
     if (ScoreStates.size() == 0) {
         throw std::runtime_error("ScoreStates is empty");
@@ -175,7 +186,7 @@ int MDP::GetTunning() {
 // ─────────────────────────────────────
 void MDP::SetCurrentEvent(int Event) {
     m_CurrentStateIndex = Event;
-    m_EventDetected = false;
+    m_Tau = 0;
 }
 
 // ─────────────────────────────────────

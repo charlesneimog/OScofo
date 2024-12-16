@@ -2,9 +2,11 @@
 
 #include <string>
 #include <vector>
+#include <variant>
 
 namespace OScofo {
 
+// ─────────────────────────────────────
 enum EventType {
     REST,  // Markov state
     NOTE,  // MacroState, Semimarkov with Markov inside
@@ -14,6 +16,19 @@ enum EventType {
 };
 
 enum HMMType { SEMIMARKOV, MARKOV };
+
+// ─────────────────────────────────────
+class Action {
+  public:
+    bool isLua;
+    std::string Lua;
+    std::string Receiver;
+    std::vector<std::variant<float, int, std::string>> PdArgs;
+    bool AbsoluteTime;
+    double Time;
+};
+
+using ActionVec = std::vector<Action>;
 
 // ─────────────────────────────────────
 class AudioState {
@@ -35,7 +50,7 @@ class MacroState {
     int MarkovIndex = -1;
 
     // States Actions
-    std::vector<std::vector<std::string>> Actions;
+    ActionVec Actions;
     std::vector<AudioState> SubStates;
 
     // Forward Algorithm
@@ -95,4 +110,5 @@ class Description {
     double SpectralFlatness;
     double Loudness;
 };
+
 } // namespace OScofo
