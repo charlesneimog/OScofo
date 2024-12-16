@@ -26,14 +26,6 @@ message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
 message(STATUS "BUILD_PD_OBJECT: ${BUILD_PD_OBJECT}")
 message(STATUS "BUILD_MAX_OBJECT: ${BUILD_MAX_OBJECT}")
 
-# IF MAC, USE APPLE CLANG
-if(APPLE)
-    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-    set(CMAKE_C_COMPILER "/usr/bin/clang")
-endif()
-
-project(OScofo LANGUAGES C CXX)
-
 set(PDCMAKE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
     CACHE PATH "Path to pd.cmake")
