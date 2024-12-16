@@ -12,8 +12,8 @@ def ordinary_test(test_root, sr, fft_size, hop_size):
     OpenScofo = OScofo(sr, fft_size, hop_size)
     if OpenScofo.ParseScore(score_file):
         state = OpenScofo.GetStates()[0]
-        print(dir(state))
-        print(state.Freqs)
+
+
 
 
 ordinary_test("./", 48000, 4096, 512)
