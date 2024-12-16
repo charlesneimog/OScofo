@@ -58,10 +58,10 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
-if(TREE_SITTER_EXECUTABLE)
-    set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
-    set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
+set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
+set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
+if(TREE_SITTER_EXECUTABLE)
     add_custom_command(
         OUTPUT ${PARSER_OUTPUT_C}
         COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
@@ -85,6 +85,7 @@ else()
         WARNING
             "Tree-sitter executable not found. Parser generation skipped. Please install tree-sitter-cli."
     )
+    add_library(score_parser STATIC ${PARSER_OUTPUT_C})
 endif()
 
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
@@ -116,7 +117,6 @@ if(NOT EMSCRIPTEN)
 endif()
 
 target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
-add_dependencies(OScofo generate_tree_sitter_parser lualan)
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │
