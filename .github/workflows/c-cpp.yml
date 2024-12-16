@@ -58,8 +58,7 @@ jobs:
         with:
           msystem: mingw64
           update: false
-          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost
-            mingw-w64-x86_64-pybind11
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-tree-sitter mingw-w64-x86_64-pybind11
       - name: Install winget
         uses: Cyberboss/install-winget@v1
       - name: Install PureData Float 32
