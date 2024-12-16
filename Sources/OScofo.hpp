@@ -31,6 +31,7 @@ class OScofo {
     double GetKappa();
     double GetdBValue();
     ActionVec GetEventActions(int Index);
+    std::string GetLuaCode();
 
     // Main Functions
     bool ParseScore(std::string ScorePath);

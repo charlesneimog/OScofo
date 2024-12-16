@@ -31,6 +31,11 @@ TSNode Score::GetField(TSNode Node, std::string s) {
 }
 
 // ─────────────────────────────────────
+std::string Score::GetLuaCode() {
+    return m_LuaCode;
+}
+
+// ─────────────────────────────────────
 void Score::SetTunning(double Tunning) {
     m_Tunning = Tunning;
 }
@@ -366,6 +371,10 @@ void Score::ParseInput(const std::string &Score) {
             ProcessEvent(Score, child);
         } else if (type == "CONFIG") {
             ProcessConfig(Score, child);
+        } else if (type == "LUA") {
+            std::string lua_body = GetChildStringFromField(Score, child, "lua_body");
+            lua_body += "\n\n";
+            m_LuaCode += lua_body;
         }
     }
 
@@ -377,6 +386,7 @@ void Score::ParseInput(const std::string &Score) {
 // ─────────────────────────────────────
 States Score::Parse(std::string ScoreFile) {
     m_ScoreStates.clear();
+    m_LuaCode.clear();
 
     // Open the score file for reading
     std::ifstream File(ScoreFile);

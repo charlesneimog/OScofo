@@ -81,6 +81,15 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     }
     x->OpenScofo->SetCurrentEvent(-1);
     x->Event = -1;
+
+    std::string LuaCode = x->OpenScofo->GetLuaCode();
+    bool result = x->Lua->execute(LuaCode.c_str());
+    if (!result) {
+        std::string error = x->Lua->getError();
+        pd_error(nullptr, "[o.scofo~] Lua error");
+        pd_error(nullptr, "[o.scofo~] %s", error.c_str());
+        post("");
+    }
 }
 
 // ─────────────────────────────────────

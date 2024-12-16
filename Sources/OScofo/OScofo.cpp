@@ -91,6 +91,11 @@ ActionVec OScofo::GetEventActions(int Index) {
 double OScofo::GetKappa() {
     return m_MDP.GetKappa();
 }
+
+// ─────────────────────────────────────
+std::string OScofo::GetLuaCode() {
+    return m_Score.GetLuaCode();
+}
 // ╭─────────────────────────────────────╮
 // │          Helpers Functions          │
 // ╰─────────────────────────────────────╯

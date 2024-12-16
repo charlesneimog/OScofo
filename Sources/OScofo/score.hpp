@@ -22,8 +22,12 @@ class Score {
     void SetTunning(double Tunning);
     bool ScoreIsLoaded();
 
+    // Get Score
+    std::string GetLuaCode();
+
   private:
     States m_ScoreStates;
+    std::string m_LuaCode;
 
     // Helpers
     double ModPhases(double Phase);
