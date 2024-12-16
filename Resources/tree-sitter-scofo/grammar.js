@@ -104,7 +104,7 @@ module.exports = grammar({
                 seq(
                     field("keyword", token("sendto")),
                     field("receiver", $.receiver),
-                    field("pdargs", $.pdargs),
+                    optional(field("pdargs", $.pdargs)),
                 ),
                 seq(
                     field("keyword", token("luacall")),

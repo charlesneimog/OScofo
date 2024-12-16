@@ -141,35 +141,35 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
     m_ScorePosition++;
 
     double Midi;
-    MacroState Note;
-    Note.Line = m_LineCount;
-    Note.Markov = SEMIMARKOV;
-    Note.Index = m_ScoreStates.size();
-    Note.ScorePos = m_ScorePosition;
+    MacroState Event;
+    Event.Line = m_LineCount;
+    Event.Markov = SEMIMARKOV;
+    Event.Index = m_ScoreStates.size();
+    Event.ScorePos = m_ScorePosition;
 
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
-
         if (type == "pitchEventId") {
             std::string id = GetCodeStr(Score, child);
             if (id == "NOTE") {
-                Note.Type = NOTE;
+                Event.Type = NOTE;
             } else if (id == "TRILL") {
-                Note.Type = TRILL;
+                Event.Type = TRILL;
             } else if (id == "CHORD") {
-                Note.Type = CHORD;
+                Event.Type = CHORD;
             } else {
                 throw std::runtime_error("Invalid pitch event id");
             }
+
         } else if (type == "pitch") {
             TSNode pitch = ts_node_child(child, 0);
             AudioState SubState;
             SubState.Markov = MARKOV;
             SubState.Type = NOTE;
             SubState.Freq = PitchNode2Freq(Score, child);
-            Note.SubStates.push_back(SubState);
+            Event.SubStates.push_back(SubState);
         } else if (type == "pitches") {
             uint32_t pitchCount = ts_node_child_count(child);
             for (int j = 0; j < pitchCount; j++) {
@@ -180,22 +180,21 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
                     SubState.Markov = MARKOV;
                     SubState.Type = NOTE;
                     SubState.Freq = PitchNode2Freq(Score, eventPitch);
-                    Note.SubStates.push_back(SubState);
+                    Event.SubStates.push_back(SubState);
                 }
             }
 
         } else if (type == "duration") {
             double duration = GetDurationFromNode(Score, child);
-            Note.Duration = duration;
+            Event.Duration = duration;
         } else if (type == "ACTION") {
-            ProcessAction(Score, child, Note);
-            continue;
+            ProcessAction(Score, child, Event);
         } else {
             throw std::runtime_error("Invalid note event");
         }
     }
-    ProcessEventTime(Note);
-    return Note;
+    ProcessEventTime(Event);
+    return Event;
 }
 
 // ─────────────────────────────────────
@@ -281,7 +280,6 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
     NewAction.Time = 0;
 
     TSNode actionKeyNode = GetField(Node, "timedAction");
-
     if (!ts_node_is_null(actionKeyNode)) {
         TSNode key = GetField(actionKeyNode, "actionKey");
         TSNode number = GetField(actionKeyNode, "value");
@@ -344,8 +342,6 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
                         }
                     }
                 }
-            } else {
-                NewAction.PdArgs.push_back("bang");
             }
         }
     }

@@ -162,7 +162,7 @@ static void oscofo_tickactions(PdOScofo *x) {
                     post("");
                 }
             } else {
-                if (CurAction.PdArgs != nullptr) {
+                if (CurAction.PdArgsSize >= 1) {
                     pd_list(gensym(CurAction.Receiver.c_str())->s_thing, nullptr, CurAction.PdArgsSize, CurAction.PdArgs);
                 } else {
                     pd_bang(gensym(CurAction.Receiver.c_str())->s_thing);
@@ -239,7 +239,6 @@ static void oscofo_ticknewevent(PdOScofo *x) {
                     return;
                 }
             } else {
-                post("time %f\n", time);
                 double sysTime = clock_getsystimeafter(time);
                 Action action = {sysTime, false, Act.Receiver, "", args, size};
                 x->Actions.push_back(action);

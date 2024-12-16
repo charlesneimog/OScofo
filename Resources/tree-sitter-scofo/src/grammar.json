@@ -647,12 +647,20 @@
               }
             },
             {
-              "type": "FIELD",
-              "name": "pdargs",
-              "content": {
-                "type": "SYMBOL",
-                "name": "pdargs"
-              }
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "pdargs",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "pdargs"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
             }
           ]
         },
