@@ -108,7 +108,7 @@ jobs:
           sudo apt install puredata -y
           sudo apt install libboost-all-dev
           sudo apt install python3-pybind11 -y
-          npm install tree-sitter-cli
+          npm install tree-sitter
       - name: Install aarch64 gcc
         if: matrix.arch == 'aarch64'
         run: |
