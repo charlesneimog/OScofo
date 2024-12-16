@@ -30,6 +30,7 @@ class OScofo {
     int GetEventIndex();
     double GetKappa();
     double GetdBValue();
+    ActionVec GetEventActions(int Index);
 
     // Main Functions
     bool ParseScore(std::string ScorePath);
