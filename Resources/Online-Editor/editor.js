@@ -80,6 +80,9 @@ class ScofoOnlineEditor {
                         );
                     }
                 },
+                "Ctrl-S": function (_) {
+                    scofoEditor.downloadScore();
+                },
             },
         });
 
@@ -378,42 +381,6 @@ class ScofoOnlineEditor {
             pitch: { column: null, toLowerCase: false, toUpperCase: true },
         };
         let wasFormatted = false;
-
-        function formatNode(node, formatter) {
-            if (formatter && node.type in formatter) {
-                let thingFormat = formatter[node.type];
-                const startPos = { line: node.startPosition.row, column: node.startPosition.column };
-                let lineText = this.codeEditor.getLine(node.startPosition.row);
-                let lineTextBefore = lineText.substring(0, node.startPosition.column);
-
-                // place
-                if (thingFormat.column !== null) {
-                    if (lineTextBefore.trim() === "" && startPos.column !== formatter[node.type].column) {
-                        this.codeEditor.replaceRange(node.text, { line: node.startPosition.row, ch: 0 }, startPos);
-                        wasFormatted = true;
-                    } else if (startPos.column !== formatter[node.type].column && lineTextBefore.trim() !== "") {
-                        wasFormatted = true;
-                        let intendation = " ".repeat(formatter[node.type].column);
-                        this.codeEditor.replaceRange(
-                            lineTextBefore + "\n" + intendation + node.text,
-                            { line: node.startPosition.row, ch: 0 },
-                            startPos,
-                        );
-                    }
-                }
-
-                // check if the text
-                if (thingFormat.toUpperCase) {
-                    return;
-                    let newText = node.text.toUpperCase();
-                    this.codeEditor.replaceRange(newText, startPos, startPos);
-                }
-            }
-
-            node.children.forEach((child) => formatNode.call(this, child, formatter));
-        }
-
-        formatNode.call(this, node, oscofoFormatter);
         return wasFormatted;
     }
 
@@ -423,8 +390,6 @@ class ScofoOnlineEditor {
             startRow = viewport.from;
             endRow = viewport.to;
         }
-
-        console.log(this.tree.rootNode.toString());
 
         this.codeEditor.operation(() => {
             const marks = this.codeEditor.getAllMarks();
@@ -515,7 +480,6 @@ class ScofoOnlineEditor {
     getMissing(node, list) {
         for (let i = 0; i < node.namedChildCount; i++) {
             let child = node.namedChild(i);
-            console.log(child.toString());
             if (child.isMissing) {
                 list.push(child);
             }
@@ -575,7 +539,7 @@ class ScofoOnlineEditor {
     }
 
     downloadScore() {
-        const content = this.codeInput.value;
+        const content = this.codeEditor.getValue();
         const blob = new Blob([content], { type: "text/plain" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
