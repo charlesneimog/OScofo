@@ -123,7 +123,7 @@ class ScofoOnlineEditor {
                 number: "color: var(--highlight);",
                 exec: "color: var(--fg); font-weight: bold;",
                 receiver: "color: var(--green);",
-                pdargs: "color: var(--fg); font-style: italic;",
+                pdarg: "color: var(--fg); font-style: italic;",
                 timedAction: "color: var(--highlight); font-weight: 100;",
             },
             lua: {
@@ -154,13 +154,11 @@ class ScofoOnlineEditor {
             (duration) @duration
             (numberSet) @duration
             (ACTION (keyword) @ACTION)
-            (actionKey) @actionKey
             (timedAction (number) @number)
 
             (timeUnit) @timeUnit
-            (exec (keyword) @exec) 
             (receiver) @receiver
-            ((pdargs)  @pdargs)
+            ((pdarg)  @pdarg)
 
             (lua_body) @lua_body
             (lua_call) @lua_body
