@@ -4,9 +4,8 @@
 #include <algorithm>
 #include <m_pd.h>
 
-#include "pdlua.hpp"
-
 static t_class *OScofoObj;
+int luaopen_pd(lua_State *L);
 
 struct Action {
     double time;
@@ -31,9 +30,6 @@ class PdOScofo {
 
     // Action
     std::vector<Action> Actions;
-
-    // Lua
-    OScofo::PdLua *Lua;
 
     // OScofo
     OScofo::OScofo *OpenScofo;
@@ -83,9 +79,9 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     x->Event = -1;
 
     std::string LuaCode = x->OpenScofo->GetLuaCode();
-    bool result = x->Lua->execute(LuaCode.c_str());
+    bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
     if (!result) {
-        std::string error = x->Lua->getError();
+        std::string error = x->OpenScofo->LuaGetError();
         pd_error(nullptr, "[o.scofo~] Lua error");
         pd_error(nullptr, "[o.scofo~] %s", error.c_str());
         post("");
@@ -163,9 +159,9 @@ static void oscofo_tickactions(PdOScofo *x) {
         Action CurAction = *it;
         if (thisTime < CurAction.time && CurAction.time <= nextTime) {
             if (CurAction.isLua) {
-                bool success = x->Lua->execute(CurAction.LuaCode.c_str());
+                bool success = x->OpenScofo->LuaExecute(CurAction.LuaCode.c_str());
                 if (!success) {
-                    std::string error = x->Lua->getError();
+                    std::string error = x->OpenScofo->LuaGetError();
                     pd_error(x, "[o.scofo~] Lua error");
                     pd_error(x, "[o.scofo~] %s", error.c_str());
                     post("");
@@ -198,15 +194,16 @@ static void oscofo_ticknewevent(PdOScofo *x) {
 
     for (OScofo::Action &Act : Actions) {
         double time = Act.Time;
-        if (Act.AbsoluteTime && Act.Time != 0) {
-            time = 60.0 / x->OpenScofo->GetLiveBPM() * Act.Time;
+        if (!Act.AbsoluteTime) {
+            Act.Time = 60.0 / x->OpenScofo->GetLiveBPM() * Act.Time * 1000;
+            time = Act.Time;
         }
 
         if (Act.isLua) {
             if (time == 0) {
-                bool sucess = x->Lua->execute(Act.Lua.c_str());
+                bool sucess = x->OpenScofo->LuaExecute(Act.Lua.c_str());
                 if (!sucess) {
-                    std::string error = x->Lua->getError();
+                    std::string error = x->OpenScofo->LuaGetError();
                     pd_error(x, "[o.scofo~] Lua error");
                     pd_error(x, "[o.scofo~] %s", error.c_str());
                     post("");
@@ -355,7 +352,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->PatchDir = canvas_getdir(x->Canvas)->s_name;
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
-    x->Lua = new OScofo::PdLua();
+    x->OpenScofo->LuaAddModule("pd", luaopen_pd);
 
     return (x);
 }
@@ -363,7 +360,6 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
 // ─────────────────────────────────────
 static void oscofo_free(PdOScofo *x) {
     delete x->OpenScofo;
-    delete x->Lua;
 }
 
 // ─────────────────────────────────────

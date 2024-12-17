@@ -70,6 +70,26 @@ void MDP::SetScoreStates(States ScoreStates) {
 }
 
 // ─────────────────────────────────────
+void MDP::BuildPitchTemplate(double Freq) {
+    double RootBinFreq = round(Freq / (m_Sr / m_FFTSize));
+    if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
+        return;
+    }
+    m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
+    for (int k = 1; k <= m_Harmonics; ++k) {
+        double harmonicFreqBin = RootBinFreq * k;
+        double harmonicFreqHz = harmonicFreqBin * (m_Sr / m_FFTSize);
+        double HSigma = 2 / (std::log2(harmonicFreqHz / 440) + 1);
+        for (size_t i = 0; i < m_FFTSize / 2; ++i) {
+            double gaussian = (1 / std::sqrt(2 * M_PI * HSigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * HSigma * HSigma));
+            double envelope = 1 / ((std::pow(4, k)) - 1);
+            double noise = 0.0001 * (rand() % 100) / 100.0;
+            m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
+        }
+    }
+}
+
+// ─────────────────────────────────────
 void MDP::UpdateAudioTemplate() {
     int StateSize = m_States.size();
     m_PitchTemplates.clear();
@@ -79,46 +99,6 @@ void MDP::UpdateAudioTemplate() {
         if (m_States[h].Type == NOTE || m_States[h].Type == TRILL) {
             for (AudioState &SubState : m_States[h].SubStates) {
                 if (SubState.Type == NOTE) {
-                    double Pitch = SubState.Freq; // Hz
-                    /*
-                    double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
-                    if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
-                        continue;
-                    }
-                    m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
-                    double semitoneWidthHz = Pitch * (std::pow(2.0, m_PitchTemplateSigma / 12.0) - 1.0);
-                    double sigmaInBins = semitoneWidthHz / (m_Sr / m_FFTSize);
-
-                    for (int k = 1; k <= m_Harmonics; k++) {
-                        double harmonicFreqBin = RootBinFreq * k;
-                        double harmonicFreqHz = harmonicFreqBin * (m_Sr / m_FFTSize);
-
-                        for (size_t i = 0; i < m_FFTSize / 2; ++i) {
-                            double gaussian = (1 / std::sqrt(2 * M_PI * sigmaInBins)) *
-                                              std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * sigmaInBins * sigmaInBins));
-                            double envelope = 1 / ((std::pow(8, k)) - 1);
-                            double noise = 0.0001 * (rand() % 100) / 100.0;
-                            m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
-                        }
-                    }
-                    */
-                    double RootBinFreq = round(Pitch / (m_Sr / m_FFTSize));
-                    if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
-                        continue;
-                    }
-                    m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
-                    for (int k = 1; k <= m_Harmonics; ++k) {
-                        double harmonicFreqBin = RootBinFreq * k;
-                        double harmonicFreqHz = harmonicFreqBin * (m_Sr / m_FFTSize);
-                        double HSigma = 2 / (std::log2(harmonicFreqHz / 440) + 1);
-                        for (size_t i = 0; i < m_FFTSize / 2; ++i) {
-                            double gaussian =
-                                (1 / std::sqrt(2 * M_PI * HSigma)) * std::exp(-std::pow(i - harmonicFreqBin, 2) / (2 * HSigma * HSigma));
-                            double envelope = 1 / ((std::pow(4, k)) - 1);
-                            double noise = 0.0001 * (rand() % 100) / 100.0;
-                            m_PitchTemplates[RootBinFreq][i] += (envelope * gaussian) + noise;
-                        }
-                    }
                 }
             }
         }
@@ -449,7 +429,8 @@ double MDP::GetPitchSimilarity(double Freq) {
     if (m_PitchTemplates.find(RootBinFreq) != m_PitchTemplates.end()) {
         PitchTemplate = m_PitchTemplates[RootBinFreq];
     } else {
-        throw std::runtime_error("PitchTemplate not found for " + std::to_string(Freq) + ", this should not happen, please report");
+        BuildPitchTemplate(Freq);
+        PitchTemplate = m_PitchTemplates[RootBinFreq];
     }
 
     for (size_t i = 0; i < m_FFTSize / 2; i++) {
@@ -726,6 +707,9 @@ int MDP::GetEvent(Description &Desc) {
         return m_States[StateIndex].ScorePos;
     } else {
         m_CurrentStateIndex = StateIndex;
+
+        // Config
+        m_MinEntropy = m_States[StateIndex].Entropy;
         return m_States[StateIndex].ScorePos;
     }
 }

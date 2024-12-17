@@ -6,6 +6,10 @@
 // ╰─────────────────────────────────────╯
 namespace OScofo {
 
+#if defined(OSCOFO_LUA)
+int luaopen_oscofo(lua_State *L);
+#endif
+
 //  ─────────────────────────────────────
 OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopSize), m_MIR(Sr, FftSize, HopSize) {
     m_States = States();
@@ -13,7 +17,60 @@ OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopS
     m_Sr = Sr;
     m_FFTSize = FftSize;
     m_HopSize = HopSize;
+
+#if defined(OSCOFO_LUA)
+    InitLua();
+#endif
 }
+
+// ╭─────────────────────────────────────╮
+// │                 Lua                 │
+// ╰─────────────────────────────────────╯
+
+#if defined(OSCOFO_LUA)
+void OScofo::InitLua() {
+    m_LuaState = luaL_newstate();
+    luaL_openlibs(m_LuaState);
+    lua_newtable(m_LuaState);
+    lua_pushlightuserdata(m_LuaState, this);
+    lua_setfield(m_LuaState, -2, "pointer");
+    lua_setglobal(m_LuaState, "_OScofo");
+    luaL_requiref(m_LuaState, "oscofo", luaopen_oscofo, 1);
+}
+
+// ─────────────────────────────────────
+bool OScofo::LuaAddModule(std::string name, lua_CFunction func) {
+    luaL_requiref(m_LuaState, name.c_str(), func, 1);
+    if (lua_isnil(m_LuaState, -1)) {
+        return false;
+    }
+    return true;
+}
+
+// ─────────────────────────────────────
+bool OScofo::LuaExecute(std::string code) {
+    int status = luaL_loadstring(m_LuaState, code.c_str());
+    if (status == LUA_OK) {
+        status = lua_pcall(m_LuaState, 0, LUA_MULTRET, 0);
+        if (status != LUA_OK) {
+            return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// ─────────────────────────────────────
+std::string OScofo::LuaGetError() {
+    if (lua_isstring(m_LuaState, -1)) {
+        std::string errorMsg = lua_tostring(m_LuaState, -1);
+        lua_pop(m_LuaState, 1);
+        return errorMsg;
+    }
+    return "Unknown error";
+}
+#endif
 
 // ╭─────────────────────────────────────╮
 // │            Set Functions            │
@@ -90,6 +147,11 @@ ActionVec OScofo::GetEventActions(int Index) {
 // ─────────────────────────────────────
 double OScofo::GetKappa() {
     return m_MDP.GetKappa();
+}
+
+// ─────────────────────────────────────
+double OScofo::GetPitchProb(double f) {
+    return m_MDP.GetPitchSimilarity(f);
 }
 
 // ─────────────────────────────────────

@@ -47,6 +47,7 @@ class MDP {
 
     int GetStatesSize();
     int GetEvent(Description &Desc);
+    double GetPitchSimilarity(double Freq);
 
     // Python For Research
     std::unordered_map<double, PitchTemplateArray> GetPitchTemplate();
@@ -59,12 +60,14 @@ class MDP {
     double GaussianProbTimeOnset(int j, int T, double Sigma);
 
   private:
+    // Config
+    double m_MinEntropy = 0;
+
     // Audio
     double m_Sr;
     double m_FFTSize;
     double m_HopSize;
     double m_Harmonics = 5;
-    double m_MinEntropy = 0;
     double m_dBTreshold = -55;
     int m_BufferSize = 1000;
 
@@ -121,12 +124,12 @@ class MDP {
 
     // Audio Observations
     void GetAudioObservations(int FirstStateIndex, int LastStateIndex, int T);
+    void BuildPitchTemplate(double Freq);
     Description m_Desc;
 
     // Markov
     bool m_EventDetected = false;
     double GetBestEvent();
-    double GetPitchSimilarity(double Freq);
     int GetMaxJIndex(int StateIndex);
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);

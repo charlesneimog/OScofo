@@ -49,6 +49,9 @@ class MacroState {
     HMMType Markov;
     int MarkovIndex = -1;
 
+    // Configs
+    double Entropy;
+
     // States Actions
     ActionVec Actions;
     std::vector<AudioState> SubStates;

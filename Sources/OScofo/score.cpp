@@ -129,7 +129,8 @@ std::string Score::GetCodeStr(const std::string &Score, TSNode Node) {
 double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
-        throw std::runtime_error("Invalid duration count");
+        TSPoint Pos = ts_node_start_point(Node);
+        throw std::runtime_error("Invalid duration count on line " + std::to_string(Pos.row + 1));
     }
 
     TSNode dur = ts_node_child(Node, 0);
@@ -138,7 +139,8 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
         std::string dur_str = GetCodeStr(Score, dur);
         return std::stof(dur_str);
     }
-    throw std::runtime_error("Invalid duration type");
+    TSPoint Pos = ts_node_start_point(dur);
+    throw std::runtime_error("Invalid duration type on line " + std::to_string(Pos.row + 1));
 }
 
 // ─────────────────────────────────────
@@ -151,6 +153,7 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
     Event.Markov = SEMIMARKOV;
     Event.Index = m_ScoreStates.size();
     Event.ScorePos = m_ScorePosition;
+    Event.Entropy = m_Entropy;
 
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
@@ -165,7 +168,8 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
             } else if (id == "CHORD") {
                 Event.Type = CHORD;
             } else {
-                throw std::runtime_error("Invalid pitch event id");
+                TSPoint Pos = ts_node_start_point(child);
+                throw std::runtime_error("Invalid pitch event on line " + std::to_string(Pos.row + 1));
             }
 
         } else if (type == "pitch") {
@@ -195,7 +199,8 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
         } else if (type == "ACTION") {
             ProcessAction(Score, child, Event);
         } else {
-            throw std::runtime_error("Invalid note event");
+            TSPoint Pos = ts_node_start_point(child);
+            throw std::runtime_error("Invalid note event on line " + std::to_string(Pos.row + 1));
         }
     }
     ProcessEventTime(Event);
@@ -226,6 +231,19 @@ void Score::ProcessEventTime(MacroState &Event) {
 }
 
 // ─────────────────────────────────────
+std::string Score::GetChildStringFromField(const std::string &Score, TSNode node, std::string id) {
+    int child_count = ts_node_child_count(node);
+    for (int i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(node, i);
+        const char *type = ts_node_type(child);
+        if (id == type) {
+            return GetCodeStr(Score, child);
+        }
+    }
+    return "";
+}
+
+// ─────────────────────────────────────
 void Score::ProcessEvent(const std::string &Score, TSNode Node) {
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
@@ -244,19 +262,6 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-std::string Score::GetChildStringFromField(const std::string &Score, TSNode node, std::string id) {
-    int child_count = ts_node_child_count(node);
-    for (int i = 0; i < child_count; i++) {
-        TSNode child = ts_node_child(node, i);
-        const char *type = ts_node_type(child);
-        if (id == type) {
-            return GetCodeStr(Score, child);
-        }
-    }
-    return "";
-}
-
-// ─────────────────────────────────────
 void Score::ProcessConfig(const std::string &Score, TSNode Node) {
     MacroState Event;
     uint32_t child_count = ts_node_child_count(Node);
@@ -266,13 +271,16 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
         if (type == "numberConfig") {
             std::string configType = GetChildStringFromField(Score, child, "configId");
             std::string number = GetChildStringFromField(Score, child, "numberSet");
+            TSPoint Pos = ts_node_start_point(child);
             if (configType == "BPM") {
                 m_CurrentBPM = std::stof(number);
-            } else if (type == "TRANSPOSE") {
+            } else if (configType == "TRANSPOSE") {
                 m_Transpose = std::stof(number);
                 if (m_Transpose < -36 || m_Transpose > 36) {
-                    throw std::runtime_error("Invalid transpose value, must be between -36 and 36");
+                    throw std::runtime_error("Invalid transpose value, must be between -36 and 36 on line " + std::to_string(Pos.row + 1));
                 }
+            } else if (configType == "ENTROPY") {
+                m_Entropy = std::stof(number);
             }
         }
     }
@@ -292,8 +300,9 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
 
         if (!ts_node_is_null(key)) {
             std::string keyStr = GetCodeStr(Score, key);
+            TSPoint pos = ts_node_start_point(key);
             if (keyStr != "delay") {
-                std::runtime_error("Invalid action key");
+                std::runtime_error("Invalid action key on line " + std::to_string(pos.row + 1));
             }
         }
 
@@ -395,12 +404,14 @@ States Score::Parse(std::string ScoreFile) {
     }
 
     m_CurrentBPM = -1;
+    m_Transpose = 0;
+    m_Entropy = 0;
+
     m_LineCount = 0;
     m_MarkovIndex = 0;
     m_ScorePosition = 0;
     m_LastOnset = 0;
     m_PrevDuration = 0;
-    m_Transpose = 0;
     std::string Line;
     double LastOnset = 0;
     double PreviousDuration = 0;

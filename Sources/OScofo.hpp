@@ -5,11 +5,21 @@
 #include <OScofo/score.hpp>
 #include <OScofo/states.hpp>
 
+#if defined(OSCOFO_LUA)
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
+}
+#endif
+
 #define OSCOFO_VERSION_MAJOR 0
 #define OSCOFO_VERSION_MINOR 0
 #define OSCOFO_VERSION_PATCH 2
 
 namespace OScofo {
+
+class OScofo;
 
 class OScofo {
   public:
@@ -32,6 +42,7 @@ class OScofo {
     double GetdBValue();
     ActionVec GetEventActions(int Index);
     std::string GetLuaCode();
+    double GetPitchProb(double f);
 
     // Main Functions
     bool ParseScore(std::string ScorePath);
@@ -46,10 +57,21 @@ class OScofo {
     bool ScoreIsLoaded();
     std::string GetError();
 
+#if defined(OSCOFO_LUA)
+    void InitLua();
+    bool LuaExecute(std::string code);
+    std::string LuaGetError();
+    bool LuaAddModule(std::string name, lua_CFunction func);
+#endif
+
   private:
     MDP m_MDP;
     MIR m_MIR;
     Score m_Score;
+
+#if defined(OSCOFO_LUA)
+    lua_State *m_LuaState;
+#endif
 
     States m_States;
     Description m_Desc;
@@ -61,4 +83,5 @@ class OScofo {
 
     std::string m_Error;
 };
+
 } // namespace OScofo

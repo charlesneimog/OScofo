@@ -9,6 +9,11 @@ option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
 option(BUILD_MAX_OBJECT "Build Max Object" OFF)
 option(BUILD_ALL "Build Python Module and PureData Object" OFF)
+option(BUILD_WITH_LUA "Build Lua Module embbeded on OScofo" ON)
+
+if(BUILD_WITH_LUA)
+    add_definitions(-DOSCOFO_LUA)
+endif()
 
 # check if it is EMSCRIPTEN
 if(EMSCRIPTEN)
@@ -96,6 +101,7 @@ target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include
 list(APPEND ScofoSrc Sources/OScofo/mdp.cpp)
 list(APPEND ScofoSrc Sources/OScofo/mir.cpp)
 list(APPEND ScofoSrc Sources/OScofo/score.cpp)
+list(APPEND ScofoSrc Sources/OScofo/lua.cpp)
 list(APPEND ScofoSrc Sources/OScofo/OScofo.cpp)
 add_library(OScofo STATIC ${ScofoSrc})
 

@@ -66,7 +66,9 @@ class Score {
     void AddAction(std::vector<std::string> Tokens);
 
     // Some ScoreConfigs
-    float m_Transpose;
+    double m_CurrentBPM = -1;
+    float m_Transpose = 0;
+    double m_Entropy = 0;
 
     // Variables
     int m_ScorePosition = 1;
@@ -74,7 +76,6 @@ class Score {
     int m_MarkovIndex = 0;
     double m_LastOnset = 0;
     double m_LastPhase = 0;
-    double m_CurrentBPM = -1;
     double m_PrevDuration;
     double m_Tunning = 440;
     bool m_ScoreLoaded = false;
