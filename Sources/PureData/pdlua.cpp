@@ -7,21 +7,21 @@ namespace OScofo {
 // ╭─────────────────────────────────────╮
 // │          OScofo Lua Module          │
 // ╰─────────────────────────────────────╯
-static int oscofo_Post(lua_State *L) {
+static int pd_Post(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     post("%s", r);
     return 0;
 }
 
 // ─────────────────────────────────────
-static int oscofo_Error(lua_State *L) {
+static int pd_Error(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     post("%s", r);
     return 0;
 }
 
 // ─────────────────────────────────────
-static int oscofo_sendBang(lua_State *L) {
+static int pd_sendBang(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     t_symbol *symbol = gensym(r);
     if (symbol->s_thing) {
@@ -33,7 +33,7 @@ static int oscofo_sendBang(lua_State *L) {
 }
 
 // ─────────────────────────────────────
-static int oscofo_sendFloat(lua_State *L) {
+static int pd_sendFloat(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     const double f = luaL_checknumber(L, 2);
     t_symbol *symbol = gensym(r);
@@ -46,7 +46,7 @@ static int oscofo_sendFloat(lua_State *L) {
 }
 
 // ─────────────────────────────────────
-static int oscofo_sendSymbol(lua_State *L) {
+static int pd_sendSymbol(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     const char *s = luaL_checkstring(L, 2);
     t_symbol *symbol = gensym(r);
@@ -59,7 +59,7 @@ static int oscofo_sendSymbol(lua_State *L) {
 }
 
 // ─────────────────────────────────────
-static int oscofo_sendList(lua_State *L) {
+static int pd_sendList(lua_State *L) {
     const char *r = luaL_checkstring(L, 1);
     luaL_checktype(L, 2, LUA_TTABLE);
     t_symbol *symbol = gensym(r);
@@ -97,7 +97,6 @@ static int oscofo_getPitchProb(lua_State *L) {
 
 // ─────────────────────────────────────
 static const luaL_Reg oscofo_funcs[] = {
-
     // Log
     {"getPitchProb", oscofo_getPitchProb},
 
@@ -108,14 +107,15 @@ static const luaL_Reg oscofo_funcs[] = {
 static const luaL_Reg pd_funcs[] = {
 
     // Log
-    {"post", oscofo_Post},
-    {"error", oscofo_Error},
+    {"print", pd_Post},
+    {"post", pd_Post},
+    {"error", pd_Error},
 
     // PureData
-    {"sendBang", oscofo_sendBang},
-    {"sendFloat", oscofo_sendFloat},
-    {"sendSymbol", oscofo_sendSymbol},
-    {"sendList", oscofo_sendList},
+    {"sendBang", pd_sendBang},
+    {"sendFloat", pd_sendFloat},
+    {"sendSymbol", pd_sendSymbol},
+    {"sendList", pd_sendList},
 
     // Sentinela
     {NULL, NULL}};
