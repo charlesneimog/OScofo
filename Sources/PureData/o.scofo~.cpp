@@ -172,6 +172,12 @@ static void oscofo_tickactions(PdOScofo *x) {
                 } else {
                     pd_bang(gensym(CurAction.Receiver.c_str())->s_thing);
                 }
+
+                // clear memory and delete
+                if (CurAction.PdArgs != nullptr) {
+                    delete[] CurAction.PdArgs;
+                    CurAction.PdArgs = nullptr;
+                }
             }
             it = x->Actions.erase(it);
         } else {
@@ -216,7 +222,7 @@ static void oscofo_ticknewevent(PdOScofo *x) {
 
         } else {
             int size = Act.PdArgs.size();
-            t_atom args[size];
+            t_atom *args = new t_atom[size];
             t_pd *receiver = gensym(Act.Receiver.c_str())->s_thing;
             if (receiver == nullptr) {
                 pd_error(x, "[o.scofo~] Receiver %s not found", Act.Receiver.c_str());
@@ -242,12 +248,13 @@ static void oscofo_ticknewevent(PdOScofo *x) {
                     pd_bang(gensym(Act.Receiver.c_str())->s_thing);
                 } else {
                     pd_error(x, "[o.scofo~] Wrong number of arguments for %s", Act.Receiver.c_str());
-                    return;
                 }
+                delete[] args;
             } else {
                 double sysTime = clock_getsystimeafter(time);
                 Action action = {sysTime, false, Act.Receiver, "", args, size};
                 x->Actions.push_back(action);
+                // NOTE: oscofo_tickaction will delete the args
             }
         }
     }
@@ -317,10 +324,10 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         return nullptr;
     }
 
-    x->EventOut = outlet_new(&x->PdObject, &s_float); // event outlet
-    x->TempoOut = outlet_new(&x->PdObject, &s_float); // tempo outlet
-
+    x->EventOut = outlet_new(&x->PdObject, &s_float);
+    x->TempoOut = outlet_new(&x->PdObject, &s_float);
     double overlap = 4;
+
     for (int i = 0; i < argc; i++) {
         if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
             std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
@@ -353,7 +360,6 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     x->OpenScofo->LuaAddModule("pd", luaopen_pd);
-
     return (x);
 }
 
