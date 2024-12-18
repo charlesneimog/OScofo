@@ -51,7 +51,7 @@ class OScofo {
     // Python Function for Research
     States GetStates();
     std::unordered_map<double, PitchTemplateArray> GetPitchTemplate();
-    std::vector<double> GaussianProbTimeOnset(int j, double Sigma);
+    std::vector<double> GetSpectrumPower();
 
     // Helpers Functions
     bool ScoreIsLoaded();
@@ -62,6 +62,8 @@ class OScofo {
     bool LuaExecute(std::string code);
     std::string LuaGetError();
     bool LuaAddModule(std::string name, lua_CFunction func);
+    void LuaAddPath(std::string path);
+
 #endif
 
   private:

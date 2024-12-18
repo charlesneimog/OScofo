@@ -29,7 +29,6 @@ PYBIND11_MODULE(_OScofo, m) {
         .def("GetError", &OScofo::OScofo::GetError)
         .def("GetStates", &OScofo::OScofo::GetStates)
         .def("GetPitchTemplate", &OScofo::OScofo::GetPitchTemplate)
-        .def("GetGaussianTimeLine", &OScofo::OScofo::GaussianProbTimeOnset)
 
         // Process
         .def("ProcessBlock", [](OScofo::OScofo &self, py::array_t<double> Audio) {
