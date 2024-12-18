@@ -148,36 +148,64 @@ static void oscofo_following(PdOScofo *x, t_float f) {
         x->Following = false;
     }
 }
+// ─────────────────────────────────────
+static void oscofo_luaexecute(PdOScofo *x, std::string code) {
+    if (!x->OpenScofo->LuaExecute(code)) {
+        std::string error = x->OpenScofo->LuaGetError();
+        pd_error(x, "[o.scofo~] Lua error");
+        pd_error(x, "[o.scofo~] %s", error.c_str());
+        post("");
+    }
+}
+
+// ─────────────────────────────────────
+static void oscofo_pdsend(PdOScofo *x, std::string r, int argc, t_atom *argv) {
+    t_pd *receiver = gensym(r.c_str())->s_thing;
+    if (!receiver) {
+        pd_error(x, "[o.scofo~] Receiver %s not found", r.c_str());
+        return;
+    }
+
+    if (argc == 0) {
+        pd_bang(receiver);
+    } else {
+        pd_list(receiver, &s_list, argc, argv);
+    }
+}
+
+// ─────────────────────────────────────
+static t_atom *oscofo_convertargs(PdOScofo *x, OScofo::Action &action) {
+    int size = action.PdArgs.size();
+    t_atom *PdArgs = new t_atom[size];
+
+    for (int i = 0; i < size; i++) {
+        std::variant<float, int, std::string> arg = action.PdArgs[i];
+        if (std::holds_alternative<float>(arg)) {
+            SETFLOAT(&PdArgs[i], std::get<float>(arg));
+        } else if (std::holds_alternative<int>(arg)) {
+            SETFLOAT(&PdArgs[i], std::get<int>(arg));
+        } else if (std::holds_alternative<std::string>(arg)) {
+            SETSYMBOL(&PdArgs[i], gensym(std::get<std::string>(arg).c_str()));
+        }
+    }
+    return PdArgs;
+}
 
 // ─────────────────────────────────────
 static void oscofo_tickactions(PdOScofo *x) {
-    double thisTime = clock_getlogicaltime();
-    double nextBlock = 1 / x->Sr * x->BlockSize;
-    double nextTime = clock_getsystimeafter(nextBlock);
+    const double CurrentTime = clock_getlogicaltime();
+    const double nextBlock = 1000.0 / x->Sr * x->BlockSize;
+    const double NextTime = clock_getsystimeafter(nextBlock);
 
-    for (auto it = x->Actions.begin(); it != x->Actions.end();) {
-        Action CurAction = *it;
-        if (thisTime < CurAction.time && CurAction.time <= nextTime) {
+    std::vector<Action>::iterator it = x->Actions.begin();
+    while (it != x->Actions.end()) {
+        Action &CurAction = *it;
+        if (CurrentTime <= CurAction.time && CurAction.time <= NextTime) {
             if (CurAction.isLua) {
-                bool success = x->OpenScofo->LuaExecute(CurAction.LuaCode.c_str());
-                if (!success) {
-                    std::string error = x->OpenScofo->LuaGetError();
-                    pd_error(x, "[o.scofo~] Lua error");
-                    pd_error(x, "[o.scofo~] %s", error.c_str());
-                    post("");
-                }
+                oscofo_luaexecute(x, CurAction.LuaCode);
             } else {
-                if (CurAction.PdArgsSize >= 1) {
-                    pd_list(gensym(CurAction.Receiver.c_str())->s_thing, nullptr, CurAction.PdArgsSize, CurAction.PdArgs);
-                } else {
-                    pd_bang(gensym(CurAction.Receiver.c_str())->s_thing);
-                }
-
-                // clear memory and delete
-                if (CurAction.PdArgs != nullptr) {
-                    delete[] CurAction.PdArgs;
-                    CurAction.PdArgs = nullptr;
-                }
+                oscofo_pdsend(x, CurAction.Receiver, CurAction.PdArgsSize, CurAction.PdArgs);
+                delete[] CurAction.PdArgs;
             }
             it = x->Actions.erase(it);
         } else {
@@ -205,57 +233,21 @@ static void oscofo_ticknewevent(PdOScofo *x) {
             time = Act.Time;
         }
 
-        if (Act.isLua) {
-            if (time == 0) {
-                bool sucess = x->OpenScofo->LuaExecute(Act.Lua.c_str());
-                if (!sucess) {
-                    std::string error = x->OpenScofo->LuaGetError();
-                    pd_error(x, "[o.scofo~] Lua error");
-                    pd_error(x, "[o.scofo~] %s", error.c_str());
-                    post("");
-                }
+        if (time == 0) {
+            if (Act.isLua) {
+                oscofo_luaexecute(x, Act.Lua);
             } else {
-                double sysTime = clock_getsystimeafter(time);
-                Action action = {sysTime, true, "", Act.Lua, nullptr, 0};
-                x->Actions.push_back(action);
+                t_atom *PdArgs = oscofo_convertargs(x, Act);
+                oscofo_pdsend(x, Act.Receiver, Act.PdArgs.size(), PdArgs);
+                delete[] PdArgs;
             }
-
         } else {
+            double sysTime = clock_getsystimeafter(time);
             int size = Act.PdArgs.size();
-            t_atom *args = new t_atom[size];
-            t_pd *receiver = gensym(Act.Receiver.c_str())->s_thing;
-            if (receiver == nullptr) {
-                pd_error(x, "[o.scofo~] Receiver %s not found", Act.Receiver.c_str());
-                continue;
-            }
-
-            for (int i = 0; i < size; i++) {
-                std::variant<float, int, std::string> arg = Act.PdArgs[i];
-                if (std::holds_alternative<float>(arg)) {
-                    SETFLOAT(&args[i], std::get<float>(arg));
-                } else if (std::holds_alternative<int>(arg)) {
-                    SETFLOAT(&args[i], std::get<int>(arg));
-                } else if (std::holds_alternative<std::string>(arg)) {
-                    SETSYMBOL(&args[i], gensym(std::get<std::string>(arg).c_str()));
-                }
-            }
-
-            if (time == 0) {
-                if (size > 0) {
-                    t_pd *receiver = gensym(Act.Receiver.c_str())->s_thing;
-                    pd_list(receiver, nullptr, size, args);
-                } else if (size == 0) {
-                    pd_bang(gensym(Act.Receiver.c_str())->s_thing);
-                } else {
-                    pd_error(x, "[o.scofo~] Wrong number of arguments for %s", Act.Receiver.c_str());
-                }
-                delete[] args;
-            } else {
-                double sysTime = clock_getsystimeafter(time);
-                Action action = {sysTime, false, Act.Receiver, "", args, size};
-                x->Actions.push_back(action);
-                // NOTE: oscofo_tickaction will delete the args
-            }
+            std::string receiver = Act.Receiver;
+            t_atom *PdArgs = oscofo_convertargs(x, Act);
+            Action action = {sysTime, Act.isLua, receiver, Act.Lua, PdArgs, size};
+            x->Actions.push_back(action);
         }
     }
 }
@@ -283,7 +275,6 @@ static t_int *oscofo_perform(t_int *w) {
     PdOScofo *x = (PdOScofo *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
     int n = static_cast<int>(w[3]);
-    clock_delay(x->ClockActions, 0);
 
     if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
         return (w + 4);
@@ -293,6 +284,7 @@ static t_int *oscofo_perform(t_int *w) {
     std::copy(in, in + n, x->inBuffer.end() - n);
 
     if (x->BlockIndex != x->HopSize) {
+        clock_delay(x->ClockActions, 0);
         return (w + 4);
     }
 
@@ -303,6 +295,7 @@ static t_int *oscofo_perform(t_int *w) {
         return (w + 4);
     }
 
+    clock_delay(x->ClockActions, 0);
     clock_delay(x->ClockEvent, 0);
     clock_delay(x->ClockInfo, 0);
     return (w + 4);
