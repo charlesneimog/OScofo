@@ -26,7 +26,6 @@ OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopS
 // ╭─────────────────────────────────────╮
 // │                 Lua                 │
 // ╰─────────────────────────────────────╯
-
 #if defined(OSCOFO_LUA)
 void OScofo::InitLua() {
     m_LuaState = luaL_newstate();
@@ -40,6 +39,9 @@ void OScofo::InitLua() {
 
 // ─────────────────────────────────────
 bool OScofo::LuaAddModule(std::string name, lua_CFunction func) {
+    if (m_LuaState == nullptr) {
+        return false;
+    }
     luaL_requiref(m_LuaState, name.c_str(), func, 1);
     if (lua_isnil(m_LuaState, -1)) {
         return false;
@@ -49,6 +51,9 @@ bool OScofo::LuaAddModule(std::string name, lua_CFunction func) {
 
 // ─────────────────────────────────────
 bool OScofo::LuaExecute(std::string code) {
+    if (m_LuaState == nullptr) {
+        return false;
+    }
     int status = luaL_loadstring(m_LuaState, code.c_str());
     if (status == LUA_OK) {
         status = lua_pcall(m_LuaState, 0, LUA_MULTRET, 0);
@@ -62,7 +67,29 @@ bool OScofo::LuaExecute(std::string code) {
 }
 
 // ─────────────────────────────────────
+void OScofo::LuaAddPath(std::string path) {
+    if (m_LuaState == nullptr) {
+        return;
+    }
+
+    lua_getglobal(m_LuaState, "package");
+    lua_getfield(m_LuaState, -1, "path");
+    const char *current_path = lua_tostring(m_LuaState, -1);
+    if (path.back() != '/') {
+        lua_pushfstring(m_LuaState, "%s;%s/?.lua", current_path, path.c_str());
+    } else {
+        lua_pushfstring(m_LuaState, "%s;%s?.lua", current_path, path.c_str());
+    }
+
+    lua_setfield(m_LuaState, -3, "path");
+    lua_pop(m_LuaState, 1);
+}
+
+// ─────────────────────────────────────
 std::string OScofo::LuaGetError() {
+    if (m_LuaState == nullptr) {
+        return "m_LuaState is null";
+    }
     if (lua_isstring(m_LuaState, -1)) {
         std::string errorMsg = lua_tostring(m_LuaState, -1);
         lua_pop(m_LuaState, 1);
@@ -181,20 +208,8 @@ std::unordered_map<double, PitchTemplateArray> OScofo::GetPitchTemplate() {
 }
 
 // ─────────────────────────────────────
-std::vector<double> OScofo::GaussianProbTimeOnset(int j, double sigma) {
-    double BlockDur = (1 / m_Sr) * m_HopSize;
-    MacroState State = m_MDP.GetState(j);
-    MacroState LastState = m_MDP.GetState(m_MDP.GetStatesSize() - 1);
-    double LastStateDur = LastState.Duration;
-    double LastStateOnset = LastState.OnsetExpected;
-    double EndTime = LastStateDur + LastStateOnset;
-    int LastT = std::ceil(EndTime / BlockDur);
-    std::vector<double> Probs(LastT);
-    for (int i = 0; i < LastT; i++) {
-        Probs.at(i) = m_MDP.GaussianProbTimeOnset(j, i, sigma);
-    }
-
-    return Probs;
+std::vector<double> OScofo::GetSpectrumPower() {
+    return m_Desc.NormSpectralPower;
 }
 
 // ╭─────────────────────────────────────╮
