@@ -137,9 +137,9 @@ button:active {
 
 .container {
     position: relative;
-    height: 650px;
+    height: 600px;
     border-radius: 5px;
-    box-shadow: 0 0 1px var(--green, 0.1);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--green), transparent 80%);
     overflow-x: auto;
     overflow-y: auto;
     box-sizing: border-box;
@@ -174,7 +174,11 @@ button:active {
 }
 
 .container:focus-within {
-    box-shadow: 0 0 1px var(--blue);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--blue), transparent 90%);
+
+    .CodeMirror-gutters {
+        box-shadow: 0px 5px 5px color-mix(in srgb, var(--green), transparent 95%);
+    }
 }
 
 .container::-webkit-scrollbar-button {
@@ -217,11 +221,11 @@ button:active {
         transform 0.2s ease;
 }
 
-.editor-button:hover {
+.editor-button::hover {
     transform: scale(1.05);
 }
 
-.editor-button:active {
+.editor-button::active {
     transform: scale(0.98);
 }
 
@@ -252,8 +256,14 @@ button:active {
 .CodeMirror-gutters {
     background-color: var(--bg);
     color: var(--fg);
-    box-shadow: 0 0 1px var(--cyan);
+    box-shadow: 0px 10px 10px color-mix(in srgb, var(--green), transparent 90%);
     border: none;
+    text-align: left;
+}
+
+.CodeMirror-linenumber {
+    padding-right: 10px;
+    text-align: left;
 }
 
 .CodeMirror-cursor {
@@ -263,7 +273,7 @@ button:active {
 }
 
 .CodeMirror-focused .CodeMirror-selected {
-    background-color: color-mix(in srgb, var(--cyan), transparent 90%);
+    background-color: color-mix(in srgb, var(--cyan), transparent 80%);
 }
 
 /*
