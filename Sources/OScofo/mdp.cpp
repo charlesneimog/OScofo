@@ -661,7 +661,7 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
     double confidence = 1.0 - (entropy / maxEntropy);
 
     if (m_MinEntropy > 0) {
-        if (confidence > 0.02) {
+        if (confidence > m_MinEntropy) {
             return BestState;
         } else {
             return CurrentState;
@@ -694,7 +694,6 @@ int MDP::GetEvent(Description &Desc) {
         }
     }
 
-    // Inference
     int StateIndex = Inference(m_CurrentStateIndex, m_MaxScoreState, m_Tau);
     if (StateIndex == -1) {
         return 0;
