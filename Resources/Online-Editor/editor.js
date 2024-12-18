@@ -117,7 +117,7 @@ class ScofoOnlineEditor {
                 keyword: "color: var(--red); font-weight: bold;",
                 pitch: "color: var(--blue); font-weight: bold;",
                 duration: "color: var(--yellow); font-weight: bold;",
-                comment: "color: var(--comment); opacity: 0.7; font-style: italic;",
+                comment: "color: var(--comment); opacity: 0.4; font-style: italic;",
                 config: "color: var(--purple); font-weight: bold;",
                 error: "text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--red);",
                 action: "color: var(--green);",
