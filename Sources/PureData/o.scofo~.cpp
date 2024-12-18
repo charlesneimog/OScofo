@@ -77,6 +77,8 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     }
     x->OpenScofo->SetCurrentEvent(-1);
     x->Event = -1;
+    outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
+    outlet_float(x->EventOut, 0);
 
     std::string LuaCode = x->OpenScofo->GetLuaCode();
     bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
@@ -310,6 +312,23 @@ static void oscofo_adddsp(PdOScofo *x, t_signal **sp) {
 }
 
 // ─────────────────────────────────────
+static void oscofo_processargv(PdOScofo *x, int argc, t_atom *argv) {
+    for (int i = 0; i < argc; i++) {
+        if (argv[i].a_type == A_SYMBOL) {
+            std::string arg = atom_getsymbol(argv + i)->s_name;
+            if (arg == "-fft") {
+                if (i + 2 < argc) {
+                    x->FFTSize = atom_getfloat(argv + i + 1);
+                    x->HopSize = atom_getfloat(argv + i + 2);
+                } else {
+                    pd_error(x, "[o.scofo~] Window Size and Hop size must be provided");
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────
 static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     PdOScofo *x = (PdOScofo *)pd_new(OScofoObj);
     if (!x) {
@@ -317,42 +336,35 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         return nullptr;
     }
 
-    x->EventOut = outlet_new(&x->PdObject, &s_float);
-    x->TempoOut = outlet_new(&x->PdObject, &s_float);
-    double overlap = 4;
-
-    for (int i = 0; i < argc; i++) {
-        if (argv[i].a_type == A_SYMBOL || argc >= i + 1) {
-            std::string argument = std::string(atom_getsymbol(&argv[i])->s_name);
-            if (argument == "-info" || argument == "@info") {
-                x->InfoOut = outlet_new(&x->PdObject, &s_list);
-                int k = 0;
-                for (int j = i + 1; j < argc; j++) {
-                    if (argv[j].a_type == A_SYMBOL) {
-                        x->Info.push_back(atom_getsymbol(&argv[j])->s_name);
-                    }
-                    x->InfoLoaded = true;
-                    k++;
-                }
-            }
-        }
-    }
-
-    x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);
-    x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
-    x->ClockActions = clock_new(x, (t_method)oscofo_tickactions);
-
+    // default parameters
     x->FFTSize = 4096.0f;
     x->HopSize = 1024.0f;
     x->Sr = sys_getsr();
     x->Following = false;
     x->Event = -1;
 
+    // Args
+    oscofo_processargv(x, argc, argv);
+
+    // Outlets
+    x->EventOut = outlet_new(&x->PdObject, &s_float);
+    x->TempoOut = outlet_new(&x->PdObject, &s_float);
+    x->InfoOut = outlet_new(&x->PdObject, &s_anything);
+
+    // Schedule
+    x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);
+    x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
+    x->ClockActions = clock_new(x, (t_method)oscofo_tickactions);
+
+    // Current Dir
     x->Canvas = canvas_getcurrent();
     x->PatchDir = canvas_getdir(x->Canvas)->s_name;
 
+    // OScofo Library
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     x->OpenScofo->LuaAddModule("pd", luaopen_pd);
+    x->OpenScofo->LuaAddPath(x->PatchDir);
+
     return (x);
 }
 
