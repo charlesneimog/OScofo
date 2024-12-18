@@ -112,7 +112,6 @@ button:active {
     flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
-    height: auto;
     margin: 5px;
 }
 
@@ -138,7 +137,7 @@ button:active {
 
 .container {
     position: relative;
-    height: 400px;
+    height: 650px;
     border-radius: 5px;
     box-shadow: 0 0 1px var(--green, 0.1);
     overflow-x: auto;

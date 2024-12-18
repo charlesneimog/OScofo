@@ -27,7 +27,7 @@ class ScofoOnlineEditor {
         this.Parser = window.TreeSitter;
 
         // debug option
-        this.showTree = true;
+        this.debug = false;
 
         this.ScofoParser = null;
         this.parserOScofoWasm = "tree-sitter-scofo.wasm";
@@ -124,9 +124,11 @@ class ScofoOnlineEditor {
                 actionKey: "color: var(--purple);",
                 timeUnit: "color: var(--highlight);",
                 number: "color: var(--highlight);",
+
+                // Action
                 exec: "color: var(--fg); font-weight: bold;",
-                receiver: "color: var(--green);",
-                pdarg: "color: var(--fg); font-style: italic;",
+                receiver: "color: var(--green); font-weight: normal;",
+                pdarg: "color: var(--fg); font-style: italic; font-weight: normal",
                 timedAction: "color: var(--highlight); font-weight: 100;",
             },
             lua: {
@@ -158,6 +160,7 @@ class ScofoOnlineEditor {
             (numberSet) @duration
             (ACTION (keyword) @ACTION)
             (timedAction (number) @number)
+            (exec) @exec
 
             (timeUnit) @timeUnit
             (receiver) @receiver
@@ -243,6 +246,11 @@ class ScofoOnlineEditor {
         this.checkErrors(newTree);
         if (this.tree) this.tree.delete();
         this.tree = newTree;
+
+        if (this.debug) {
+            console.log(newTree.rootNode.toString());
+        }
+
         this.runTreeQueryOnChange();
         this.saveStateOnChange();
     }
