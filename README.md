@@ -1,10 +1,5 @@
 <p align="center">
   <h1 align="center">OScofo</h1>
-  <p align="center">
-    <a href="https://charlesneimog.github.io/OScofo">
-      <img src="./Documentation/assets/OScofo.svg" width="10%" alt="Logo">
-    </a>
-  </p>
   <h4 align="center">OScofo: OpenScore Follower</h4>
 </p>
 
