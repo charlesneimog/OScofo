@@ -1,12 +1,10 @@
-#include <OScofo.hpp>
-
-#include <vector>
-#include <algorithm>
 #include <m_pd.h>
+#include <OScofo.hpp>
 
 static t_class *OScofoObj;
 int luaopen_pd(lua_State *L);
 
+// ─────────────────────────────────────
 struct Action {
     double time;
     bool isLua;
@@ -20,28 +18,23 @@ struct Action {
 class PdOScofo {
   public:
     t_object PdObject;
-    t_canvas *Canvas;
     t_sample Sample;
+    t_canvas *Canvas;
+    std::string PatchDir;
 
     // Clock
     t_clock *ClockEvent;
     t_clock *ClockInfo;
     t_clock *ClockActions;
 
-    // Action
+    // Actions
     std::vector<Action> Actions;
 
     // OScofo
     OScofo::OScofo *OpenScofo;
     int Event;
     float Tempo;
-    int EventIndex;
     bool Following;
-    std::string PatchDir;
-
-    bool ScoreLoaded;
-    std::vector<std::string> Info;
-    bool InfoLoaded = true;
 
     // Audio
     std::vector<double> inBuffer;
@@ -59,7 +52,6 @@ class PdOScofo {
 
 // ─────────────────────────────────────
 static void oscofo_score(PdOScofo *x, t_symbol *s) {
-    x->ScoreLoaded = false;
     std::string scorePath = x->PatchDir + "/" + s->s_name;
     bool ok;
     try {
@@ -70,7 +62,6 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
         return;
     }
     if (ok) {
-        x->ScoreLoaded = true;
         post("[o.scofo~] Score loaded");
     } else {
         pd_error(nullptr, "[o.scofo~] Error loading score");
@@ -80,6 +71,12 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
 
+    // Update Audio
+    x->FFTSize = x->OpenScofo->GetFFTSize();
+    x->HopSize = x->OpenScofo->GetHopSize();
+    x->inBuffer.resize(x->FFTSize, 0.0f);
+
+    // Get Lua Code
     std::string LuaCode = x->OpenScofo->GetLuaCode();
     bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
     if (!result) {
@@ -112,27 +109,13 @@ static void oscofo_set(PdOScofo *x, t_symbol *s, int argc, t_atom *argv) {
         return;
     }
     std::string method = atom_getsymbol(argv)->s_name;
-    if (method == "sigma") {
-        x->OpenScofo->SetPitchTemplateSigma(atom_getfloat(argv + 1));
-        post("[o.scofo~] Sigma set to %f", atom_getfloat(argv + 1));
-    } else if (method == "harmonics") {
-        x->OpenScofo->SetHarmonics(atom_getint(argv + 1));
-        post("[o.scofo~] Using pitch template with %d harmonics", atom_getint(argv + 1));
-    } else if (method == "threshold") {
-        double dB = atom_getfloat(argv + 1);
-        x->OpenScofo->SetdBTreshold(dB);
-        post("[o.scofo~] Entropy set to %f", atom_getfloat(argv + 1));
-    } else if (method == "entropy") {
-        double minEntropy = atom_getfloat(argv + 1);
-        x->OpenScofo->SetMinEntropy(minEntropy);
-        post("[o.scofo~] Minimal entropy to trigger new event set to %f", minEntropy);
-    } else if (method == "tunning") {
-        x->OpenScofo->SetTunning(atom_getfloat(argv + 1));
-
-    } else if (method == "event") {
+    if (method == "event") {
         int f = atom_getint(argv + 1);
         x->Event = f;
         x->OpenScofo->SetCurrentEvent(f);
+    } else if (method == "section") {
+        // TODO: set thing like section A, section B, etc.
+        pd_error(x, "[o.scofo~] Section method not implemented");
     } else {
         pd_error(x, "[o.scofo~] Unknown method");
     }
@@ -256,20 +239,6 @@ static void oscofo_ticknewevent(PdOScofo *x) {
 
 // ─────────────────────────────────────
 static void oscofo_tickinfo(PdOScofo *x) {
-    if (x->InfoLoaded) {
-        t_atom Info[x->Info.size()];
-        for (int i = 0; i < x->Info.size(); i++) {
-            double value = 0;
-            if (x->Info[i] == "kappa") {
-                value = x->OpenScofo->GetKappa();
-            } else if (x->Info[i] == "db") {
-                value = x->OpenScofo->GetdBValue();
-            }
-            SETFLOAT(&Info[i], value);
-        }
-        outlet_list(x->InfoOut, nullptr, x->Info.size(), Info);
-        return;
-    }
 }
 
 // ─────────────────────────────────────
@@ -364,7 +333,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     x->OpenScofo->LuaAddModule("pd", luaopen_pd);
     x->OpenScofo->LuaAddPath(x->PatchDir);
-
+    x->OpenScofo->LuaAddPointer(x, "_pdobj");
     return (x);
 }
 

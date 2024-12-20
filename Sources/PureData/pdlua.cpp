@@ -1,20 +1,45 @@
 #include <OScofo.hpp>
-
 #include <m_pd.h>
 
-// ╭─────────────────────────────────────╮
-// │          OScofo Lua Module          │
-// ╰─────────────────────────────────────╯
 static int pd_Post(lua_State *L) {
-    const char *r = luaL_checkstring(L, 1);
-    post("%s", r);
+    int num_args = lua_gettop(L);
+    for (int i = 1; i <= num_args; i++) {
+        if (lua_type(L, i) == LUA_TSTRING) {
+            post(nullptr, "%s", lua_tostring(L, i));
+        } else if (lua_type(L, i) == LUA_TNUMBER) {
+            post(nullptr, "%f", lua_tonumber(L, i));
+        } else if (lua_type(L, i) == LUA_TBOOLEAN) {
+            if (lua_toboolean(L, i)) {
+                post(nullptr, "true");
+            } else {
+                post(nullptr, "false");
+            }
+        } else {
+            post(nullptr, "Unsupported type: %s", lua_typename(L, lua_type(L, i)));
+        }
+    }
+
     return 0;
 }
 
 // ─────────────────────────────────────
 static int pd_Error(lua_State *L) {
-    const char *r = luaL_checkstring(L, 1);
-    post("%s", r);
+    int num_args = lua_gettop(L);
+    for (int i = 1; i <= num_args; i++) {
+        if (lua_type(L, i) == LUA_TSTRING) {
+            pd_error(nullptr, "%s", lua_tostring(L, i));
+        } else if (lua_type(L, i) == LUA_TNUMBER) {
+            pd_error(nullptr, "%f", lua_tonumber(L, i));
+        } else if (lua_type(L, i) == LUA_TBOOLEAN) {
+            if (lua_toboolean(L, i)) {
+                pd_error(nullptr, "true");
+            } else {
+                pd_error(nullptr, "false");
+            }
+        } else {
+            pd_error(nullptr, "Unsupported type: %s", lua_typename(L, lua_type(L, i)));
+        }
+    }
     return 0;
 }
 
@@ -79,9 +104,7 @@ static int pd_sendList(lua_State *L) {
         }
         lua_pop(L, 1);
     }
-
     pd_list(symbol->s_thing, &s_list, listSize, list);
-
     return 0;
 }
 
@@ -107,4 +130,3 @@ int luaopen_pd(lua_State *L) {
     luaL_newlib(L, pd_funcs);
     return 1;
 }
-// luaL_requiref(m_L, "pd", luaopen_pd, 1);
