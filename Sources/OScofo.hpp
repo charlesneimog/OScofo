@@ -7,9 +7,9 @@
 
 #if defined(OSCOFO_LUA)
 extern "C" {
-#include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include <lauxlib.h>
 }
 #endif
 
@@ -28,12 +28,11 @@ class OScofo {
     // Set Functions
     void SetPitchTemplateSigma(double Sigma);
     void SetHarmonics(int Harmonics);
-    void SetTimeAccumFactor(double TimeAccumFactor);
-    void SetTimeCouplingStrength(double TimeCouplingStrength);
     void SetdBTreshold(double dB);
     void SetTunning(double Tunning);
     void SetCurrentEvent(int Event);
     void SetMinEntropy(double EntropyValue);
+    void SetNewAudioParameters(float Sr, float FftSize, float HopSize);
 
     // Get Functions
     double GetLiveBPM();
@@ -52,6 +51,8 @@ class OScofo {
     States GetStates();
     std::unordered_map<double, PitchTemplateArray> GetPitchTemplate();
     std::vector<double> GetSpectrumPower();
+    double GetFFTSize();
+    double GetHopSize();
 
     // Helpers Functions
     bool ScoreIsLoaded();
@@ -62,6 +63,7 @@ class OScofo {
     bool LuaExecute(std::string code);
     std::string LuaGetError();
     bool LuaAddModule(std::string name, lua_CFunction func);
+    bool LuaAddPointer(void *pointer, const char *name);
     void LuaAddPath(std::string path);
 
 #endif

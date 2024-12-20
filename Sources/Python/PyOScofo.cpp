@@ -17,8 +17,6 @@ PYBIND11_MODULE(_OScofo, m) {
         // Config
         .def("SetPitchTemplateSigma", &OScofo::OScofo::SetPitchTemplateSigma)
         .def("SetHarmonics", &OScofo::OScofo::SetHarmonics)
-        .def("SetTimeAccumFactor", &OScofo::OScofo::SetTimeAccumFactor)
-        .def("SetTimeCouplingStrength", &OScofo::OScofo::SetTimeCouplingStrength)
         .def("SetdBTreshold", &OScofo::OScofo::SetdBTreshold)
         .def("SetTunning", &OScofo::OScofo::SetTunning)
         .def("SetCurrentEvent", &OScofo::OScofo::SetCurrentEvent)
