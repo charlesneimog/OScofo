@@ -1,18 +1,19 @@
+---
 site_name: OScofo
 docs_dir: Documentation
-copyright: Copyright &copy 2023 | Charles K. Neimog | University of São Paulo. 
-
+copyright: Copyright &copy 2024 | Charles K. Neimog | University of São Paulo.
 theme:
-  logo: assets/score.svg
+  logo: assets/oscofo-test.svg
   custom_dir: Documentation/overrides
-  logo_dark_mode: assets/score.svg
-  logo_light_mode: assets/score.svg
+  logo_dark_mode: assets/oscofo-test.svg
+  logo_light_mode: assets/oscofo-test.svg
   favicon: assets/score.png
   name: material
   features:
     - navigation.top
     - navigation.sections
-    - content.code.annotate 
+    - navigation.footer
+    - content.code.annotate
     - content.code.copy
     - navigation.tabs
     - navigation.tabs.sticky
@@ -22,58 +23,66 @@ theme:
     - toc.follow
     - navigation.instant
     - header.autohide
-
-    
   palette:
-    - media: "(prefers-color-scheme: light)"
+    - media: (prefers-color-scheme)
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: '(prefers-color-scheme: light)'
       scheme: default
       primary: white
       accent: light blue
       toggle:
         icon: material/lightbulb
         name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
+    - media: '(prefers-color-scheme: dark)'
       scheme: slate
       accent: light blue
       primary: black
       toggle:
         icon: material/lightbulb-outline
         name: Switch to light mode
-  
 markdown_extensions:
-    - pymdownx.tabbed:
-        alternate_style: true
-    - pymdownx.emoji:
-        emoji_index: !!python/name:material.extensions.emoji.twemoji
-        emoji_generator: !!python/name:material.extensions.emoji.to_svg
-    - pymdownx.extra
-    - pymdownx.details
-    - pymdownx.inlinehilite
-    - pymdownx.tasklist
-    - pymdownx.magiclink
-    - pymdownx.highlight
-    - abbr
-    - admonition
-    - pymdownx.details
-    - attr_list
-    - md_in_html
-    - pymdownx.superfences
-    - footnotes
-    - pymdownx.keys
-
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.extra
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.tasklist
+  - pymdownx.magiclink
+  - pymdownx.highlight
+  - abbr
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - pymdownx.superfences
+  - footnotes
+  - pymdownx.keys
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
 repo_url: https://github.com/charlesneimog/OScofo
-
-extra_css:
-  - extra/extra.css
-  
+extra_css: [extra/extra.css]
 extra_javascript:
-  - js/index_slider.js
-  
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 nav:
-    - index.md
-    - score.md
-
-
+  - OScofo: index.md
+  - Score:
+      - Intro: score/intro.md
+      - Score Configuration: score/config.md
+      - Events Configuration: score/events.md
+      - Actions Configuration: score/actions.md
+      - Lua Tutorial: score/lua.md
+  - OScofo Online Editor: Editor/
 extra:
   social:
     - icon: fontawesome/brands/instagram
@@ -82,5 +91,3 @@ extra:
       link: https://www.github.com/charlesneimog/
     - icon: fontawesome/solid/paper-plane
       link: mailto:charlesneimog@outlook.com
-
-
