@@ -1,4 +1,6 @@
 BPM 60
+FFTSize 2048
+HopSize 512
 
 //  evt<number>_space /* <initial azi>, <final azi> <time> */
 
