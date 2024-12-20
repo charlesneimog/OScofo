@@ -5,17 +5,17 @@ static int pd_Post(lua_State *L) {
     int num_args = lua_gettop(L);
     for (int i = 1; i <= num_args; i++) {
         if (lua_type(L, i) == LUA_TSTRING) {
-            post(nullptr, "%s", lua_tostring(L, i));
+            post("%s", lua_tostring(L, i));
         } else if (lua_type(L, i) == LUA_TNUMBER) {
-            post(nullptr, "%f", lua_tonumber(L, i));
+            post("%f", lua_tonumber(L, i));
         } else if (lua_type(L, i) == LUA_TBOOLEAN) {
             if (lua_toboolean(L, i)) {
-                post(nullptr, "true");
+                post("true");
             } else {
-                post(nullptr, "false");
+                post("false");
             }
         } else {
-            post(nullptr, "Unsupported type: %s", lua_typename(L, lua_type(L, i)));
+            post("Unsupported type: %s", lua_typename(L, lua_type(L, i)));
         }
     }
 
