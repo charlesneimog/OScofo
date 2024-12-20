@@ -24,6 +24,11 @@ class Score {
 
     // Get Score
     std::string GetLuaCode();
+    double GetFFTSize();
+    double GetHopSize();
+    double GetPitchSigma();
+    double GetPhaseCoupling();
+    double GetSyncStrength();
 
   private:
     States m_ScoreStates;
@@ -66,9 +71,14 @@ class Score {
     void AddAction(std::vector<std::string> Tokens);
 
     // Some ScoreConfigs
-    double m_CurrentBPM = -1;
+    double m_CurrentBPM = 60;
     float m_Transpose = 0;
     double m_Entropy = 0;
+    double m_PitchSigma = 0.5;
+    double m_SyncStrength = 0.5;
+    double m_PhaseCoupling = 0.5;
+    double m_FFTSize = 4096;
+    double m_HopSize = 1024;
 
     // Variables
     int m_ScorePosition = 1;

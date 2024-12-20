@@ -23,6 +23,18 @@ OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopS
 #endif
 }
 
+//  ─────────────────────────────────────
+void OScofo::SetNewAudioParameters(float Sr, float FftSize, float HopSize) {
+    if (m_FFTSize == FftSize && m_HopSize == HopSize && m_Sr == Sr) {
+        return;
+    }
+    m_Sr = Sr;
+    m_FFTSize = FftSize;
+    m_HopSize = HopSize;
+    m_MDP = MDP(Sr, FftSize, HopSize);
+    m_MIR = MIR(Sr, FftSize, HopSize);
+}
+
 // ╭─────────────────────────────────────╮
 // │                 Lua                 │
 // ╰─────────────────────────────────────╯
@@ -64,6 +76,16 @@ bool OScofo::LuaExecute(std::string code) {
     } else {
         return false;
     }
+}
+
+// ─────────────────────────────────────
+bool OScofo::LuaAddPointer(void *pointer, const char *name) {
+    if (m_LuaState == nullptr) {
+        return false;
+    }
+    lua_pushlightuserdata(m_LuaState, pointer);
+    lua_setglobal(m_LuaState, name);
+    return true;
 }
 
 // ─────────────────────────────────────
@@ -121,16 +143,6 @@ void OScofo::SetHarmonics(int Harmonics) {
 // ─────────────────────────────────────
 double OScofo::GetdBValue() {
     return 0;
-}
-
-// ─────────────────────────────────────
-void OScofo::SetTimeCouplingStrength(double TimeCouplingStrength) {
-    m_MDP.SetTimeCouplingStrength(TimeCouplingStrength);
-}
-
-// ─────────────────────────────────────
-void OScofo::SetTimeAccumFactor(double TimeAccumFactor) {
-    m_MDP.SetTimeAccumFactor(TimeAccumFactor);
 }
 
 // ─────────────────────────────────────
@@ -212,12 +224,25 @@ std::vector<double> OScofo::GetSpectrumPower() {
     return m_Desc.NormSpectralPower;
 }
 
+// ─────────────────────────────────────
+double OScofo::GetFFTSize() {
+    return m_FFTSize;
+}
+
+// ─────────────────────────────────────
+double OScofo::GetHopSize() {
+    return m_HopSize;
+}
+
 // ╭─────────────────────────────────────╮
 // │           Main Functions            │
 // ╰─────────────────────────────────────╯
 bool OScofo::ParseScore(std::string ScorePath) {
     m_States.clear();
     m_States = m_Score.Parse(ScorePath);
+    m_FFTSize = m_Score.GetFFTSize();
+    m_HopSize = m_Score.GetHopSize();
+    SetNewAudioParameters(m_Sr, m_FFTSize, m_HopSize);
     m_MDP.SetScoreStates(m_States);
     return true;
 }

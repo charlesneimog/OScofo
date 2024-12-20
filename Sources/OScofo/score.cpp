@@ -41,6 +41,31 @@ void Score::SetTunning(double Tunning) {
 }
 
 // ─────────────────────────────────────
+double Score::GetFFTSize() {
+    return m_FFTSize;
+}
+
+// ─────────────────────────────────────
+double Score::GetHopSize() {
+    return m_HopSize;
+}
+
+// ─────────────────────────────────────
+double Score::GetPitchSigma() {
+    return m_PitchSigma;
+}
+
+// ─────────────────────────────────────
+double Score::GetPhaseCoupling() {
+    return m_PhaseCoupling;
+}
+
+// ─────────────────────────────────────
+double Score::GetSyncStrength() {
+    return m_SyncStrength;
+}
+
+// ─────────────────────────────────────
 bool Score::ScoreIsLoaded() {
     return m_ScoreLoaded;
 }
@@ -226,7 +251,8 @@ void Score::ProcessEventTime(MacroState &Event) {
         Event.IOIHatPhiN = 0;
         Event.IOIPhiN = 0;
     }
-
+    Event.PhaseCoupling = m_PhaseCoupling;
+    Event.SyncStrength = m_SyncStrength;
     Event.BPMExpected = m_CurrentBPM;
 }
 
@@ -279,8 +305,18 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
                 if (m_Transpose < -36 || m_Transpose > 36) {
                     throw std::runtime_error("Invalid transpose value, must be between -36 and 36 on line " + std::to_string(Pos.row + 1));
                 }
-            } else if (configType == "ENTROPY") {
+            } else if (configType == "ENTROPY" || configType == "Entropy") {
                 m_Entropy = std::stof(number);
+            } else if (configType == "PhaseCoupling") {
+                m_PhaseCoupling = std::stof(number);
+            } else if (configType == "SyncStrength") {
+                m_SyncStrength = std::stof(number);
+            } else if (configType == "PitchSigma") {
+                m_PitchSigma = std::stof(number);
+            } else if (configType == "FFTSize") {
+                m_FFTSize = std::stof(number);
+            } else if (configType == "HopSize") {
+                m_HopSize = std::stof(number);
             }
         }
     }
@@ -403,9 +439,11 @@ States Score::Parse(std::string ScoreFile) {
         throw std::runtime_error("Score File not found");
     }
 
-    m_CurrentBPM = -1;
+    // Config Values
+    m_CurrentBPM = 60;
     m_Transpose = 0;
     m_Entropy = 0;
+    m_PitchSigma = 0.5;
 
     m_LineCount = 0;
     m_MarkovIndex = 0;

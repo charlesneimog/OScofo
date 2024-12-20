@@ -31,9 +31,21 @@ module.exports = grammar({
             field(
                 "configId",
                 choice(
+                    // Time Configuration
                     alias(token("BPM"), $.keyword),
+                    alias(token("PhaseCoupling"), $.keyword),
+                    alias(token("SyncStrength"), $.keyword),
+
+                    // Score
                     alias(token("TRANSPOSE"), $.keyword),
-                    alias(token("ENTROPY"), $.keyword),
+
+                    // Listening module
+                    alias(choice(token("ENTROPY"), token("Entropy")), $.keyword),
+                    alias(token("PitchSigma"), $.keyword),
+
+                    // Audio
+                    alias(token("FFTSize"), $.keyword),
+                    alias(token("HopSize"), $.keyword),
                 ),
             ),
         numberConfig: ($) => seq($.configId, $.numberSet),

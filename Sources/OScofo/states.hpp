@@ -78,6 +78,9 @@ class MacroState {
     double IOIHatPhiN;
     double Duration;
 
+    double PhaseCoupling;
+    double SyncStrength;
+
     // Error Handling
     int Line;
 

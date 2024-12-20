@@ -189,7 +189,7 @@
               "type": "TOKEN",
               "content": {
                 "type": "STRING",
-                "value": "TRANSPOSE"
+                "value": "PhaseCoupling"
               }
             },
             "named": true,
@@ -201,7 +201,79 @@
               "type": "TOKEN",
               "content": {
                 "type": "STRING",
-                "value": "ENTROPY"
+                "value": "SyncStrength"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "TRANSPOSE"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "TOKEN",
+                  "content": {
+                    "type": "STRING",
+                    "value": "ENTROPY"
+                  }
+                },
+                {
+                  "type": "TOKEN",
+                  "content": {
+                    "type": "STRING",
+                    "value": "Entropy"
+                  }
+                }
+              ]
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "PitchSigma"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "FFTSize"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
+                "value": "HopSize"
               }
             },
             "named": true,

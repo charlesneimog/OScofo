@@ -17,8 +17,8 @@ MDP::MDP(float Sr, float FFTSize, float HopSize) {
         m_PitchTemplate.resize(m_FFTSize / 2);
     }
 
-    m_AccumulationFactor = 0.5;
-    m_CouplingStrength = 0.5;
+    m_SyncStrength = 0.5;
+    m_PhaseCoupling = 0.5;
     m_BlockDur = (1 / m_Sr) * HopSize;
     m_TimeInPrevEvent = 0;
 
@@ -187,16 +187,6 @@ void MDP::SetPitchTemplateSigma(double f) {
     m_PitchTemplateSigma = f;
 }
 
-// ─────────────────────────────────────
-void MDP::SetTimeAccumFactor(double f) {
-    m_AccumulationFactor = f;
-}
-
-// ─────────────────────────────────────
-void MDP::SetTimeCouplingStrength(double f) {
-    m_CouplingStrength = f;
-}
-
 // ╭─────────────────────────────────────╮
 // │            Time Decoding            │
 // ╰─────────────────────────────────────╯
@@ -319,20 +309,20 @@ double MDP::UpdatePsiN(int StateIndex) {
 
     // Update Variance (Cont, 2010) - Coupling Strength (Large 1999)
     double PhaseDiff = (IOISeconds / m_PsiN) - HatPhiN;
-    double SyncStrength = m_SyncStr - m_AccumulationFactor * (m_SyncStr - cos(TWO_PI * PhaseDiff));
+    double SyncStrength = m_SyncStr - m_SyncStrength * (m_SyncStr - cos(TWO_PI * PhaseDiff));
     double Kappa = InverseA2(SyncStrength);
     m_SyncStr = SyncStrength;
     m_Kappa = Kappa;
 
     // Update and Correct PhiN
     double FValueUpdate = CouplingFunction(LastPhiN, LastHatPhiN, Kappa);
-    double PhiN = LastPhiN + (IOISeconds / m_LastPsiN) + (m_CouplingStrength * FValueUpdate);
+    double PhiN = LastPhiN + (IOISeconds / m_LastPsiN) + (m_PhaseCoupling * FValueUpdate);
     PhiN = ModPhases(PhiN);
     CurrentState.PhaseObserved = PhiN;
 
     // Prediction for next PsiN+1
     double FValuePrediction = CouplingFunction(PhiN, HatPhiN, Kappa);
-    double PsiN1 = m_PsiN * (1 + m_AccumulationFactor * FValuePrediction);
+    double PsiN1 = m_PsiN * (1 + m_SyncStrength * FValuePrediction);
 
     // Prediction for Next HatPhiN
     double Tn1 = m_CurrentStateOnset + CurrentState.Duration * PsiN1;
@@ -523,14 +513,6 @@ int MDP::GetMaxUForJ(MacroState &StateJ) {
 }
 
 // ─────────────────────────────────────
-double MDP::GaussianProbTimeOnset(int j, int T, double Sigma) {
-    MacroState &StateJ = m_States[j];
-    double Onset = std::ceil((StateJ.OnsetExpected - m_LastTn) / m_BlockDur);
-    double Gaussian = std::exp(-((T - Onset) * (T - Onset)) / (2 * Sigma * Sigma));
-    return Gaussian + 1e-100; // 1e-10.5;
-}
-
-// ─────────────────────────────────────
 double MDP::SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex) {
     if (T == 0) {
         return StateJ.Obs[bufferIndex] * GetSojournTime(StateJ, T + 1) * StateJ.InitProb;
@@ -709,6 +691,9 @@ int MDP::GetEvent(Description &Desc) {
 
         // Config
         m_MinEntropy = m_States[StateIndex].Entropy;
+        m_SyncStrength = m_States[StateIndex].SyncStrength;
+        m_PhaseCoupling = m_States[StateIndex].PhaseCoupling;
+
         return m_States[StateIndex].ScorePos;
     }
 }

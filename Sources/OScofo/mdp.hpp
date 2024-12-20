@@ -55,9 +55,6 @@ class MDP {
     // Set Variables
     void SetTunning(double Tunning);
     void SetCurrentEvent(int Event);
-    void SetTimeAccumFactor(double f);
-    void SetTimeCouplingStrength(double f);
-    double GaussianProbTimeOnset(int j, int T, double Sigma);
 
   private:
     // Config
@@ -76,12 +73,8 @@ class MDP {
     int m_CurrentStateIndex = -1;
 
     // Time
-    double m_AccumulationFactor = 0.5; // The adaptation rate between 0-1 determines an adaptation time constant, with
-                                       // smaller values approximating r over longer time periods (LARGE, 1999, p. n.
-
-    double m_CouplingStrength = 0.5; // Coupling strength captures the amount of force exerted on the
-                                     // attentional rhythm and determines, among other factors, the
-                                     // speed with which the coupled system relaxes to theattractor.
+    double m_SyncStrength = 0.5;
+    double m_PhaseCoupling = 0.5;
     double m_SyncStr = 0;
     double m_TimeInPrevEvent = 0;
 
