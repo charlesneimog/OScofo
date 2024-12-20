@@ -41,7 +41,9 @@ void OScofo::SetNewAudioParameters(float Sr, float FftSize, float HopSize) {
 #if defined(OSCOFO_LUA)
 void OScofo::InitLua() {
     m_LuaState = luaL_newstate();
-    luaL_openlibs(m_LuaState);
+
+    //
+    luaL_openlibs(m_LuaState); // NOTE: Rethink if I load all functions
     lua_newtable(m_LuaState);
     lua_pushlightuserdata(m_LuaState, this);
     lua_setfield(m_LuaState, -2, "pointer");
