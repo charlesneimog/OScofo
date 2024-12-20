@@ -1,24 +1,22 @@
 ---
-name: Deploy to gh-pages
+name: Docs
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Commit and Push to gh-pages
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          cp -r ./Resources/Online-Editor/ ../
-          git checkout gh-pages || git checkout --orphan gh-pages
-          git rm -rf . || true
-          cp -r ../Online-Editor/* .
-          git add .
-          git commit -m "Update gh-pages"
-          git push origin gh-pages --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - uses: actions/cache@v4
+        with:
+          key: ${{ github.ref }}
+          path: .cache
+      - run: pip install -r Documentation/requirements.txt
+      - run: mkdocs gh-deploy --force

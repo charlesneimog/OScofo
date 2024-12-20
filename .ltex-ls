@@ -1,0 +1,14 @@
+{
+  "ltex": {
+    "language": "en-US",
+    "dictionary": {
+      "en-US": [
+        "OpenSource",
+        "PitchSigma",
+        "OScofo",
+        "MusicXML"
+      ]
+    },
+    "checkFrequency": "save"
+  }
+}
