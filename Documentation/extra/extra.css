@@ -159,6 +159,19 @@ body {
   transform: scale(1.05); /* Scale the image by 1.2 times when hovered */
 }
 
+@media (prefers-color-scheme: dark) {
+  .card-img {
+    filter: invert(1);
+  }
+  .img {
+    filter: invert(1);
+  }
+  .mycode {
+    filter: invert(1);
+    border-radius: 15px;
+  }
+}
+
 .button-container {
   display: flex;
   justify-content: center; /* Center the buttons horizontally */

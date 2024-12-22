@@ -3,11 +3,11 @@ site_name: OScofo
 docs_dir: Documentation
 copyright: Copyright &copy 2024 | Charles K. Neimog | University of São Paulo.
 theme:
-  logo: assets/oscofo-test.svg
+  logo: assets/logo.svg
   custom_dir: Documentation/overrides
-  logo_dark_mode: assets/oscofo-test.svg
-  logo_light_mode: assets/oscofo-test.svg
-  favicon: assets/score.png
+  logo_dark_mode: assets/logo.svg
+  logo_light_mode: assets/logo.svg
+  favicon: assets/favicon.png
   name: material
   features:
     - navigation.top

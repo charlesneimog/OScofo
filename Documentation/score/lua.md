@@ -12,7 +12,7 @@ I am not present the language here, there are a lot of tutorials on the internet
 What I will present is how to create these actions using `lua` and `oscofo`, `pd` and `max` module.
 
 
-### :simple-lua: `oscofo` Lua Module
+### <h2 align="center">:simple-lua: `oscofo` Lua Module</h2>
 
 The `oscofo` module inside Lua can be used to get and set values of `oscofo` on the fly. It exposes several functions:
 
@@ -39,8 +39,7 @@ The `oscofo` module inside Lua can be used to get and set values of `oscofo` on 
     - `output`: Value of the probability.
     - `description`: Returns a table with the current FFT magnitude of all the bins.
 
-
-### :simple-lua: `pd` Lua Module
+### <h2 align="center">:simple-lua: `pd` Lua Module</h2>
 
 The `pd` module inside Lua allows interaction with Pure Data functionalities, exposing the following functions:
 
@@ -85,3 +84,6 @@ The `pd` module inside Lua allows interaction with Pure Data functionalities, ex
     - **`output`**: no output.
     - **`description`**: Sends a list of values to a specified destination in Pure Data.
 
+### <h2 align="center">:simple-lua: `max` Lua Module</h2>
+
+!!! info "On TODO list"

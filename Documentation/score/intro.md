@@ -5,7 +5,7 @@ As `Antescofo`, `OScofo` uses a textual score where the composer must define the
 
 ---
 
-<div class="grid cards" style="color:red" markdown>
+<div class="grid cards" style="font-weigth:bold" markdown>
 
 -   :fontawesome-solid-1: __How to Configure the Score?__
 
@@ -18,7 +18,7 @@ As `Antescofo`, `OScofo` uses a textual score where the composer must define the
 
 </div>
 
-<div class="grid cards" style="color:red" markdown>
+<div class="grid cards" style="font-weigth:bold" markdown>
 
 -   :fontawesome-solid-3: __How to add Actions?__
 
@@ -36,7 +36,7 @@ As `Antescofo`, `OScofo` uses a textual score where the composer must define the
 After Configuration, the Score will look like this:
 
 <p align="center">
-    <img style="width: 70%" src="../../assets/oscofo-code.png">
+    <img class="mycode" style="width: 70%" src="../../assets/oscofo-code.png">
 </p>
 
 On it, we have three `EVENTS`, and a lot of `ACTIONS`.

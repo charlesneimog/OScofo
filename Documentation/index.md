@@ -18,7 +18,7 @@ hide:
 <h4 align="center"> Welcome to the <code>OScofo</code> documentation! </h4>
 
 <p align="center" markdown>
-    ![Image title](./assets/oscofo-test.svg){:width="5%" .box-shadow}
+  ![Image title](./assets/oscofo.svg){ width="15%" }
 </p>
 
 ---
