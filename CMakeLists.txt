@@ -1,9 +1,8 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 project(OScofo)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_ARCHITECTURES "arm64") # Prioritize ARM
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
@@ -24,7 +23,10 @@ endif()
 if(BUILD_ALL)
     set(BUILD_PY_MODULE ON)
     set(BUILD_PD_OBJECT ON)
-    # set(BUILD_MAX_OBJECT ON)
+    if (NOT LINUX)
+        set(BUILD_MAX_OBJECT ON)
+    endif()
+
 endif()
 
 message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
@@ -96,6 +98,21 @@ endif()
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
 
 # ╭──────────────────────────────────────╮
+# │                 Lua                  │
+# ╰──────────────────────────────────────╯
+file(GLOB LuaSrc "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/*.c")
+
+add_library(lua STATIC ${LuaSrc})
+set_target_properties(lua PROPERTIES 
+    POSITION_INDEPENDENT_CODE ON 
+    C_STANDARD 99 
+)
+target_compile_options(lua PRIVATE -Wno-unsafe-function)
+if (LINUX)
+    target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
+endif()
+
+# ╭──────────────────────────────────────╮
 # │                OScofo                │
 # ╰──────────────────────────────────────╯
 list(APPEND ScofoSrc Sources/OScofo/mdp.cpp)
@@ -112,7 +129,7 @@ target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/
 target_include_directories(OScofo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Sources/")
 
 set_target_properties(OScofo PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(OScofo PUBLIC fftw3 tree-sitter score_parser lualan)
+target_link_libraries(OScofo PUBLIC fftw3 tree-sitter score_parser lua)
 
 # Boost Libraries
 if(NOT EMSCRIPTEN)

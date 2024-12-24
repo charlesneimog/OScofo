@@ -10,6 +10,30 @@ extern "C" TSLanguage *tree_sitter_scofo();
 
 namespace OScofo {
 
+// ╭─────────────────────────────────────╮
+// │               Errors                │
+// ╰─────────────────────────────────────╯
+bool Score::HasErrors() {
+    return m_HasErrors;
+}
+
+// ─────────────────────────────────────
+std::vector<std::string> Score::GetErrorMessage() {
+    return m_Errors;
+}
+
+// ─────────────────────────────────────
+void Score::SetError(const std::string &message) {
+    m_HasErrors = true;
+    m_Errors.push_back(message);
+}
+
+// ─────────────────────────────────────
+void Score::ClearError() {
+    m_HasErrors = false;
+    m_Errors.clear();
+}
+
 // ─────────────────────────────────────
 void Score::PrintTreeSitterNode(TSNode node, int indent) {
     const char *type = ts_node_type(node);

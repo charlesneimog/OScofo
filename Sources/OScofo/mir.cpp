@@ -57,6 +57,30 @@ MIR::~MIR() {
 }
 
 // ╭─────────────────────────────────────╮
+// │               Errors                │
+// ╰─────────────────────────────────────╯
+bool MIR::HasErrors() {
+    return m_HasErrors;
+}
+
+// ─────────────────────────────────────
+std::vector<std::string> MIR::GetErrorMessage() {
+    return m_Errors;
+}
+
+// ─────────────────────────────────────
+void MIR::SetError(const std::string &message) {
+    m_HasErrors = true;
+    m_Errors.push_back(message);
+}
+
+// ─────────────────────────────────────
+void MIR::ClearError() {
+    m_HasErrors = false;
+    m_Errors.clear();
+}
+
+// ╭─────────────────────────────────────╮
 // │                Utils                │
 // ╰─────────────────────────────────────╯
 double MIR::Mtof(double note, double tunning) {

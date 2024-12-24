@@ -24,7 +24,7 @@ PYBIND11_MODULE(_OScofo, m) {
         // Get Info
         .def("GetLiveBPM", &OScofo::OScofo::GetLiveBPM)
         .def("GetEventIndex", &OScofo::OScofo::GetEventIndex)
-        .def("GetError", &OScofo::OScofo::GetError)
+        .def("GetError", &OScofo::OScofo::GetErrorMessage)
         .def("GetStates", &OScofo::OScofo::GetStates)
         .def("GetPitchTemplate", &OScofo::OScofo::GetPitchTemplate)
 

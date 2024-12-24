@@ -25,6 +25,8 @@ class OScofo {
   public:
     OScofo(float Sr, float WindowSize, float HopSize);
 
+    bool ScoreIsLoaded();
+
     // Set Functions
     void SetPitchTemplateSigma(double Sigma);
     void SetHarmonics(int Harmonics);
@@ -54,10 +56,6 @@ class OScofo {
     double GetFFTSize();
     double GetHopSize();
 
-    // Helpers Functions
-    bool ScoreIsLoaded();
-    std::string GetError();
-
 #if defined(OSCOFO_LUA)
     void InitLua();
     bool LuaExecute(std::string code);
@@ -68,21 +66,10 @@ class OScofo {
 #endif
 
     // Errors
-    // Errors
-    bool HasErrors() const {
-        return m_HasErrors;
-    }
-    std::vector<std::string> GetErrorMessage() const {
-        return m_Errors;
-    }
-    void SetError(const std::string &message) {
-        m_HasErrors = true;
-        m_Errors.push_back(message);
-    }
-    void ClearError() {
-        m_HasErrors = false;
-        m_Errors.clear();
-    }
+    bool HasErrors();
+    std::vector<std::string> GetErrorMessage();
+    void SetError(const std::string &message);
+    void ClearError();
 
   private:
     MDP m_MDP;

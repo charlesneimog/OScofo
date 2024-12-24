@@ -48,6 +48,30 @@ void OScofo::SetNewAudioParameters(float Sr, float FftSize, float HopSize) {
 }
 
 // ╭─────────────────────────────────────╮
+// │               Errors                │
+// ╰─────────────────────────────────────╯
+bool OScofo::HasErrors() {
+    return m_HasErrors;
+}
+
+// ─────────────────────────────────────
+std::vector<std::string> OScofo::GetErrorMessage() {
+    return m_Errors;
+}
+
+// ─────────────────────────────────────
+void OScofo::SetError(const std::string &message) {
+    m_HasErrors = true;
+    m_Errors.push_back(message);
+}
+
+// ─────────────────────────────────────
+void OScofo::ClearError() {
+    m_HasErrors = false;
+    m_Errors.clear();
+}
+
+// ╭─────────────────────────────────────╮
 // │                 Lua                 │
 // ╰─────────────────────────────────────╯
 #if defined(OSCOFO_LUA)

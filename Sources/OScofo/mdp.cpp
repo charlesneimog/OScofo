@@ -25,6 +25,30 @@ MDP::MDP(float Sr, float FFTSize, float HopSize) {
     SetTunning(440);
 }
 
+// ╭─────────────────────────────────────╮
+// │               Errors                │
+// ╰─────────────────────────────────────╯
+bool MDP::HasErrors() {
+    return m_HasErrors;
+}
+
+// ─────────────────────────────────────
+std::vector<std::string> MDP::GetErrorMessage() {
+    return m_Errors;
+}
+
+// ─────────────────────────────────────
+void MDP::SetError(const std::string &message) {
+    m_HasErrors = true;
+    m_Errors.push_back(message);
+}
+
+// ─────────────────────────────────────
+void MDP::ClearError() {
+    m_HasErrors = false;
+    m_Errors.clear();
+}
+
 // ─────────────────────────────────────
 ActionVec MDP::GetEventActions(int Index) {
 
