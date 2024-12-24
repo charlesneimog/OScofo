@@ -24,7 +24,7 @@ if(BUILD_ALL)
     set(BUILD_PY_MODULE ON)
     set(BUILD_PD_OBJECT ON)
     if (NOT LINUX)
-        set(BUILD_MAX_OBJECT ON)
+        # set(BUILD_MAX_OBJECT ON)
     endif()
 
 endif()
@@ -68,7 +68,7 @@ find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
 set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
-if(TREE_SITTER_EXECUTABLE)
+if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
     add_custom_command(
         OUTPUT ${PARSER_OUTPUT_C}
         COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings

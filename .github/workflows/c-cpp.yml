@@ -10,7 +10,7 @@ on:
     paths: ['**/*.cpp', '**/*.hpp']
 env:
   LIBNAME: o.scofo~
-  LIBVERSION: 0.0.1
+  LIBVERSION: 0.1.0
 jobs:
   macos-build:
     runs-on: ${{ matrix.os }}
@@ -31,7 +31,7 @@ jobs:
           brew install tree-sitter
       - name: Build Object for Arm
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           make install -C build
       - name: Upload Object
@@ -74,14 +74,14 @@ jobs:
       - name: Configure and build Visual Studio
         if: matrix.compiler == 'msvc'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           cmake --install build
       - name: Configure and build Mingw
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           cmake --install build
       - name: Upload
@@ -122,19 +122,19 @@ jobs:
       - name: Build Object
         if: matrix.arch == 'amd64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Build Object
         if: matrix.arch == 'aarch64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Build Object
         if: matrix.arch == 'arm'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL=ON
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
           make install -C build
       - name: Upload Object
