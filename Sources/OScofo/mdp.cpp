@@ -39,7 +39,7 @@ ActionVec MDP::GetEventActions(int Index) {
 // ─────────────────────────────────────
 void MDP::SetScoreStates(States ScoreStates) {
     if (ScoreStates.size() == 0) {
-        throw std::runtime_error("ScoreStates is empty");
+        SetError("ScoreStates is empty, add some events to the score");
         return;
     }
 
@@ -108,7 +108,7 @@ void MDP::UpdateAudioTemplate() {
 // ─────────────────────────────────────
 std::unordered_map<double, PitchTemplateArray> MDP::GetPitchTemplate() {
     if (m_PitchTemplates.size() == 0) {
-        throw std::runtime_error("PitchTemplates is empty");
+        SetError("PitchTemplates is empty, please report this issue");
     }
     return m_PitchTemplates;
 }

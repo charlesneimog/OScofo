@@ -19,13 +19,15 @@ MIR::MIR(float Sr, float FftSize, float HopSize) {
     int WindowHalf = FftSize / 2;
     m_FFTIn = (double *)fftw_alloc_real(FftSize);
     if (!m_FFTIn) {
-        throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_real failed");
+        SetError("OScofoMIR::OScofoMIR fftw_alloc_real failed");
+        return;
     }
 
     m_FFTOut = (fftw_complex *)fftw_alloc_complex(WindowHalf + 1);
     if (!m_FFTOut) {
         fftw_free(m_FFTIn); // Free previously allocated memory
-        throw std::runtime_error("OScofoMIR::OScofoMIR fftw_alloc_complex failed");
+        SetError("OScofoMIR::OScofoMIR fftw_alloc_complex failed");
+        return;
     }
 
     m_FFTPlan = fftw_plan_dft_r2c_1d(m_FftSize, m_FFTIn, m_FFTOut, FFTW_ESTIMATE);

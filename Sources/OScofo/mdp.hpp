@@ -56,6 +56,22 @@ class MDP {
     void SetTunning(double Tunning);
     void SetCurrentEvent(int Event);
 
+    // Errors
+    bool HasErrors() const {
+        return m_HasErrors;
+    }
+    std::vector<std::string> GetErrorMessage() const {
+        return m_Errors;
+    }
+    void SetError(const std::string &message) {
+        m_HasErrors = true;
+        m_Errors.push_back(message);
+    }
+    void ClearError() {
+        m_HasErrors = false;
+        m_Errors.clear();
+    }
+
   private:
     // Config
     double m_MinEntropy = 0;
@@ -127,5 +143,9 @@ class MDP {
     int Inference(int CurrentState, int j, int T);
     double SemiMarkov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
     double Markov(MacroState &StateJ, int CurrentState, int j, int T, int bufferIndex);
+
+    // Errors
+    bool m_HasErrors = false;
+    std::vector<std::string> m_Errors;
 };
 } // namespace OScofo

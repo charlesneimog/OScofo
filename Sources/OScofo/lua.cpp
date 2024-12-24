@@ -4,6 +4,7 @@
 
 namespace OScofo {
 
+// ─────────────────────────────────────
 static OScofo *getOScofo(lua_State *L) {
     lua_getglobal(L, "_OScofo");
     lua_getfield(L, -1, "pointer");

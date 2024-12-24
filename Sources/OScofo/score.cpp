@@ -79,7 +79,9 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         return m_Tunning * pow(2, (midi - 69.0) / 12);
 
     } else if (type != "noteName") {
-        throw std::runtime_error("Invalid pitch type");
+        TSPoint Pos = ts_node_start_point(pitch);
+        SetError("Invalid pitch type on line " + std::to_string(Pos.row + 1));
+        return 0;
     }
 
     char pitchName = GetChildStringFromField(Score, pitch, "pitchname")[0];
@@ -110,7 +112,9 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         classNote = 11;
         break;
     default:
-        throw std::runtime_error("Invalid note name");
+        TSPoint Pos = ts_node_start_point(pitch);
+        SetError("Invalid note name on line " + std::to_string(Pos.row + 1));
+        return 0;
     }
 
     if (alt != "") {
@@ -155,7 +159,8 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
         TSPoint Pos = ts_node_start_point(Node);
-        throw std::runtime_error("Invalid duration count on line " + std::to_string(Pos.row + 1));
+        SetError("Invalid duration count on line " + std::to_string(Pos.row + 1));
+        return 0;
     }
 
     TSNode dur = ts_node_child(Node, 0);
@@ -165,7 +170,8 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
         return std::stof(dur_str);
     }
     TSPoint Pos = ts_node_start_point(dur);
-    throw std::runtime_error("Invalid duration type on line " + std::to_string(Pos.row + 1));
+    SetError("Invalid duration type on line " + std::to_string(Pos.row + 1));
+    return 0;
 }
 
 // ─────────────────────────────────────
@@ -194,7 +200,8 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
                 Event.Type = CHORD;
             } else {
                 TSPoint Pos = ts_node_start_point(child);
-                throw std::runtime_error("Invalid pitch event on line " + std::to_string(Pos.row + 1));
+                SetError("Invalid pitch event on line " + std::to_string(Pos.row + 1));
+                return Event;
             }
 
         } else if (type == "pitch") {
@@ -225,7 +232,8 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
             ProcessAction(Score, child, Event);
         } else {
             TSPoint Pos = ts_node_start_point(child);
-            throw std::runtime_error("Invalid note event on line " + std::to_string(Pos.row + 1));
+            SetError("Invalid note event on line " + std::to_string(Pos.row + 1));
+            return Event;
         }
     }
     ProcessEventTime(Event);
@@ -303,7 +311,8 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
             } else if (configType == "TRANSPOSE") {
                 m_Transpose = std::stof(number);
                 if (m_Transpose < -36 || m_Transpose > 36) {
-                    throw std::runtime_error("Invalid transpose value, must be between -36 and 36 on line " + std::to_string(Pos.row + 1));
+                    SetError("Invalid transpose value, must be between -36 and 36 on line " + std::to_string(Pos.row + 1));
+                    return;
                 }
             } else if (configType == "ENTROPY" || configType == "Entropy") {
                 m_Entropy = std::stof(number);
@@ -338,7 +347,8 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
             std::string keyStr = GetCodeStr(Score, key);
             TSPoint pos = ts_node_start_point(key);
             if (keyStr != "delay") {
-                std::runtime_error("Invalid action key on line " + std::to_string(pos.row + 1));
+                SetError("Invalid action key on line " + std::to_string(pos.row + 1));
+                return;
             }
         }
 
@@ -411,7 +421,8 @@ void Score::ParseInput(const std::string &Score) {
         std::string type = ts_node_type(child);
         if (type == "EVENT") {
             if (m_CurrentBPM == -1) {
-                throw std::runtime_error("BPM is not defined");
+                SetError("BPM is not defined");
+                return;
             }
             ProcessEvent(Score, child);
         } else if (type == "CONFIG") {
@@ -436,7 +447,8 @@ States Score::Parse(std::string ScoreFile) {
     // Open the score file for reading
     std::ifstream File(ScoreFile);
     if (!File) {
-        throw std::runtime_error("Score File not found");
+        SetError("Score File not found");
+        return m_ScoreStates;
     }
 
     // Config Values
@@ -458,7 +470,10 @@ States Score::Parse(std::string ScoreFile) {
     std::string Score = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
     ParseInput(Score);
 
-    m_ScoreLoaded = true;
+    if (!HasErrors()) {
+        m_ScoreLoaded = true;
+    }
+
     return m_ScoreStates;
 }
 } // namespace OScofo

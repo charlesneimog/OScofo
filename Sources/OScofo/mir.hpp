@@ -25,6 +25,22 @@ class MIR {
     void GetLoudness(std::vector<double> &In, Description &Desc);
     double GetdB();
 
+    // Error handling
+    bool HasErrors() const {
+        return m_HasErrors;
+    }
+    std::vector<std::string> GetErrorMessage() const {
+        return m_Errors;
+    }
+    void SetError(const std::string &message) {
+        m_HasErrors = true;
+        m_Errors.push_back(message);
+    }
+    void ClearError() {
+        m_HasErrors = false;
+        m_Errors.clear();
+    }
+
   private:
     // Helpers
     std::vector<double> m_WindowingFunc;
@@ -51,5 +67,9 @@ class MIR {
 
     // Time
     double m_EventTimeElapsed = 0.0; // ms
+
+    // Errors
+    bool m_HasErrors = false;
+    std::vector<std::string> m_Errors;
 };
 } // namespace OScofo

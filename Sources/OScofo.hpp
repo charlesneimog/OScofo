@@ -65,8 +65,24 @@ class OScofo {
     bool LuaAddModule(std::string name, lua_CFunction func);
     bool LuaAddPointer(void *pointer, const char *name);
     void LuaAddPath(std::string path);
-
 #endif
+
+    // Errors
+    // Errors
+    bool HasErrors() const {
+        return m_HasErrors;
+    }
+    std::vector<std::string> GetErrorMessage() const {
+        return m_Errors;
+    }
+    void SetError(const std::string &message) {
+        m_HasErrors = true;
+        m_Errors.push_back(message);
+    }
+    void ClearError() {
+        m_HasErrors = false;
+        m_Errors.clear();
+    }
 
   private:
     MDP m_MDP;
@@ -85,7 +101,9 @@ class OScofo {
     double m_FFTSize;
     double m_HopSize;
 
-    std::string m_Error;
+    // Errors
+    bool m_HasErrors = false;
+    std::vector<std::string> m_Errors;
 };
 
 } // namespace OScofo

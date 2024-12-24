@@ -30,6 +30,22 @@ class Score {
     double GetPhaseCoupling();
     double GetSyncStrength();
 
+    // Errors
+    bool HasErrors() const {
+        return m_HasErrors;
+    }
+    std::vector<std::string> GetErrorMessage() const {
+        return m_Errors;
+    }
+    void SetError(const std::string &message) {
+        m_HasErrors = true;
+        m_Errors.push_back(message);
+    }
+    void ClearError() {
+        m_HasErrors = false;
+        m_Errors.clear();
+    }
+
   private:
     States m_ScoreStates;
     std::string m_LuaCode;
@@ -89,5 +105,9 @@ class Score {
     double m_PrevDuration;
     double m_Tunning = 440;
     bool m_ScoreLoaded = false;
+
+    // Errors
+    bool m_HasErrors = false;
+    std::vector<std::string> m_Errors;
 };
 } // namespace OScofo

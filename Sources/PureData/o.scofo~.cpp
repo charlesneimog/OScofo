@@ -54,18 +54,18 @@ class PdOScofo {
 static void oscofo_score(PdOScofo *x, t_symbol *s) {
     std::string scorePath = x->PatchDir + "/" + s->s_name;
     bool ok;
-    try {
-        ok = x->OpenScofo->ParseScore(scorePath);
-
-    } catch (std::exception &e) {
-        pd_error(nullptr, "[o.scofo~] Error parsing score, %s.", e.what());
+    ok = x->OpenScofo->ParseScore(scorePath);
+    if (ok) {
+        logpost(x, 2, "[o.scofo~] Score loaded");
+    } else {
+        std::vector<std::string> Errors = x->OpenScofo->GetErrorMessage();
+        for (auto &error : Errors) {
+            pd_error(x, "[o.scofo~] %s", error.c_str());
+        }
+        x->OpenScofo->ClearError();
         return;
     }
-    if (ok) {
-        post("[o.scofo~] Score loaded");
-    } else {
-        pd_error(nullptr, "[o.scofo~] Error loading score");
-    }
+
     x->OpenScofo->SetCurrentEvent(-1);
     x->Event = -1;
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
@@ -81,9 +81,9 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
     if (!result) {
         std::string error = x->OpenScofo->LuaGetError();
-        pd_error(nullptr, "[o.scofo~] Lua error");
-        pd_error(nullptr, "[o.scofo~] %s", error.c_str());
-        post("");
+        pd_error(x, "[o.scofo~] Lua error");
+        pd_error(x, "[o.scofo~] %s", error.c_str());
+        logpost(x, 1, "");
     }
 }
 
@@ -99,7 +99,7 @@ static void oscofo_start(PdOScofo *x) {
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
     x->Following = true;
-    post("[o.scofo~] Start following");
+    logpost(x, 2, "[o.scofo~] Start following");
 }
 
 // ─────────────────────────────────────
@@ -139,7 +139,6 @@ static void oscofo_luaexecute(PdOScofo *x, std::string code) {
         std::string error = x->OpenScofo->LuaGetError();
         pd_error(x, "[o.scofo~] Lua error");
         pd_error(x, "[o.scofo~] %s", error.c_str());
-        post("");
     }
 }
 
@@ -262,7 +261,11 @@ static t_int *oscofo_perform(t_int *w) {
     x->BlockIndex = 0;
     bool ok = x->OpenScofo->ProcessBlock(x->inBuffer);
     if (!ok) {
-        pd_error(nullptr, "[o.scofo~] Error processing block");
+        std::vector<std::string> Errors = x->OpenScofo->GetErrorMessage();
+        for (auto &error : Errors) {
+            pd_error(x, "[o.scofo~] %s", error.c_str());
+        }
+        x->OpenScofo->ClearError();
         return (w + 4);
     }
 
@@ -301,7 +304,7 @@ static void oscofo_processargv(PdOScofo *x, int argc, t_atom *argv) {
 static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     PdOScofo *x = (PdOScofo *)pd_new(OScofoObj);
     if (!x) {
-        pd_error(nullptr, "[o.scofo~] Error creating object");
+        pd_error(x, "[o.scofo~] Error creating object");
         return nullptr;
     }
 
@@ -331,6 +334,14 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
 
     // OScofo Library
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
+
+    if (x->OpenScofo->HasErrors()) {
+        for (auto &error : x->OpenScofo->GetErrorMessage()) {
+            pd_error(x, "[o.scofo~] %s", error.c_str());
+        }
+        x->OpenScofo->ClearError();
+    }
+
     x->OpenScofo->LuaAddModule("pd", luaopen_pd);
     x->OpenScofo->LuaAddPath(x->PatchDir);
     x->OpenScofo->LuaAddPointer(x, "_pdobj");

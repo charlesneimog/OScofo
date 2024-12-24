@@ -18,6 +18,18 @@ OScofo::OScofo(float Sr, float FftSize, float HopSize) : m_MDP(Sr, FftSize, HopS
     m_FFTSize = FftSize;
     m_HopSize = HopSize;
 
+    if (m_MIR.HasErrors() || m_MDP.HasErrors()) {
+        for (auto &error : m_MIR.GetErrorMessage()) {
+            SetError(error);
+        }
+        m_MIR.ClearError();
+        for (auto &error : m_MDP.GetErrorMessage()) {
+            SetError(error);
+        }
+        m_MDP.ClearError();
+        return;
+    }
+
 #if defined(OSCOFO_LUA)
     InitLua();
 #endif
@@ -41,8 +53,6 @@ void OScofo::SetNewAudioParameters(float Sr, float FftSize, float HopSize) {
 #if defined(OSCOFO_LUA)
 void OScofo::InitLua() {
     m_LuaState = luaL_newstate();
-
-    //
     luaL_openlibs(m_LuaState); // NOTE: Rethink if I load all functions
     lua_newtable(m_LuaState);
     lua_pushlightuserdata(m_LuaState, this);
@@ -171,11 +181,6 @@ int OScofo::GetEventIndex() {
 }
 
 // ─────────────────────────────────────
-std::string OScofo::GetError() {
-    return m_Error;
-}
-
-// ─────────────────────────────────────
 double OScofo::GetLiveBPM() {
     return m_MDP.GetLiveBPM();
 }
@@ -213,7 +218,8 @@ States OScofo::GetStates() {
     if (m_States.size() != 0) {
         return m_States;
     }
-    throw std::runtime_error("No states found, please use the ScoreParse first");
+    SetError("No states found, please use the ScoreParse first");
+    return m_States;
 }
 
 // ─────────────────────────────────────
@@ -242,6 +248,14 @@ double OScofo::GetHopSize() {
 bool OScofo::ParseScore(std::string ScorePath) {
     m_States.clear();
     m_States = m_Score.Parse(ScorePath);
+    if (m_Score.HasErrors()) {
+        for (auto &error : m_Score.GetErrorMessage()) {
+            SetError(error);
+            m_Score.ClearError();
+        }
+        return false;
+    }
+
     m_FFTSize = m_Score.GetFFTSize();
     m_HopSize = m_Score.GetHopSize();
     SetNewAudioParameters(m_Sr, m_FFTSize, m_HopSize);
@@ -257,6 +271,14 @@ bool OScofo::ProcessBlock(std::vector<double> &AudioBuffer) {
 
     m_MIR.GetDescription(AudioBuffer, m_Desc);
     m_CurrentScorePosition = m_MDP.GetEvent(m_Desc);
+
+    if (m_MDP.HasErrors()) {
+        for (auto &error : m_MDP.GetErrorMessage()) {
+            SetError(error);
+        }
+        m_MDP.ClearError();
+        return false;
+    }
     return true;
 }
 
