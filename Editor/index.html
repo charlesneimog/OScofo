@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tree-sitter Syntax Highlighting</title>
+
+        <!-- ─────────────── FontAwesome ─────────────── -->
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css"
+            integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+
+        <!-- ─────────────── Zip ─────────────── -->
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+            integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        ></script>
+
+        <!-- ─────────────── Pd4Web ─────────────── -->
+        <script src="./pd4web.threads.js"></script>
+        <script src="./pd4web.js"></script>
+
+        <!-- ─────────────── TreeSitter ─────────────── -->
+        <script src="tree-sitter.js"></script>
+
+        <!-- ─────────────── Editor ─────────────── -->
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"
+            integrity="sha512-8RnEqURPUc5aqFEN04aQEiPlSAdE0jlFS/9iGgUyNtwFnSKCXhmB6ZTNl7LnDtDWKabJIASzXrzD0K+LYexU9g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        ></script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+            integrity="sha512-uf06llspW44/LZpHzHT6qBOIVODjWtv4MxCricRxkzvopAlSWnTf6hpZTFxuuZcuNE9CBQhqE0Seu1CoRk84nQ=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+
+        <!-- ─────────────── Style ─────────────── -->
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <h1 style="text-align: center">OScofo Score Editor</h1>
+
+        <div id="recoverModal" class="modal">
+            <div class="modal-content">
+                <p>Do you want to recover your last session?</p>
+                <button id="confirmRecover">Yes</button>
+                <button id="cancelRecover">No</button>
+            </div>
+        </div>
+        <div id="warningWindow" class="modal">
+            <div class="modal-content">
+                <p>This is a warning message</p>
+                <button id="warningButtom">Ok</button>
+            </div>
+        </div>
+
+        <div class="parent-container">
+            <div class="child-container">
+                <div id="code-container" class="container">
+                    <textarea id="code-input"> </textarea>
+                </div>
+                <div>
+                    <button class="editor-buttom" id="download-score">
+                        <i class="fa-solid fa-download"></i> Download Score
+                    </button>
+                    <button class="editor-buttom" id="format-score">
+                        <i class="fa-solid fa-file-code"></i> Format Score
+                    </button>
+                </div>
+                <div style="margin-top: 40px" class="error-messages">
+                    <p style="color: var(--color-text)">Welcome to OScofo Online Editor!!!</p>
+                </div>
+            </div>
+            <div class="child-container" style="text-align: center">
+                <img
+                    src="../assets/oscofo.svg"
+                    style="border-radius: 8px; box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.2)"
+                />
+                <hr />
+                <button id="upload-score"><i class="fa-solid fa-file-arrow-up"></i> Import Musicxml</button>
+                <button id="load-score"><i class="fa-solid fa-file-lines"></i> Load Score</button>
+                <input type="file" id="scoreXmlInput" accept=".xml, .musicxml, .mxl" style="display: none" />
+                <input type="file" id="scoreTxtInput" accept=".txt, .scofo" style="display: none" />
+                <hr />
+                <div style="text-align: center; display: flex; justify-content: center">
+                    <span class="pd4web-sound-switch" id="Pd4WebAudioSwitch"></span>
+                </div>
+                <div id="Pd4WebPatchDiv" class="Pd4WebPatchDiv">
+                    <svg id="Pd4WebCanvas"></svg>
+                </div>
+            </div>
+        </div>
+
+        <script src="editor.js"></script>
+        <script>
+            var Pd4Web = null; // Pd4Web object must be declared in the global scope
+            var FsSystem = null; // Pd4Web object must be declared in the global scope
+            var FS_createPath = null;
+            var FS_unlink = null;
+            Pd4WebModule().then((Pd4WebModulePromise) => {
+                Pd4Web = new Pd4WebModulePromise.Pd4Web();
+                FS_createDataFile = Pd4WebModulePromise.FS_createDataFile;
+                FS_createPath = Pd4WebModulePromise.FS_createPath;
+                FS_unlink = Pd4WebModulePromise.FS_unlink;
+            });
+
+            document.getElementById("Pd4WebAudioSwitch").addEventListener(
+                "click",
+                async () => {
+                    Pd4Web.init();
+                    console.log("Pd4Web initialized.");
+                },
+                { once: true },
+            );
+        </script>
+    </body>
+</html>

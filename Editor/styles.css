@@ -1,0 +1,315 @@
+/* Default Light Theme */
+:root {
+    --bg: #ffffff;
+    --fg: #6a6a6a;
+    --red: #b5212e;
+    --orange: #9d590b;
+    --yellow: #9e6c10;
+    --green: #15820d;
+    --cyan: #0f7eae;
+    --blue: #118dc3;
+    --purple: #8459c5;
+    --white: #fafafa;
+    --black: #6a6a6a;
+    --gray: #bebebe;
+    --highlight: #8f681e;
+    --comment: #9b9fa6;
+    --none: none;
+    --lua-opacity: 0.8;
+}
+
+/* Dark Theme */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #333;
+        --fg: #c0c0c0;
+        --red: #e05661;
+        --orange: #ee9025;
+        --yellow: #eea825;
+        --green: #1da912;
+        --cyan: #56b6c2;
+        --blue: #118dc3;
+        --purple: #9a77cf;
+        --white: #ffffff;
+        --black: #000000;
+        --gray: #4a4a4a;
+        --highlight: #e2be7d;
+        --comment: #343536;
+        --none: none;
+        --lua-opacity: 0.8;
+    }
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+}
+h2 {
+    font-size: 1.5em;
+    margin: 0.83em 0;
+}
+h3 {
+    font-size: 1.17em;
+    margin: 1em 0;
+}
+
+hr {
+    width: 20%;
+    margin: 20px auto;
+    border: none;
+    height: 1px;
+    background-color: var(--fg);
+    align: center;
+}
+
+p {
+    margin: 1em 0;
+    font-size: 1.2em;
+}
+
+button {
+    margin-top: 10px;
+    margin-left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--fg);
+    color: var(--bg);
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
+}
+
+button:hover {
+    transform: scale(1.05); /* Slightly scale up the button */
+}
+
+/* Active effect for the button */
+button:active {
+    transform: scale(0.98); /* Slightly scale down when clicked */
+}
+/*
+ *╭─────────────────────────────────────╮
+ *│   Container for the entire layout   │
+ *╰─────────────────────────────────────╯
+*/
+.parent-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+    margin: 5px;
+}
+
+.child-container {
+    width: 48%;
+    margin: 10px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        width: 100%;
+    }
+
+    .parent-container {
+        flex-direction: column;
+    }
+
+    .child-container {
+        width: 100%;
+        margin: 0 0 20px;
+    }
+}
+
+.container {
+    position: relative;
+    height: 600px;
+    border-radius: 5px;
+    box-shadow: 0 0 5px color-mix(in srgb, var(--green), transparent 80%);
+    overflow-x: auto;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-size: 16px;
+    transition: box-shadow 0.3s ease-in-out;
+    line-height: 1.5;
+    scroll-behavior: smooth;
+    poitner-events: pointer;
+}
+
+.container::-webkit-scrollbar {
+    width: 1px;
+    height: 1px;
+}
+
+.container::-webkit-scrollbar-thumb {
+    width: 1px;
+    height: 1px;
+    border-radius: 1px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    border-radius: 2px;
+}
+
+.container::-webkit-scrollbar-track {
+    border-radius: 2px;
+}
+
+.container {
+    scrollbar-width: thin;
+}
+
+.container:focus-within {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--blue), transparent 90%);
+
+    .CodeMirror-gutters {
+        box-shadow: 0px 5px 5px color-mix(in srgb, var(--green), transparent 95%);
+    }
+}
+
+.container::-webkit-scrollbar-button {
+    display: none;
+}
+
+.ghost-text {
+    color: var(--comment);
+    font-style: italic;
+    opacity: 0.5;
+}
+
+.error-messages {
+    bottom: 0;
+    left: 3%;
+    margin-top: 20%;
+    padding: 20px;
+    font-size: 10px;
+    font-family: "FiraCodeNerdFont", "Courier New", monospace;
+    border-radius: 5px;
+    z-index: 2;
+    overflow-y: auto;
+    box-shadow: 0 0 5px color-mix(in srgb, var(--red), transparent 80%);
+    color: var(--red);
+}
+
+.editor-buttom {
+    margin-top: 10px;
+    margin-bottom: 0px;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 5px;
+    border: 1px solid var(--fg);
+    background-color: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+        background-color 0.3s ease,
+        transform 0.2s ease;
+}
+
+.editor-button::hover {
+    transform: scale(1.05);
+}
+
+.editor-button::active {
+    transform: scale(0.98);
+}
+
+/*
+ *╭─────────────────────────────────────╮
+ *│         Code Mirror Changes         │
+ *╰─────────────────────────────────────╯
+*/
+.CodeMirror {
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg);
+    color: var(--fg);
+    border: none;
+}
+
+.CodeMirror-lines {
+    color: var(--fg);
+    background-color: var(--bg);
+}
+
+.CodeMirror-gutter,
+.CodeMirror-linenumber {
+    background-color: var(--bg);
+    color: var(--fg);
+}
+
+.CodeMirror-gutters {
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: 0px 10px 10px color-mix(in srgb, var(--green), transparent 90%);
+    border: none;
+    text-align: left;
+}
+
+.CodeMirror-linenumber {
+    padding-right: 10px;
+    text-align: left;
+}
+
+.CodeMirror-cursor {
+    border-left: 2px solid var(--fg);
+    border-right: none;
+    width: 0;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background-color: color-mix(in srgb, var(--cyan), transparent 80%);
+}
+
+/*
+ *╭─────────────────────────────────────╮
+ *│            Window PopUp             │
+ *╰─────────────────────────────────────╯
+*/
+
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 2;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    color-text: var(--fg);
+}
+
+.modal-content {
+    margin: 15% auto;
+    z-index: 2;
+    padding: 20px;
+    width: 300px;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px var(--fg);
+    color: var(--fg);
+    background-color: var(--bg);
+}
+
+/* Define the custom font */
+@font-face {
+    font-family: "FiraCodeNerdFont";
+    src: url("FiraCodeNerdFont-Medium.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
