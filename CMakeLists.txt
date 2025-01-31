@@ -3,6 +3,7 @@ project(OScofo)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" OFF)
@@ -23,10 +24,9 @@ endif()
 if(BUILD_ALL)
     set(BUILD_PY_MODULE ON)
     set(BUILD_PD_OBJECT ON)
-    if (NOT LINUX)
+    if(NOT LINUX)
         # set(BUILD_MAX_OBJECT ON)
     endif()
-
 endif()
 
 message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
@@ -65,7 +65,7 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 find_program(TREE_SITTER_EXECUTABLE tree-sitter)
 
-set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-score)
+set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo)
 set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
 if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
@@ -73,20 +73,11 @@ if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
         OUTPUT ${PARSER_OUTPUT_C}
         COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
         WORKING_DIRECTORY ${TREE_SITTER_WORKING_DIR}
-        RESULT_VARIABLE result OUTPUT_VARIABLE
-        output ERROR_VARIABLE error_output
+        COMMENT "Generating Tree-sitter parser..."
         VERBATIM)
-
-    # Define the custom target for parser generation
-    add_custom_target(
-        generate_tree_sitter_parser
-        DEPENDS ${PARSER_OUTPUT_C}
-        COMMENT "Generating Tree-sitter parser...")
-
-    # Create the library and set the dependency
     add_library(score_parser STATIC ${PARSER_OUTPUT_C})
+    add_custom_target(generate_tree_sitter_parser DEPENDS ${PARSER_OUTPUT_C})
     add_dependencies(score_parser generate_tree_sitter_parser)
-
 else()
     message(
         WARNING
@@ -100,15 +91,12 @@ target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include
 # ╭──────────────────────────────────────╮
 # │                 Lua                  │
 # ╰──────────────────────────────────────╯
-file(GLOB LuaSrc "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/*.c")
+file(GLOB LuaSrc "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/onelua.c")
 
 add_library(lua STATIC ${LuaSrc})
-set_target_properties(lua PROPERTIES 
-    POSITION_INDEPENDENT_CODE ON 
-    C_STANDARD 99 
-)
+set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
 target_compile_options(lua PRIVATE -Wno-unsafe-function)
-if (LINUX)
+if(LINUX)
     target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
 endif()
 
@@ -137,9 +125,32 @@ if(NOT EMSCRIPTEN)
     cmake_policy(SET CMP0167 NEW)
     find_package(Boost REQUIRED)
     include_directories(${Boost_INCLUDE_DIRS})
+
 endif()
 
-target_compile_options(OScofo PRIVATE $<$<CONFIG:DEBUG>:-g -O0>)
+target_compile_options(
+    OScofo
+    PRIVATE -Wall # Enable all common warnings
+            -Wextra # Enable extra warnings -Wpedantic # Enforce strict compliance with standards
+            -Wno-unused-parameter # Suppress unused parameter warnings
+            -Wshadow # Warn about shadowed variable declarations
+            -Wformat=2 # Enable stricter format string checks
+            -Wnull-dereference # Warn on dereferences of null pointers
+
+            # Debug
+            $<$<CONFIG:Debug>:
+            -g # Enable debug symbols
+            -O0 # Disable optimizations for better debugging
+            -DDEBUG # Define DEBUG macro for conditional debug code
+            >
+            # Release
+            $<$<CONFIG:Release>:
+            -O3 # Enable maximum optimizations
+            -fopenmp
+            -DNDEBUG # Disable assertions
+            -march=native # Optimize for the current CPU
+            -flto # Enable Link-Time Optimization
+            >)
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <charconv>
 
 #include "score.hpp"
 #include "tree_sitter/api.h"
@@ -95,11 +96,23 @@ bool Score::ScoreIsLoaded() {
 }
 
 // ─────────────────────────────────────
-double Score::PitchNode2Freq(const std::string Score, TSNode node) {
+bool Score::isNumber(std::string str) {
+    if (str.empty()) {
+        return false;
+    }
+    const char *start = str.data();
+    const char *end = str.data() + str.size();
+    float value;
+    auto result = std::from_chars(start, end, value);
+    return result.ec == std::errc() && result.ptr == end;
+}
+
+// ─────────────────────────────────────
+double Score::PitchNode2Freq(const std::string ScoreStr, TSNode node) {
     TSNode pitch = ts_node_child(node, 0);
     std::string type = ts_node_type(pitch);
     if (type == "midi") {
-        int midi = std::stof(GetCodeStr(Score, pitch));
+        int midi = std::stof(GetCodeStr(ScoreStr, pitch));
         return m_Tunning * pow(2, (midi - 69.0) / 12);
 
     } else if (type != "noteName") {
@@ -108,9 +121,9 @@ double Score::PitchNode2Freq(const std::string Score, TSNode node) {
         return 0;
     }
 
-    char pitchName = GetChildStringFromField(Score, pitch, "pitchname")[0];
-    std::string alt = GetChildStringFromField(Score, pitch, "alteration");
-    std::string octave = GetChildStringFromField(Score, pitch, "octave");
+    char pitchName = GetChildStringFromField(ScoreStr, pitch, "pitchname")[0];
+    std::string alt = GetChildStringFromField(ScoreStr, pitch, "alteration");
+    std::string octave = GetChildStringFromField(ScoreStr, pitch, "octave");
 
     int classNote = -1;
     switch (pitchName) {
@@ -172,14 +185,14 @@ double Score::ModPhases(double Phase) {
 // ╭─────────────────────────────────────╮
 // │       Parse File of the Score       │
 // ╰─────────────────────────────────────╯
-std::string Score::GetCodeStr(const std::string &Score, TSNode Node) {
+std::string Score::GetCodeStr(const std::string &ScoreStr, TSNode Node) {
     int start = ts_node_start_byte(Node);
     int end = ts_node_end_byte(Node);
-    return std::string(std::string_view(Score.data() + start, end - start));
+    return std::string(std::string_view(ScoreStr.data() + start, end - start));
 }
 
 // ─────────────────────────────────────
-double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
+double Score::GetDurationFromNode(const std::string &ScoreStr, TSNode Node) {
     uint32_t count = ts_node_child_count(Node);
     if (count != 1) {
         TSPoint Pos = ts_node_start_point(Node);
@@ -190,7 +203,7 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
     TSNode dur = ts_node_child(Node, 0);
     std::string dur_type = ts_node_type(dur);
     if (dur_type == "number") {
-        std::string dur_str = GetCodeStr(Score, dur);
+        std::string dur_str = GetCodeStr(ScoreStr, dur);
         return std::stof(dur_str);
     }
     TSPoint Pos = ts_node_start_point(dur);
@@ -199,10 +212,9 @@ double Score::GetDurationFromNode(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
+MacroState Score::PitchEvent(const std::string &ScoreStr, TSNode Node) {
     m_ScorePosition++;
 
-    double Midi;
     MacroState Event;
     Event.Line = m_LineCount;
     Event.Markov = SEMIMARKOV;
@@ -215,7 +227,7 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
         if (type == "pitchEventId") {
-            std::string id = GetCodeStr(Score, child);
+            std::string id = GetCodeStr(ScoreStr, child);
             if (id == "NOTE") {
                 Event.Type = NOTE;
             } else if (id == "TRILL") {
@@ -229,31 +241,30 @@ MacroState Score::PitchEvent(const std::string &Score, TSNode Node) {
             }
 
         } else if (type == "pitch") {
-            TSNode pitch = ts_node_child(child, 0);
             AudioState SubState;
             SubState.Markov = MARKOV;
             SubState.Type = NOTE;
-            SubState.Freq = PitchNode2Freq(Score, child);
+            SubState.Freq = PitchNode2Freq(ScoreStr, child);
             Event.SubStates.push_back(SubState);
         } else if (type == "pitches") {
             uint32_t pitchCount = ts_node_child_count(child);
-            for (int j = 0; j < pitchCount; j++) {
+            for (size_t j = 0; j < pitchCount; j++) {
                 TSNode eventPitch = ts_node_child(child, j);
                 std::string eventPitchId = ts_node_type(eventPitch);
                 if (eventPitchId == "pitch") {
                     AudioState SubState;
                     SubState.Markov = MARKOV;
                     SubState.Type = NOTE;
-                    SubState.Freq = PitchNode2Freq(Score, eventPitch);
+                    SubState.Freq = PitchNode2Freq(ScoreStr, eventPitch);
                     Event.SubStates.push_back(SubState);
                 }
             }
 
         } else if (type == "duration") {
-            double duration = GetDurationFromNode(Score, child);
+            double duration = GetDurationFromNode(ScoreStr, child);
             Event.Duration = duration;
         } else if (type == "ACTION") {
-            ProcessAction(Score, child, Event);
+            ProcessAction(ScoreStr, child, Event);
         } else {
             TSPoint Pos = ts_node_start_point(child);
             SetError("Invalid note event on line " + std::to_string(Pos.row + 1));
@@ -289,20 +300,20 @@ void Score::ProcessEventTime(MacroState &Event) {
 }
 
 // ─────────────────────────────────────
-std::string Score::GetChildStringFromField(const std::string &Score, TSNode node, std::string id) {
+std::string Score::GetChildStringFromField(const std::string &ScoreStr, TSNode node, std::string id) {
     int child_count = ts_node_child_count(node);
     for (int i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(node, i);
         const char *type = ts_node_type(child);
         if (id == type) {
-            return GetCodeStr(Score, child);
+            return GetCodeStr(ScoreStr, child);
         }
     }
     return "";
 }
 
 // ─────────────────────────────────────
-void Score::ProcessEvent(const std::string &Score, TSNode Node) {
+void Score::ProcessEvent(const std::string &ScoreStr, TSNode Node) {
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
         MacroState Event;
@@ -311,7 +322,7 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
         TSPoint Pos = ts_node_start_point(child);
         Event.Line = Pos.row + 1;
         if (type == "pitchEvent") {
-            Event = PitchEvent(Score, child);
+            Event = PitchEvent(ScoreStr, child);
             m_PrevDuration = Event.Duration;
             m_LastOnset = Event.OnsetExpected;
             m_ScoreStates.push_back(Event);
@@ -320,15 +331,15 @@ void Score::ProcessEvent(const std::string &Score, TSNode Node) {
 }
 
 // ─────────────────────────────────────
-void Score::ProcessConfig(const std::string &Score, TSNode Node) {
+void Score::ProcessConfig(const std::string &ScoreStr, TSNode Node) {
     MacroState Event;
     uint32_t child_count = ts_node_child_count(Node);
     for (uint32_t i = 0; i < child_count; i++) {
         TSNode child = ts_node_child(Node, i);
         std::string type = ts_node_type(child);
         if (type == "numberConfig") {
-            std::string configType = GetChildStringFromField(Score, child, "configId");
-            std::string number = GetChildStringFromField(Score, child, "numberSet");
+            std::string configType = GetChildStringFromField(ScoreStr, child, "configId");
+            std::string number = GetChildStringFromField(ScoreStr, child, "numberSet");
             TSPoint Pos = ts_node_start_point(child);
             if (configType == "BPM") {
                 m_CurrentBPM = std::stof(number);
@@ -355,8 +366,7 @@ void Score::ProcessConfig(const std::string &Score, TSNode Node) {
     }
 }
 // ─────────────────────────────────────
-void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Event) {
-    int child_count = ts_node_child_count(Node);
+void Score::ProcessAction(const std::string &ScoreStr, TSNode Node, MacroState &Event) {
     Action NewAction;
     NewAction.AbsoluteTime = true;
     NewAction.Time = 0;
@@ -368,7 +378,7 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
         TSNode timeUnit = GetField(actionKeyNode, "timeUnit");
 
         if (!ts_node_is_null(key)) {
-            std::string keyStr = GetCodeStr(Score, key);
+            std::string keyStr = GetCodeStr(ScoreStr, key);
             TSPoint pos = ts_node_start_point(key);
             if (keyStr != "delay") {
                 SetError("Invalid action key on line " + std::to_string(pos.row + 1));
@@ -377,11 +387,11 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
         }
 
         if (!ts_node_is_null(number)) {
-            NewAction.Time = std::stof(GetCodeStr(Score, number));
+            NewAction.Time = std::stof(GetCodeStr(ScoreStr, number));
         }
 
         if (!ts_node_is_null(timeUnit)) {
-            std::string unit = GetCodeStr(Score, timeUnit);
+            std::string unit = GetCodeStr(ScoreStr, timeUnit);
             if (unit == "sec") {
                 NewAction.Time *= 1000;
                 NewAction.AbsoluteTime = true;
@@ -397,13 +407,13 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
     if (!ts_node_is_null(execNode)) {
         TSNode key = GetField(execNode, "keyword");
         if (!ts_node_is_null(key)) {
-            std::string keyStr = GetCodeStr(Score, key);
+            std::string keyStr = GetCodeStr(ScoreStr, key);
             if (keyStr == "luacall") {
-                std::string luacall = GetChildStringFromField(Score, execNode, "lua_call");
+                std::string luacall = GetChildStringFromField(ScoreStr, execNode, "lua_call");
                 NewAction.Lua = luacall;
                 NewAction.isLua = true;
             } else if (keyStr == "sendto") {
-                std::string receiver = GetChildStringFromField(Score, execNode, "receiver");
+                std::string receiver = GetChildStringFromField(ScoreStr, execNode, "receiver");
                 NewAction.Receiver = receiver;
                 NewAction.isLua = false;
             }
@@ -418,9 +428,16 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
                     if (argType == "pdarg") {
                         TSNode pdarg = ts_node_child(arg, 0);
                         std::string pdargType = ts_node_type(pdarg);
-                        std::string token = GetCodeStr(Score, pdarg);
+                        std::string token = GetCodeStr(ScoreStr, pdarg);
                         if (pdargType == "number") {
-                            NewAction.PdArgs.push_back(std::stof(token));
+                            // cechk if it is a number
+                            if (isNumber(token)) {
+                                float number = std::stof(token);
+                                NewAction.PdArgs.push_back((float)number);
+                            } else {
+                                SetError("Invalid number argument on line " + std::to_string(ts_node_start_point(pdarg).row + 1));
+                                return;
+                            }
                         } else if (pdargType == "symbol") {
                             NewAction.PdArgs.push_back(token);
                         }
@@ -433,10 +450,10 @@ void Score::ProcessAction(const std::string &Score, TSNode Node, MacroState &Eve
 }
 
 // ─────────────────────────────────────
-void Score::ParseInput(const std::string &Score) {
+void Score::ParseInput(const std::string &ScoreStr) {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_scofo());
-    TSTree *tree = ts_parser_parse_string(parser, nullptr, Score.c_str(), Score.size());
+    TSTree *tree = ts_parser_parse_string(parser, nullptr, ScoreStr.c_str(), ScoreStr.size());
     TSNode rootNode = ts_tree_root_node(tree);
 
     uint32_t child_count = ts_node_child_count(rootNode);
@@ -448,11 +465,11 @@ void Score::ParseInput(const std::string &Score) {
                 SetError("BPM is not defined");
                 return;
             }
-            ProcessEvent(Score, child);
+            ProcessEvent(ScoreStr, child);
         } else if (type == "CONFIG") {
-            ProcessConfig(Score, child);
+            ProcessConfig(ScoreStr, child);
         } else if (type == "LUA") {
-            std::string lua_body = GetChildStringFromField(Score, child, "lua_body");
+            std::string lua_body = GetChildStringFromField(ScoreStr, child, "lua_body");
             lua_body += "\n\n";
             m_LuaCode += lua_body;
         }
@@ -487,12 +504,10 @@ States Score::Parse(std::string ScoreFile) {
     m_LastOnset = 0;
     m_PrevDuration = 0;
     std::string Line;
-    double LastOnset = 0;
-    double PreviousDuration = 0;
 
     // read and process score
-    std::string Score = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
-    ParseInput(Score);
+    std::string ScoreStr = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+    ParseInput(ScoreStr);
 
     if (!HasErrors()) {
         m_ScoreLoaded = true;

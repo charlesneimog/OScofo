@@ -49,6 +49,7 @@ class Score {
     void ParseInput(const std::string &Score);
     void PrintTreeSitterNode(TSNode node, int indent = 0);
     TSNode GetField(TSNode Node, std::string s);
+    bool isNumber(std::string str);
 
     void ProcessEvent(const std::string &Score, TSNode Event);
     void ProcessEventTime(MacroState &Event);

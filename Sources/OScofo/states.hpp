@@ -111,10 +111,12 @@ class Description {
     double Amp;
     std::vector<double> SpectralPower;
     std::vector<double> NormSpectralPower;
-    double TotalPower;
+    // double TotalPower;
     double MaxAmp;
     double SpectralFlatness;
     double Loudness;
+    double SpectralFlux;
+    double StdDev;
 };
 
 } // namespace OScofo

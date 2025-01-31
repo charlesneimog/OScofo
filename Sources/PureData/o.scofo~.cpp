@@ -38,11 +38,11 @@ class PdOScofo {
 
     // Audio
     std::vector<double> inBuffer;
-    float FFTSize;
-    float HopSize;
-    float BlockSize;
-    float Sr;
-    unsigned BlockIndex;
+    int FFTSize;
+    int HopSize;
+    int BlockSize;
+    int Sr;
+    int BlockIndex;
 
     // Outlet
     t_outlet *EventOut;
@@ -237,10 +237,6 @@ static void oscofo_ticknewevent(PdOScofo *x) {
 }
 
 // ─────────────────────────────────────
-static void oscofo_tickinfo(PdOScofo *x) {
-}
-
-// ─────────────────────────────────────
 static t_int *oscofo_perform(t_int *w) {
     PdOScofo *x = (PdOScofo *)(w[1]);
     t_sample *in = (t_sample *)(w[2]);
@@ -249,6 +245,7 @@ static t_int *oscofo_perform(t_int *w) {
     if (!x->OpenScofo->ScoreIsLoaded() || !x->Following) {
         return (w + 4);
     }
+
     x->BlockIndex += n;
     std::copy(x->inBuffer.begin() + n, x->inBuffer.end(), x->inBuffer.begin());
     std::copy(in, in + n, x->inBuffer.end() - n);
@@ -271,7 +268,6 @@ static t_int *oscofo_perform(t_int *w) {
 
     clock_delay(x->ClockActions, 0);
     clock_delay(x->ClockEvent, 0);
-    clock_delay(x->ClockInfo, 0);
     return (w + 4);
 }
 
@@ -279,7 +275,7 @@ static t_int *oscofo_perform(t_int *w) {
 static void oscofo_adddsp(PdOScofo *x, t_signal **sp) {
     x->BlockSize = sp[0]->s_n;
     x->BlockIndex = 0;
-    x->inBuffer.resize(x->FFTSize, 0.0f);
+    x->inBuffer.resize((size_t)x->FFTSize, (double)0.0f);
     dsp_add(oscofo_perform, 3, x, sp[0]->s_vec, sp[0]->s_n);
 }
 
@@ -290,8 +286,8 @@ static void oscofo_processargv(PdOScofo *x, int argc, t_atom *argv) {
             std::string arg = atom_getsymbol(argv + i)->s_name;
             if (arg == "-fft") {
                 if (i + 2 < argc) {
-                    x->FFTSize = atom_getfloat(argv + i + 1);
-                    x->HopSize = atom_getfloat(argv + i + 2);
+                    x->FFTSize = (int)atom_getint(argv + i + 1);
+                    x->HopSize = (int)atom_getint(argv + i + 2);
                 } else {
                     pd_error(x, "[o.scofo~] Window Size and Hop size must be provided");
                 }
@@ -309,9 +305,9 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     }
 
     // default parameters
-    x->FFTSize = 4096.0f;
-    x->HopSize = 1024.0f;
-    x->Sr = sys_getsr();
+    x->FFTSize = 4096;
+    x->HopSize = 1024;
+    x->Sr = (int)sys_getsr();
     x->Following = false;
     x->Event = -1;
 
@@ -325,7 +321,6 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
 
     // Schedule
     x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);
-    x->ClockInfo = clock_new(x, (t_method)oscofo_tickinfo);
     x->ClockActions = clock_new(x, (t_method)oscofo_tickactions);
 
     // Current Dir
@@ -333,7 +328,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->PatchDir = canvas_getdir(x->Canvas)->s_name;
 
     // OScofo Library
-    x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
+    x->OpenScofo = new OScofo::OScofo((float)x->Sr, (float)x->FFTSize, (float)x->HopSize);
 
     if (x->OpenScofo->HasErrors()) {
         for (auto &error : x->OpenScofo->GetErrorMessage()) {

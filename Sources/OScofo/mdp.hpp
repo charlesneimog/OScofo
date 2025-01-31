@@ -18,7 +18,7 @@ using PitchTemplateArray = std::vector<double>;
 // ╰─────────────────────────────────────╯
 class MDP {
   public:
-    MDP(float Sr, float WindowSize, float HopSize);
+    MDP(double Sr, double WindowSize, double HopSize);
 
     // Init Functions
     void SetScoreStates(States States);

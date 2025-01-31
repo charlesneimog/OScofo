@@ -90,21 +90,21 @@ static int pd_sendList(lua_State *L) {
         return luaL_error(L, "Receiver not found");
     }
 
-    int listSize = luaL_len(L, 2);
-    t_atom list[listSize];
+    const int listSize = luaL_len(L, 2);
+    std::vector<t_atom> atomList(listSize);
 
     for (int i = 0; i < listSize; i++) {
         lua_rawgeti(L, 2, i + 1);
         if (lua_isnumber(L, -1)) {
-            SETFLOAT(&list[i], lua_tonumber(L, -1));
+            SETFLOAT(&atomList[i], lua_tonumber(L, -1));
         } else if (lua_isstring(L, -1)) {
-            SETSYMBOL(&list[i], gensym(lua_tostring(L, -1)));
+            SETSYMBOL(&atomList[i], gensym(lua_tostring(L, -1)));
         } else {
             return luaL_error(L, "Table contains unsupported value type");
         }
         lua_pop(L, 1);
     }
-    pd_list(symbol->s_thing, &s_list, listSize, list);
+    pd_list(symbol->s_thing, &s_list, listSize, atomList.data());
     return 0;
 }
 

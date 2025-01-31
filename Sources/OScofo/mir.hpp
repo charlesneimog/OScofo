@@ -47,13 +47,15 @@ class MIR {
     // Env
     double m_dBTreshold = -50;
     void GetRMS(std::vector<double> &In, Description &Desc);
+    void GetSpectralFlux(Description &Desc);
 
     // Audio
-    double m_FftSize;
-    double m_BlockSize;
-    double m_HopSize;
-    double m_Sr;
+    float m_FftSize;
+    float m_BlockSize;
+    float m_HopSize;
+    float m_Sr;
     double m_dB;
+    std::vector<double> m_PreviousSpectralPower;
 
     // Time
     double m_EventTimeElapsed = 0.0; // ms
