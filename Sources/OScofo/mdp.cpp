@@ -96,31 +96,35 @@ void MDP::SetScoreStates(States ScoreStates) {
 
 // ─────────────────────────────────────
 void MDP::BuildPitchTemplate(double Freq) {
-    const double sigma_log = 0.05;
-    const double beta = 0.5;
+    const double sigmaSemitons = 0.5; 
+    const double sigmaLog = sigmaSemitons / 12.0; 
+    const double beta = 0.5; 
 
     if (m_PitchTemplates.find(Freq) != m_PitchTemplates.end()) {
         return;
     }
 
-    double RootBinFreq = round(Freq / (m_Sr / m_FFTSize));
-    m_PitchTemplates[RootBinFreq].resize(m_FFTSize / 2);
+    double rootBinFreq = round(Freq / (m_Sr / m_FFTSize));
+    m_PitchTemplates[rootBinFreq].resize(m_FFTSize / 2, 0.0);
+
+    // Following Gong (2015), eq 5 and 6
     for (int k = 1; k <= m_Harmonics; ++k) {
-        const double harmonicFreqHz = Freq * k;
-        const double sigma_Hz = harmonicFreqHz * (std::pow(2.0, sigma_log) - 1.0);
-        const double envelope = std::exp(-beta * (k - 1));
+        double harmonicFreqHz = Freq * k;
+        double sigmaHz = harmonicFreqHz * (std::pow(2.0, sigmaLog) - 1.0); 
+        double envelope = std::exp(-beta * (k - 1)); 
         for (size_t i = 0; i < m_FFTSize / 2; ++i) {
-            const double binFreq = i * (m_Sr / static_cast<double>(m_FFTSize));
-            const double exponent = -0.5 * std::pow((binFreq - harmonicFreqHz) / sigma_Hz, 2);
-            const double gaussian = (1.0 / (sigma_Hz * std::sqrt(2 * M_PI))) * std::exp(exponent);
-            m_PitchTemplates[RootBinFreq][i] += envelope * gaussian;
+            double binFreq = i * (m_Sr / static_cast<double>(m_FFTSize));
+            double exponent = -0.5 * std::pow((binFreq - harmonicFreqHz) / sigmaHz, 2);
+            double gaussian = (1.0 / (sigmaHz * std::sqrt(2 * M_PI))) * std::exp(exponent);
+            m_PitchTemplates[rootBinFreq][i] += envelope * gaussian;
         }
     }
 
-    double sum = std::accumulate(m_PitchTemplates[RootBinFreq].begin(), m_PitchTemplates[RootBinFreq].end(), 0.0);
+    // Normalize template to sum to 1 (probability distribution)
+    double sum = std::accumulate(m_PitchTemplates[rootBinFreq].begin(), m_PitchTemplates[rootBinFreq].end(), 0.0);
     if (sum > 0) {
-        for (auto &val : m_PitchTemplates[RootBinFreq]) {
-            val = (val + 1e-12) / (sum + 1e-12);
+        for (auto& val : m_PitchTemplates[rootBinFreq]) {
+            val = (val + 1e-12) / (sum + 1e-12); // Avoid zero probabilities
         }
     }
 }
@@ -610,7 +614,7 @@ double MDP::Markov(MacroState &StateJ, int CurrentState, int j, int T, int buffe
 }
 
 // ─────────────────────────────────────
-double calculateEntropy(const std::vector<double> &probs) {
+double CalculateEntropy(const std::vector<double> &probs) {
     double entropy = 0.0;
     for (double prob : probs) {
         if (prob > 0) { // Avoid log(0) which is undefined
@@ -672,12 +676,13 @@ int MDP::Inference(int CurrentState, int MaxState, int T) {
     }
 
     // TODO: Implement Cuvillier (2016)
-    double entropy = calculateEntropy(Probs);
+    double Entropy = CalculateEntropy(Probs);
     double maxEntropy = log(Probs.size());
-    double confidence = 1.0 - (entropy / maxEntropy);
+    double Conf = 1.0 - (Entropy / maxEntropy);
+    // printf("config: %d, %f, %f\n", BestState, entropy, confidence);
 
     if (m_MinEntropy > 0) {
-        if (confidence > m_MinEntropy) {
+        if (Conf > m_MinEntropy) {
             return BestState;
         } else {
             return CurrentState;
