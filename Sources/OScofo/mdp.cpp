@@ -6,6 +6,29 @@
 
 namespace OScofo {
 
+/*
+    // ──────────────────────────────── REFERENCES ───────────────────────────────────────  
+
+    * GONG, R.; CUVILLIER, P.; OBIN, N.; CONT, A. Real-Time Audio-to-Score Alignment of Sin-
+        ging Voice Based on Melody and Lyric Information. In: Interspeech, 2015, Dresde, Germany.
+        Anais… [S.l.: s.n.], 2015.
+
+    * CONT, A. A Coupled Duration-Focused Architecture for Real-Time Music-to-Score Align-
+        ment. IEEE Transactions on Pattern Analysis and Machine Intelligence, [S.l.], v.32, n.6,
+        p.974–987, 2010.
+
+    * CONT, A. Improvement of Observation Modeling for Score Following. 2004.
+    
+    * GUÉDON, Y. Hidden Hybrid Markov/Semi-Markov Chains. Computational Statistics & Data
+        Analysis, [S.l.], v.49, n.3, p.663–688, 2005.
+    
+    * LARGE, E. W.; JONES, M. R. The Dynamics of Attending: How People Track Time-Varying
+        Events. Psychological Review, [S.l.], v.106, n.1, p.119–159, 1999.
+
+    * LARGE, E. W.; PALMER, C. Perceiving Temporal Regularity in Music. Cognitive Science,
+        [S.l.], v.26, n.1, p.1–37, 2002.
+*/
+
 // ╭─────────────────────────────────────╮
 // │Constructor and Destructor Functions │
 // ╰─────────────────────────────────────╯
@@ -96,6 +119,8 @@ void MDP::SetScoreStates(States ScoreStates) {
 
 // ─────────────────────────────────────
 void MDP::BuildPitchTemplate(double Freq) {
+    // Following Gong (2015), eq 5 and 6
+    
     const double sigmaSemitons = 0.5; 
     const double sigmaLog = sigmaSemitons / 12.0; 
     const double beta = 0.5; 
@@ -107,7 +132,6 @@ void MDP::BuildPitchTemplate(double Freq) {
     double rootBinFreq = round(Freq / (m_Sr / m_FFTSize));
     m_PitchTemplates[rootBinFreq].resize(m_FFTSize / 2, 0.0);
 
-    // Following Gong (2015), eq 5 and 6
     for (int k = 1; k <= m_Harmonics; ++k) {
         double harmonicFreqHz = Freq * k;
         double sigmaHz = harmonicFreqHz * (std::pow(2.0, sigmaLog) - 1.0); 
