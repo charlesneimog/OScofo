@@ -26,7 +26,7 @@ class Score {
     std::string GetLuaCode();
     double GetFFTSize();
     double GetHopSize();
-    double GetPitchSigma();
+    double GetPitchTemplateSigma();
     double GetPhaseCoupling();
     double GetSyncStrength();
 
@@ -81,7 +81,7 @@ class Score {
     double m_CurrentBPM = 60;
     float m_Transpose = 0;
     double m_Entropy = 0;
-    double m_PitchSigma = 0.5;
+    double m_PitchTemplateSigma = 0.5;
     double m_SyncStrength = 0.5;
     double m_PhaseCoupling = 0.5;
     double m_FFTSize = 4096;

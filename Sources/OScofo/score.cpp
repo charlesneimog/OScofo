@@ -76,8 +76,8 @@ double Score::GetHopSize() {
 }
 
 // ─────────────────────────────────────
-double Score::GetPitchSigma() {
-    return m_PitchSigma;
+double Score::GetPitchTemplateSigma() {
+    return m_PitchTemplateSigma;
 }
 
 // ─────────────────────────────────────
@@ -355,8 +355,8 @@ void Score::ProcessConfig(const std::string &ScoreStr, TSNode Node) {
                 m_PhaseCoupling = std::stof(number);
             } else if (configType == "SyncStrength") {
                 m_SyncStrength = std::stof(number);
-            } else if (configType == "PitchSigma") {
-                m_PitchSigma = std::stof(number);
+            } else if (configType == "PitchTemplateSigma" || configType == "VARIANCE") {
+                m_PitchTemplateSigma = std::stof(number);
             } else if (configType == "FFTSize") {
                 m_FFTSize = std::stof(number);
             } else if (configType == "HopSize") {
@@ -496,7 +496,7 @@ States Score::Parse(std::string ScoreFile) {
     m_CurrentBPM = 60;
     m_Transpose = 0;
     m_Entropy = 0;
-    m_PitchSigma = 0.5;
+    m_PitchTemplateSigma = 0.5;
 
     m_LineCount = 0;
     m_MarkovIndex = 0;

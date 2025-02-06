@@ -283,6 +283,11 @@ bool OScofo::ParseScore(std::string ScorePath) {
     m_FFTSize = m_Score.GetFFTSize();
     m_HopSize = m_Score.GetHopSize();
     SetNewAudioParameters(m_Sr, m_FFTSize, m_HopSize);
+
+    // Parse Config
+    m_MDP.SetPitchTemplateSigma(m_Score.GetPitchTemplateSigma());
+
+    // Add States
     m_MDP.SetScoreStates(m_States);
     return true;
 }

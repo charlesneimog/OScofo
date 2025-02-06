@@ -7,7 +7,7 @@
 namespace OScofo {
 
 /*
-    // ──────────────────────────────── REFERENCES ───────────────────────────────────────  
+    // ──────────────────────────────── REFERENCES ───────────────────────────────────────
 
     * GONG, R.; CUVILLIER, P.; OBIN, N.; CONT, A. Real-Time Audio-to-Score Alignment of Sin-
         ging Voice Based on Melody and Lyric Information. In: Interspeech, 2015, Dresde, Germany.
@@ -18,10 +18,10 @@ namespace OScofo {
         p.974–987, 2010.
 
     * CONT, A. Improvement of Observation Modeling for Score Following. 2004.
-    
+
     * GUÉDON, Y. Hidden Hybrid Markov/Semi-Markov Chains. Computational Statistics & Data
         Analysis, [S.l.], v.49, n.3, p.663–688, 2005.
-    
+
     * LARGE, E. W.; JONES, M. R. The Dynamics of Attending: How People Track Time-Varying
         Events. Psychological Review, [S.l.], v.106, n.1, p.119–159, 1999.
 
@@ -120,10 +120,9 @@ void MDP::SetScoreStates(States ScoreStates) {
 // ─────────────────────────────────────
 void MDP::BuildPitchTemplate(double Freq) {
     // Following Gong (2015), eq 5 and 6
-    
-    const double sigmaSemitons = 0.5; 
-    const double sigmaLog = sigmaSemitons / 12.0; 
-    const double beta = 0.5; 
+    const double sigmaSemitons = m_PitchTemplateSigma;
+    const double sigmaLog = sigmaSemitons / 12.0;
+    const double beta = 0.5;
 
     if (m_PitchTemplates.find(Freq) != m_PitchTemplates.end()) {
         return;
@@ -134,8 +133,8 @@ void MDP::BuildPitchTemplate(double Freq) {
 
     for (int k = 1; k <= m_Harmonics; ++k) {
         double harmonicFreqHz = Freq * k;
-        double sigmaHz = harmonicFreqHz * (std::pow(2.0, sigmaLog) - 1.0); 
-        double envelope = std::exp(-beta * (k - 1)); 
+        double sigmaHz = harmonicFreqHz * (std::pow(2.0, sigmaLog) - 1.0);
+        double envelope = std::exp(-beta * (k - 1));
         for (size_t i = 0; i < m_FFTSize / 2; ++i) {
             double binFreq = i * (m_Sr / static_cast<double>(m_FFTSize));
             double exponent = -0.5 * std::pow((binFreq - harmonicFreqHz) / sigmaHz, 2);
@@ -147,7 +146,7 @@ void MDP::BuildPitchTemplate(double Freq) {
     // Normalize template to sum to 1 (probability distribution)
     double sum = std::accumulate(m_PitchTemplates[rootBinFreq].begin(), m_PitchTemplates[rootBinFreq].end(), 0.0);
     if (sum > 0) {
-        for (auto& val : m_PitchTemplates[rootBinFreq]) {
+        for (auto &val : m_PitchTemplates[rootBinFreq]) {
             val = (val + 1e-12) / (sum + 1e-12); // Avoid zero probabilities
         }
     }
@@ -266,13 +265,13 @@ double MDP::InverseA2(double SyncStrength) {
     }
 
     double Low = 0.0;
-    double Tol = 1e-8;
+    double Tol = 1e-16;
     double High = std::max(SyncStrength, 10.0);
     double Mid;
 
     // In my tests I never reached more than 100 iterations.
     int i;
-    for (i = 0; i < 100; ++i) {
+    for (i = 0; i < 1000; ++i) {
         Mid = (Low + High) / 2.0;
         double I1 = boost::math::cyl_bessel_i(1, Mid);
         double I0 = boost::math::cyl_bessel_i(0, Mid);
