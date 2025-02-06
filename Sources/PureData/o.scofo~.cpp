@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include <m_pd.h>
 #include <OScofo.hpp>
 
@@ -52,8 +54,18 @@ class PdOScofo {
 
 // ─────────────────────────────────────
 static void oscofo_score(PdOScofo *x, t_symbol *s) {
-    std::string scorePath = x->PatchDir + "/" + s->s_name;
+    // check if file exists
+    if (!s) {
+        pd_error(x, "[o.scofo~] No score file provided");
+        return;
+    }
+
     bool ok;
+    std::string scorePath = s->s_name;
+    if (!std::filesystem::exists(s->s_name)) {
+        scorePath = x->PatchDir + "/" + s->s_name;
+    }
+
     ok = x->OpenScofo->ParseScore(scorePath);
     if (ok) {
         logpost(x, 2, "[o.scofo~] Score loaded");
