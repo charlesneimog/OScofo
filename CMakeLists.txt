@@ -63,28 +63,32 @@ set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set(BUILD_SHARED_LIBS OFF)
 
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
-find_program(TREE_SITTER_EXECUTABLE tree-sitter)
-
-set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo)
 set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
-if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
-    add_custom_command(
-        OUTPUT ${PARSER_OUTPUT_C}
-        COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
-        WORKING_DIRECTORY ${TREE_SITTER_WORKING_DIR}
-        COMMENT "Generating Tree-sitter parser..."
-        VERBATIM)
-    add_library(score_parser STATIC ${PARSER_OUTPUT_C})
-    add_custom_target(generate_tree_sitter_parser DEPENDS ${PARSER_OUTPUT_C})
-    add_dependencies(score_parser generate_tree_sitter_parser)
+if (UPDATE_OSCOFO_LANGUAGE)
+    find_program(TREE_SITTER_EXECUTABLE tree-sitter)
+    set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo)
+    if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
+        add_custom_command(
+            OUTPUT ${PARSER_OUTPUT_C}
+            COMMAND ${TREE_SITTER_EXECUTABLE} generate --no-bindings
+            WORKING_DIRECTORY ${TREE_SITTER_WORKING_DIR}
+            COMMENT "Generating Tree-sitter parser..."
+            VERBATIM)
+        add_library(score_parser STATIC ${PARSER_OUTPUT_C})
+        add_custom_target(generate_tree_sitter_parser DEPENDS ${PARSER_OUTPUT_C})
+        add_dependencies(score_parser generate_tree_sitter_parser)
+    else()
+        message(
+            WARNING
+                "Tree-sitter executable not found. Parser generation skipped. Please install tree-sitter-cli."
+        )
+        add_library(score_parser STATIC ${PARSER_OUTPUT_C})
+    endif()
 else()
-    message(
-        WARNING
-            "Tree-sitter executable not found. Parser generation skipped. Please install tree-sitter-cli."
-    )
     add_library(score_parser STATIC ${PARSER_OUTPUT_C})
 endif()
+
 
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
 
