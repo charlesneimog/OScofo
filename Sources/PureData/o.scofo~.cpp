@@ -4,7 +4,10 @@
 #include <OScofo.hpp>
 
 static t_class *OScofoObj;
+
+#ifdef OSCOFO_LUA
 int luaopen_pd(lua_State *L);
+#endif
 
 // ─────────────────────────────────────
 struct Action {
@@ -89,14 +92,19 @@ static void oscofo_score(PdOScofo *x, t_symbol *s) {
     x->inBuffer.resize(x->FFTSize, 0.0f);
 
     // Get Lua Code
+
+#ifdef OSCOFO_LUA
     std::string LuaCode = x->OpenScofo->GetLuaCode();
     bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
+
+
     if (!result) {
         std::string error = x->OpenScofo->LuaGetError();
         pd_error(x, "[o.scofo~] Lua error");
         pd_error(x, "[o.scofo~] %s", error.c_str());
         logpost(x, 1, "");
     }
+#endif
 }
 
 // ─────────────────────────────────────
@@ -147,11 +155,13 @@ static void oscofo_following(PdOScofo *x, t_float f) {
 }
 // ─────────────────────────────────────
 static void oscofo_luaexecute(PdOScofo *x, std::string code) {
+#ifdef OSCOFO_LUA
     if (!x->OpenScofo->LuaExecute(code)) {
         std::string error = x->OpenScofo->LuaGetError();
         pd_error(x, "[o.scofo~] Lua error");
         pd_error(x, "[o.scofo~] %s", error.c_str());
     }
+#endif
 }
 
 // ─────────────────────────────────────
@@ -292,24 +302,24 @@ static void oscofo_adddsp(PdOScofo *x, t_signal **sp) {
 }
 
 // ─────────────────────────────────────
-static void oscofo_processargv(PdOScofo *x, int argc, t_atom *argv) {
-    for (int i = 0; i < argc; i++) {
-        if (argv[i].a_type == A_SYMBOL) {
-            std::string arg = atom_getsymbol(argv + i)->s_name;
-            if (arg == "-fft") {
-                if (i + 2 < argc) {
-                    x->FFTSize = (int)atom_getint(argv + i + 1);
-                    x->HopSize = (int)atom_getint(argv + i + 2);
-                } else {
-                    pd_error(x, "[o.scofo~] Window Size and Hop size must be provided");
-                }
-            }
-        }
-    }
-}
+// static void oscofo_processargv(PdOScofo *x, int argc, t_atom *argv) {
+//     for (int i = 0; i < argc; i++) {
+//         if (argv[i].a_type == A_SYMBOL) {
+//             std::string arg = atom_getsymbol(argv + i)->s_name;
+//             if (arg == "-fft") {
+//                 if (i + 2 < argc) {
+//                     x->FFTSize = (int)atom_getint(argv + i + 1);
+//                     x->HopSize = (int)atom_getint(argv + i + 2);
+//                 } else {
+//                     pd_error(x, "[o.scofo~] Window Size and Hop size must be provided");
+//                 }
+//             }
+//         }
+//     }
+// }
 
 // ─────────────────────────────────────
-static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
+static void *oscofo_new(void){
     PdOScofo *x = (PdOScofo *)pd_new(OScofoObj);
     if (!x) {
         pd_error(x, "[o.scofo~] Error creating object");
@@ -324,7 +334,7 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
     x->Event = -1;
 
     // Args
-    oscofo_processargv(x, argc, argv);
+    // oscofo_processargv(x, argc, argv);
 
     // Outlets
     x->EventOut = outlet_new(&x->PdObject, &s_float);
@@ -349,9 +359,11 @@ static void *oscofo_new(t_symbol *s, int argc, t_atom *argv) {
         x->OpenScofo->ClearError();
     }
 
+#ifdef OSCOFO_LUA
     x->OpenScofo->LuaAddModule("pd", luaopen_pd);
     x->OpenScofo->LuaAddPath(x->PatchDir);
     x->OpenScofo->LuaAddPointer(x, "_pdobj");
+#endif
     return (x);
 }
 
@@ -362,7 +374,7 @@ static void oscofo_free(PdOScofo *x) {
 
 // ─────────────────────────────────────
 extern "C" void setup_o0x2escofo_tilde(void) {
-    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)oscofo_new, (t_method)oscofo_free, sizeof(PdOScofo), CLASS_DEFAULT, A_GIMME, 0);
+    OScofoObj = class_new(gensym("o.scofo~"), (t_newmethod)oscofo_new, (t_method)oscofo_free, sizeof(PdOScofo), CLASS_DEFAULT, A_NULL);
 
     post("[oscofo~] version %d.%d.%d, by Charles K. Neimog", OSCOFO_VERSION_MAJOR, OSCOFO_VERSION_MINOR, OSCOFO_VERSION_PATCH);
 

@@ -100,11 +100,22 @@ bool Score::isNumber(std::string str) {
     if (str.empty()) {
         return false;
     }
-    const char *start = str.data();
-    const char *end = str.data() + str.size();
-    float value;
-    auto result = std::from_chars(start, end, value);
-    return result.ec == std::errc() && result.ptr == end;
+
+    if (std::isspace(static_cast<unsigned char>(str[0]))) {
+        return false;
+    }
+
+    const char* start = str.c_str();
+    char* endptr;
+    errno = 0; 
+
+    std::strtof(start, &endptr);
+
+    if (endptr == start || errno == ERANGE || endptr != start + str.size()) {
+        return false;
+    }
+
+    return true;
 }
 
 // ─────────────────────────────────────

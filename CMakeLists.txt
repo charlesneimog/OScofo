@@ -6,14 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
-option(BUILD_PD_OBJECT "Build PureData Object" OFF)
+option(BUILD_PD_OBJECT "Build PureData Object" ON)
 option(BUILD_MAX_OBJECT "Build Max Object" OFF)
 option(BUILD_ALL "Build Python Module and PureData Object" OFF)
 option(BUILD_WITH_LUA "Build Lua Module embbeded on OScofo" ON)
-
-if(BUILD_WITH_LUA)
-    add_definitions(-DOSCOFO_LUA)
-endif()
+option(UPDATE_OSCOFO_LANGUAGE "Update OScofo language grammar.js" OFF)
 
 # check if it is EMSCRIPTEN
 if(EMSCRIPTEN)
@@ -25,13 +22,9 @@ if(BUILD_ALL)
     set(BUILD_PY_MODULE ON)
     set(BUILD_PD_OBJECT ON)
     if(NOT LINUX)
-        # set(BUILD_MAX_OBJECT ON)
+        set(BUILD_MAX_OBJECT ON)
     endif()
 endif()
-
-message(STATUS "BUILD_PY_MODULE: ${BUILD_PY_MODULE}")
-message(STATUS "BUILD_PD_OBJECT: ${BUILD_PD_OBJECT}")
-message(STATUS "BUILD_MAX_OBJECT: ${BUILD_MAX_OBJECT}")
 
 set(PDCMAKE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
@@ -61,7 +54,6 @@ set_target_properties(fftw3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # │             Tree-Sitter              │
 # ╰──────────────────────────────────────╯
 set(BUILD_SHARED_LIBS OFF)
-
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
@@ -89,19 +81,21 @@ else()
     add_library(score_parser STATIC ${PARSER_OUTPUT_C})
 endif()
 
-
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
 
 # ╭──────────────────────────────────────╮
 # │                 Lua                  │
 # ╰──────────────────────────────────────╯
-file(GLOB LuaSrc "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/onelua.c")
-
-add_library(lua STATIC ${LuaSrc})
-set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
-target_compile_options(lua PRIVATE -Wno-unsafe-function)
-if(LINUX)
-    target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
+if(BUILD_WITH_LUA)
+    add_library(lua STATIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/onelua.c")
+    set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
+    target_compile_options(lua PRIVATE -Wno-unsafe-function)
+    if(LINUX)
+        target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
+    endif()
+    add_definitions(-DOSCOFO_LUA)
+else()
+    message(STATUS "Lua not included")
 endif()
 
 # ╭──────────────────────────────────────╮
@@ -132,29 +126,29 @@ if(NOT EMSCRIPTEN)
 
 endif()
 
-target_compile_options(
-    OScofo
-    PRIVATE -Wall # Enable all common warnings
-            -Wextra # Enable extra warnings -Wpedantic # Enforce strict compliance with standards
-            -Wno-unused-parameter # Suppress unused parameter warnings
-            -Wshadow # Warn about shadowed variable declarations
-            -Wformat=2 # Enable stricter format string checks
-            -Wnull-dereference # Warn on dereferences of null pointers
+if (NOT EMSCRIPTEN)
+    target_compile_options(
+        OScofo
+        PRIVATE -Wall # Enable all common warnings
+                -Wextra # Enable extra warnings -Wpedantic # Enforce strict compliance with standards
+                -Wno-unused-parameter # Suppress unused parameter warnings
+                -Wshadow # Warn about shadowed variable declarations
+                -Wformat=2 # Enable stricter format string checks
+                -Wnull-dereference # Warn on dereferences of null pointers
 
-            # Debug
-            $<$<CONFIG:Debug>:
-            -g # Enable debug symbols
-            -O0 # Disable optimizations for better debugging
-            -DDEBUG # Define DEBUG macro for conditional debug code
-            >
-            # Release
-            $<$<CONFIG:Release>:
-            -O3 # Enable maximum optimizations
-            -fopenmp
-            -DNDEBUG # Disable assertions
-            -march=native # Optimize for the current CPU
-            -flto # Enable Link-Time Optimization
-            >)
+                # Debug
+                $<$<CONFIG:Debug>:
+                -g 
+                -O0 
+                >
+
+                # Release
+                $<$<CONFIG:Release>:
+                -O3 
+                -DNDEBUG 
+                -flto 
+                >)
+endif()
 
 # ╭──────────────────────────────────────╮
 # │            Python Module             │

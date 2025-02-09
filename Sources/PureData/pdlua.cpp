@@ -1,3 +1,5 @@
+#ifdef OSCOFO_LUA
+
 #include <OScofo.hpp>
 #include <m_pd.h>
 
@@ -130,3 +132,5 @@ int luaopen_pd(lua_State *L) {
     luaL_newlib(L, pd_funcs);
     return 1;
 }
+
+#endif
