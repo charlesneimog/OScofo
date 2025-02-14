@@ -176,14 +176,14 @@ static void oscofo_following(MaxOScofo *x, long f) {
 
 // ─────────────────────────────────────
 static void oscofo_luaexecute(MaxOScofo *x, std::string code) {
-    #ifdef OSCOFO_LUA
-        if (!x->OpenScofo->LuaExecute(code)) {
-            std::string error = x->OpenScofo->LuaGetError();
-            object_error((t_object *)x, "[o.scofo~] Lua error");
-            object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
-        }
-    #endif
+#ifdef OSCOFO_LUA
+    if (!x->OpenScofo->LuaExecute(code)) {
+        std::string error = x->OpenScofo->LuaGetError();
+        object_error((t_object *)x, "[o.scofo~] Lua error");
+        object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
     }
+#endif
+}
 
 // ─────────────────────────────────────
 static void oscofo_maxsend(MaxOScofo *x, std::string r, int argc, t_atom *argv) {
@@ -197,7 +197,7 @@ static void oscofo_maxsend(MaxOScofo *x, std::string r, int argc, t_atom *argv) 
             object_method(receiver, gensym("list"), argc, argv);
         }
     } else {
-        object_error((t_object *)x, "Receiver '%s' not found or is not a 'through' object.", r.c_str());
+        object_error((t_object *)x, "Receiver '%s' not found", r.c_str());
     }
     
 }
@@ -342,6 +342,7 @@ static void *oscofo_new(t_symbol *s, long argc, t_atom *argv) {
     short PathId = path_getdefault();
     path_toabsolutesystempath(PathId, NULL, PatchPath);
     x->PatchDir = PatchPath;
+    object_post((t_object *)x, "[o.scofo~] Patch directory: %s", x->PatchDir.c_str());
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     if (x->OpenScofo->HasErrors()) {
