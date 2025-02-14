@@ -33,7 +33,13 @@ jobs:
         run: |
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
-          make install -C build
+          cmake --install build
+      - name: Upload Max Object
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{matrix.os}}
+          path: ./max
       - name: Upload Object
         uses: actions/upload-artifact@v4
         with:
