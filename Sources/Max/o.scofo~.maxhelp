@@ -191,7 +191,7 @@
 					"numoutlets" : 3,
 					"outlettype" : [ "int", "float", "list" ],
 					"patching_rect" : [ 258.0, 293.0, 431.0, 22.0 ],
-					"text" : "o.scofo~ @info db"
+					"text" : "o.scofo~"
 				}
 
 			}
