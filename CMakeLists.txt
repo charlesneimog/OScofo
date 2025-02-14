@@ -3,7 +3,6 @@ project(OScofo)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 option(BUILD_PY_MODULE "Build Python Module" OFF)
 option(BUILD_PD_OBJECT "Build PureData Object" ON)
@@ -89,7 +88,6 @@ target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include
 if(BUILD_WITH_LUA)
     add_library(lua STATIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/onelua.c")
     set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
-    target_compile_options(lua PRIVATE -Wno-unsafe-function)
     if(LINUX)
         target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
     endif()

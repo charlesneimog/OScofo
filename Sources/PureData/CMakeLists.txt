@@ -2,6 +2,7 @@ project(o.scofo~ C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "14")
 
 file(GLOB_RECURSE OBJ_SOURCES "*.cpp" "*.h")
 pd_add_external(o.scofo~ "${OBJ_SOURCES}")
