@@ -5,6 +5,8 @@ BPM 80
 // Measure number 1
 REST 0.25
 NOTE E5 0.25
+	sendto measure [measure 1]
+	delay 1000 ms sendto mydelay [after 1000ms]
 NOTE A5 0.25
 NOTE G#5 0.25
 NOTE A5 0.25
@@ -15,7 +17,6 @@ NOTE A4 0.25
 NOTE E5 0.25
 NOTE A5 0.25
 NOTE G#5 0.25
-	sendto env1 [1 2 3 4 5]
 NOTE A5 0.25
 NOTE C6 0.25
 NOTE A5 0.25
@@ -23,6 +24,7 @@ NOTE E5 0.25
 
 // Measure number 2
 NOTE A4 0.25
+	sendto measure [measure 2]
 NOTE C5 0.25
 NOTE E5 0.25
 NOTE F5 0.25
@@ -41,6 +43,7 @@ NOTE B4 0.25
 
 // Measure number 3
 NOTE A4 0.25
+	sendto measure [measure 3]
 NOTE C5 0.25
 NOTE E5 0.25
 NOTE F5 0.25
