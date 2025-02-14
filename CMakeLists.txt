@@ -121,7 +121,6 @@ if(NOT EMSCRIPTEN)
     cmake_policy(SET CMP0167 NEW)
     find_package(Boost REQUIRED)
     include_directories(${Boost_INCLUDE_DIRS})
-
 endif()
 
 if (NOT EMSCRIPTEN)

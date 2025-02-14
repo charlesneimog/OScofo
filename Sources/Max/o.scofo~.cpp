@@ -189,17 +189,16 @@ static void oscofo_luaexecute(MaxOScofo *x, std::string code) {
 static void oscofo_maxsend(MaxOScofo *x, std::string r, int argc, t_atom *argv) {
     t_symbol *sym = gensym(r.c_str());
     t_object *receiver = sym->s_thing;
-
-    if (receiver && object_classname_compare(receiver, gensym("through"))) {
-        if (argc == 0) {
-            object_method(receiver, gensym("bang"));
-        } else {
-            object_method(receiver, gensym("list"), argc, argv);
-        }
-    } else {
+    if (receiver == nullptr){
         object_error((t_object *)x, "Receiver '%s' not found", r.c_str());
+        return;
     }
-    
+
+    if (argc == 0) {
+        object_method(receiver, gensym("bang"));
+    } else {
+        object_method_typed(receiver, gensym("list"), argc, argv, nullptr);
+    }
 }
 // ─────────────────────────────────────
 static t_atom *oscofo_convertargs(MaxOScofo *x, OScofo::Action &action) {
@@ -228,7 +227,7 @@ static void oscofo_tickactions(MaxOScofo *x) {
     std::vector<Action>::iterator it = x->Actions.begin();
     while (it != x->Actions.end()) {
         Action &CurAction = *it;
-        if (CurrentTime <= CurAction.time && CurAction.time <= NextTime) {
+        if ((CurrentTime <= CurAction.time && CurAction.time <= NextTime) || CurAction.time < CurrentTime) {
             if (CurAction.isLua) {
                 oscofo_luaexecute(x, CurAction.LuaCode);
             } else {
@@ -260,7 +259,6 @@ static void oscofo_ticknewevent(MaxOScofo *x) {
             Act.Time = 60.0 / x->OpenScofo->GetLiveBPM() * Act.Time * 1000;
             time = Act.Time;
         }
-
         if (time == 0) {
             if (Act.isLua) {
                 oscofo_luaexecute(x, Act.Lua);
@@ -270,11 +268,11 @@ static void oscofo_ticknewevent(MaxOScofo *x) {
                 delete[] PdArgs;
             }
         } else {
-            double sysTime = gettime() + time;
+            double actionTime = gettime() + time;
             int size = Act.PdArgs.size();
             std::string receiver = Act.Receiver;
             t_atom *PdArgs = oscofo_convertargs(x, Act);
-            Action action = {sysTime, Act.isLua, receiver, Act.Lua, PdArgs, size};
+            Action action = {actionTime, Act.isLua, receiver, Act.Lua, PdArgs, size};
             x->Actions.push_back(action);
         }
     }
@@ -313,6 +311,8 @@ static void oscofo_perform64(MaxOScofo *x, t_object *dsp64, double **ins, long n
 static void oscofo_dsp64(MaxOScofo *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags) {
     x->BlockSize = maxvectorsize;
     x->BlockIndex = 0;
+    x->Sr = samplerate;
+    post("Sample Rate: %f", samplerate);
     x->inBuffer.resize(x->FFTSize, 0.0f);
     object_method(dsp64, gensym("dsp_add64"), x, oscofo_perform64, 0, NULL);
 }
@@ -342,7 +342,6 @@ static void *oscofo_new(t_symbol *s, long argc, t_atom *argv) {
     short PathId = path_getdefault();
     path_toabsolutesystempath(PathId, NULL, PatchPath);
     x->PatchDir = PatchPath;
-    object_post((t_object *)x, "[o.scofo~] Patch directory: %s", x->PatchDir.c_str());
 
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     if (x->OpenScofo->HasErrors()) {

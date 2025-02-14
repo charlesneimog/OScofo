@@ -1,85 +1,28 @@
 cmake_minimum_required(VERSION 3.25)
-option(MAX_SDK_CODESIGN_EXTERNS "Sign macos externs during build" ON)
-project(o.scofo)
+project(max_o.scofo)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "14")
 
-if (WIN32)
-	if (CMAKE_GENERATOR MATCHES "Visual Studio")
-		set(CMAKE_C_FLAGS_DEBUG            "/D_DEBUG /MTd /Zi /Ob0 /Od /RTC1")
-		set(CMAKE_C_FLAGS_MINSIZEREL       "/MT /O1 /Ob1 /D NDEBUG")
-		set(CMAKE_C_FLAGS_RELEASE          "/MT /O2 /Ob2 /D NDEBUG")
-		set(CMAKE_C_FLAGS_RELWITHDEBINFO   "/MT /Zi /O2 /Ob1 /D NDEBUG")
-
-		set(CMAKE_CXX_FLAGS_DEBUG          "/D_DEBUG /MTd /Zi /Ob0 /Od /RTC1")
-		set(CMAKE_CXX_FLAGS_MINSIZEREL     "/MT /O1 /Ob1 /D NDEBUG")
-		set(CMAKE_CXX_FLAGS_RELEASE        "/MT /O2 /Ob2 /D NDEBUG")
-		set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT /Zi /O2 /Ob1 /D NDEBUG")
-		add_compile_options(
-			$<$<CONFIG:>:/MT>
-			$<$<CONFIG:Debug>:/MTd>
-			$<$<CONFIG:Release>:/MT>
-			$<$<CONFIG:MinSizeRel>:/MT>
-			$<$<CONFIG:RelWithDebInfo>:/MT>
-		)		
+if (APPLE)
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "14")
+	# check if I am on arm64 or x86_64
+	execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE)
+	if (${ARCHITECTURE} STREQUAL "x86_64")
+		set(CMAKE_OSX_ARCHITECTURES "x86_64")
 	else()
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
-	endif ()
-endif ()
-
-
-
-set(EXTERN_OUTPUT_NAME_DEFAULT "o.scofo~")
-set("${PROJECT_NAME}_EXTERN_OUTPUT_NAME" "${EXTERN_OUTPUT_NAME_DEFAULT}" CACHE STRING "The name to give to the external output file/directory")
-mark_as_advanced("${PROJECT_NAME}_EXTERN_OUTPUT_NAME")
-
-set(C74_SUPPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/max-sdk-base/c74support)
-set(MAX_SDK_INCLUDES "${C74_SUPPORT_DIR}/max-includes")
-set(MAX_SDK_MSP_INCLUDES "${C74_SUPPORT_DIR}/msp-includes")
-set(MAX_SDK_JIT_INCLUDES "${C74_SUPPORT_DIR}/jit-includes")
-set(C74_INCLUDES "${C74_SUPPORT_DIR}" "${MAX_SDK_INCLUDES}" "${MAX_SDK_MSP_INCLUDES}" "${MAX_SDK_JIT_INCLUDES}")
-set(C74_SCRIPTS "${CMAKE_CURRENT_LIST_DIR}")
-set(C74_CXX_STANDARD 0)
+		set(CMAKE_OSX_ARCHITECTURES "arm64")
+	endif()
+	message(STATUS "Architecture: ${ARCHITECTURE}")
+endif()
 
 set(C74_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/max")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${C74_LIBRARY_OUTPUT_DIRECTORY}")
-install(FILES "./o.scofo~.maxhelp" DESTINATION "${CMAKE_SOURCE_DIR}/max")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-
-if (WIN32)
-	set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pdb/$<CONFIG>")
-
-	SET(MaxAPI_LIB ${MAX_SDK_INCLUDES}/x64/MaxAPI.lib)
-	SET(MaxAudio_LIB ${MAX_SDK_MSP_INCLUDES}/x64/MaxAudio.lib)
-	SET(Jitter_LIB ${MAX_SDK_JIT_INCLUDES}/x64/jitlib.lib)	
-
-	MARK_AS_ADVANCED (MaxAPI_LIB)
-	MARK_AS_ADVANCED (MaxAudio_LIB)
-	MARK_AS_ADVANCED (Jitter_LIB)
-
-	add_definitions(
-		-DMAXAPI_USE_MSCRT
-		-DWIN_VERSION
-		-D_USE_MATH_DEFINES
-	)
-elseif (APPLE)
-	file (STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/max-sdk-base/script/max-linker-flags.txt" C74_SYM_MAX_LINKER_FLAGS)
-
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${C74_SYM_MAX_LINKER_FLAGS}")
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${C74_SYM_MAX_LINKER_FLAGS}")
-	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${C74_SYM_MAX_LINKER_FLAGS}")
-endif ()
-
-include_directories(
-	"${MAX_SDK_INCLUDES}"
-	"${MAX_SDK_MSP_INCLUDES}"
-	"${MAX_SDK_JIT_INCLUDES}"
-)
+install(FILES "./o.scofo~.maxhelp" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+include(${CMAKE_CURRENT_SOURCE_DIR}/max-sdk-base/script/max-pretarget.cmake)
+set("${PROJECT_NAME}_EXTERN_OUTPUT_NAME" "o.scofo~")
 
 add_library(${PROJECT_NAME} MODULE "o.scofo~.cpp;maxlua.cpp")
 target_link_libraries(${PROJECT_NAME} PRIVATE OScofo)
+target_include_directories(${PROJECT_NAME} PRIVATE ${MAX_SDK_INCLUDES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${MAX_SDK_MSP_INCLUDES})
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/max-sdk-base/script/max-posttarget.cmake)
-
-
