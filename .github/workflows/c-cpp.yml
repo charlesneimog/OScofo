@@ -34,6 +34,8 @@ jobs:
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           cmake --install build
+          cp ./Resources/tests/bwv-1013.mp3 ./max/
+          cp .Resources/tests/bwv-1013.txt ./max/
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
         continue-on-error: true
