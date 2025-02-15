@@ -81,7 +81,7 @@ static void oscofo_assist(MaxOScofo *x, void *b, long m, long a, char *s) {
 static void oscofo_score(MaxOScofo *x, t_symbol *s) {
     // check if file exists
     if (!s) {
-        object_error((t_object *)x, "[o.scofo~] No score file provided");
+        object_error((t_object *)x, "No score file provided");
         return;
     }
 
@@ -93,11 +93,11 @@ static void oscofo_score(MaxOScofo *x, t_symbol *s) {
 
     ok = x->OpenScofo->ParseScore(scorePath);
     if (ok) {
-        object_post((t_object *)x, "[o.scofo~] Score loaded");
+        object_post((t_object *)x, "Score loaded");
     } else {
         std::vector<std::string> Errors = x->OpenScofo->GetErrorMessage();
         for (auto &error : Errors) {
-            object_post((t_object *)x, "[o.scofo~] %s", error.c_str());
+            object_post((t_object *)x, "%s", error.c_str());
         }
         x->OpenScofo->ClearError();
         return;
@@ -120,8 +120,8 @@ static void oscofo_score(MaxOScofo *x, t_symbol *s) {
     bool result = x->OpenScofo->LuaExecute(LuaCode.c_str());
     if (!result) {
         std::string error = x->OpenScofo->LuaGetError();
-        object_error((t_object *)x, "[o.scofo~] Lua error");
-        object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
+        object_error((t_object *)x, "Lua error");
+        object_error((t_object *)x, "%s", error.c_str());
     }
 #endif
 }
@@ -129,7 +129,7 @@ static void oscofo_score(MaxOScofo *x, t_symbol *s) {
 // ─────────────────────────────────────
 static void oscofo_start(MaxOScofo *x) {
     if (!x->OpenScofo->ScoreIsLoaded()) {
-        object_error((t_object *)x, "[o.scofo~] Score not loaded");
+        object_error((t_object *)x, "Score not loaded");
         return;
     }
     x->OpenScofo->SetCurrentEvent(-1);
@@ -138,7 +138,7 @@ static void oscofo_start(MaxOScofo *x) {
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
     x->Following = true;
-    object_post((t_object *)x, "[o.scofo~] Start following");
+    object_post((t_object *)x, "Start following");
 }
 
 // ─────────────────────────────────────
@@ -179,8 +179,8 @@ static void oscofo_luaexecute(MaxOScofo *x, std::string code) {
 #ifdef OSCOFO_LUA
     if (!x->OpenScofo->LuaExecute(code)) {
         std::string error = x->OpenScofo->LuaGetError();
-        object_error((t_object *)x, "[o.scofo~] Lua error");
-        object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
+        object_error((t_object *)x, "Lua error");
+        object_error((t_object *)x, "%s", error.c_str());
     }
 #endif
 }
@@ -297,7 +297,7 @@ static void oscofo_perform64(MaxOScofo *x, t_object *dsp64, double **ins, long n
     if (!ok) {
         std::vector<std::string> Errors = x->OpenScofo->GetErrorMessage();
         for (auto &error : Errors) {
-            object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
+            object_error((t_object *)x, "%s", error.c_str());
         }
         x->OpenScofo->ClearError();
         return;
@@ -312,7 +312,6 @@ static void oscofo_dsp64(MaxOScofo *x, t_object *dsp64, short *count, double sam
     x->BlockSize = maxvectorsize;
     x->BlockIndex = 0;
     x->Sr = samplerate;
-    post("Sample Rate: %f", samplerate);
     x->inBuffer.resize(x->FFTSize, 0.0f);
     object_method(dsp64, gensym("dsp_add64"), x, oscofo_perform64, 0, NULL);
 }
@@ -346,7 +345,7 @@ static void *oscofo_new(t_symbol *s, long argc, t_atom *argv) {
     x->OpenScofo = new OScofo::OScofo(x->Sr, x->FFTSize, x->HopSize);
     if (x->OpenScofo->HasErrors()) {
         for (auto &error : x->OpenScofo->GetErrorMessage()) {
-            object_error((t_object *)x, "[o.scofo~] %s", error.c_str());
+            object_error((t_object *)x, "%s", error.c_str());
         }
         x->OpenScofo->ClearError();
     }
