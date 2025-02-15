@@ -155,7 +155,7 @@ static void oscofo_following(PdOScofo *x, t_float f) {
 }
 // ─────────────────────────────────────
 static void oscofo_luaexecute(PdOScofo *x, std::string code) {
-#ifdef OSCOFO_LUA
+#if OSCOFO_LUA
     if (!x->OpenScofo->LuaExecute(code)) {
         std::string error = x->OpenScofo->LuaGetError();
         pd_error(x, "[o.scofo~] Lua error");

@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['**/*.cpp', '**/*.hpp']
+    paths: ['**/*.cpp', '**/*.hpp', '**/*.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.cpp', '**/*.hpp']
+    paths: ['**/*.cpp', '**/*.hpp', '**,*.yml']
 env:
   LIBNAME: o.scofo~
   LIBVERSION: 0.1.0
@@ -80,14 +80,28 @@ jobs:
         run: |
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
           npm install tree-sitter-cli
+      - name: Clone vcpkg
+        if: matrix.compiler == 'msvc'
+        uses: actions/checkout@v3
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+      - name: Bootstrap vcpkg
+        if: matrix.compiler == 'msvc'
+        run: | 
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+      - name: Bootstrap vcpkg
+        if: matrix.compiler == 'msvc'
+        run: ./vcpkg/vcpkg install boost:x64-windows
+
       - name: Configure and build Visual Studio
         if: matrix.compiler == 'msvc'
         run: |
-          cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release
+          cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="./vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
           cmake --build build
           cmake --install build
-          cp .\Resources\tests\bwv-1013.mp3 .\max\
-          cp .\Resources\tests\bwv-1013.txt .\max\
+          Copy-Item .\Resources\tests\bwv-1013.mp3 -Destination .\max
+          Copy-Item .\Resources\tests\bwv-1013.txt -Destination .\max
       - name: Configure and build Mingw
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'

@@ -37,10 +37,6 @@ MDP::MDP(double Sr, double FFTSize, double HopSize) {
     m_FFTSize = FFTSize;
     m_Sr = Sr;
 
-    if (m_FFTSize / 2 != (double)m_PitchTemplate.size()) {
-        m_PitchTemplate.resize((size_t)m_FFTSize / 2);
-    }
-
     m_SyncStrength = 0.5;
     m_PhaseCoupling = 0.5;
     m_BlockDur = (1 / m_Sr) * HopSize;
@@ -63,6 +59,7 @@ std::vector<std::string> MDP::GetErrorMessage() {
 
 // ─────────────────────────────────────
 void MDP::SetError(const std::string &message) {
+    printf("Error: %s.\n", message.c_str());
     m_HasErrors = true;
     m_Errors.push_back(message);
 }
@@ -75,7 +72,6 @@ void MDP::ClearError() {
 
 // ─────────────────────────────────────
 ActionVec MDP::GetEventActions(int Index) {
-
     if (Index < 0 || Index >= (int)m_States.size()) {
         return ActionVec();
     }
@@ -124,13 +120,12 @@ void MDP::BuildPitchTemplate(double Freq) {
     const double sigmaLog = sigmaSemitons / 12.0;
     const double beta = 0.5;
 
-    if (m_PitchTemplates.find(Freq) != m_PitchTemplates.end()) {
+    double rootBinFreq = round(Freq / (m_Sr / m_FFTSize));
+    if (m_PitchTemplates.find(rootBinFreq) != m_PitchTemplates.end()) {
         return;
     }
 
-    double rootBinFreq = round(Freq / (m_Sr / m_FFTSize));
     m_PitchTemplates[rootBinFreq].resize(m_FFTSize / 2, 0.0);
-
     for (int k = 1; k <= m_Harmonics; ++k) {
         double harmonicFreqHz = Freq * k;
         double sigmaHz = harmonicFreqHz * (std::pow(2.0, sigmaLog) - 1.0);
@@ -158,10 +153,10 @@ void MDP::UpdateAudioTemplate() {
     m_PitchTemplates.clear();
 
     for (int h = 0; h < StateSize; h++) {
-
         if (m_States[h].Type == NOTE || m_States[h].Type == TRILL) {
             for (AudioState &SubState : m_States[h].SubStates) {
                 if (SubState.Type == NOTE) {
+                    BuildPitchTemplate(SubState.Freq);
                 }
             }
         }
@@ -172,6 +167,7 @@ void MDP::UpdateAudioTemplate() {
 std::unordered_map<double, PitchTemplateArray> MDP::GetPitchTemplate() {
     if (m_PitchTemplates.size() == 0) {
         SetError("PitchTemplates is empty, please report this issue");
+        return m_PitchTemplates;
     }
     return m_PitchTemplates;
 }
