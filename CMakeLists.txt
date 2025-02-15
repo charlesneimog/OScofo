@@ -25,10 +25,13 @@ if(BUILD_ALL)
     endif()
 endif()
 
-set(PDCMAKE_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
-    CACHE PATH "Path to pd.cmake")
-include(${PDCMAKE_DIR}/pd.cmake)
+if (BUILD_PD_OBJECT)
+    set(PDCMAKE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
+        CACHE PATH "Path to pd.cmake")
+    include(${PDCMAKE_DIR}/pd.cmake)
+endif()
+
 
 # ╭──────────────────────────────────────╮
 # │                FFTW3                 │
