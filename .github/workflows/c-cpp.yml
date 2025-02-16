@@ -92,7 +92,7 @@ jobs:
           ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
       - name: Bootstrap vcpkg
         if: matrix.compiler == 'msvc'
-        run: ./vcpkg/vcpkg install boost:x64-windows
+        run: ./vcpkg/vcpkg install boost-math:x64-windows
 
       - name: Configure and build Visual Studio
         if: matrix.compiler == 'msvc'
