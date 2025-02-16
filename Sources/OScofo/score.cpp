@@ -186,7 +186,7 @@ double Score::PitchNode2Freq(const std::string ScoreStr, TSNode node) {
 // ─────────────────────────────────────
 double Score::ModPhases(double Phase) {
     // Following Cont (2010) conventions
-    double NewPhase = fmod(Phase + M_PI, TWO_PI);
+    double NewPhase = std::fmod(Phase + M_PI, TWO_PI);
     if (NewPhase < 0) {
         NewPhase += TWO_PI;
     }

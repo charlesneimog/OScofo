@@ -126,7 +126,7 @@ if(NOT EMSCRIPTEN)
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
-if (NOT EMSCRIPTEN)
+if (NOT EMSCRIPTEN AND NOT MSVC)
     target_compile_options(
         OScofo
         PRIVATE -Wall # Enable all common warnings
@@ -148,6 +148,21 @@ if (NOT EMSCRIPTEN)
                 -DNDEBUG 
                 -flto 
                 >)
+
+elseif (MSVC)
+    target_compile_options(
+        OScofo
+        PRIVATE
+            /W4         
+            /wd4100     
+            /Zi         
+            /Od         
+            $<$<CONFIG:Release>:
+                /Ox     
+                /DNDEBUG 
+                /GL     
+            >
+    )
 endif()
 
 # ╭──────────────────────────────────────╮

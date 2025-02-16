@@ -39,6 +39,7 @@ jobs:
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
         continue-on-error: true
+        if: matrix.prevision == '64'
         with:
           name: ${{matrix.os}}
           path: ./max
@@ -81,21 +82,21 @@ jobs:
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
           npm install tree-sitter-cli
       - name: Clone vcpkg
-        if: matrix.compiler == 'msvc'
+        if: matrix.compiler == 'msvc' && matrix.precision == '64'
         uses: actions/checkout@v3
         with:
-          repository: microsoft/vcpkg
+          repository: microsoft/vcpkg 
           path: vcpkg
       - name: Bootstrap vcpkg
-        if: matrix.compiler == 'msvc'
+        if: matrix.compiler == 'msvc' && matrix.precision == '64'
         run: | 
           ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
-      - name: Bootstrap vcpkg
-        if: matrix.compiler == 'msvc'
+      - name: Install boost-math
+        if: matrix.compiler == 'msvc' && matrix.precision == '64'
         run: ./vcpkg/vcpkg install boost-math:x64-windows
 
       - name: Configure and build Visual Studio
-        if: matrix.compiler == 'msvc'
+        if: matrix.compiler == 'msvc' && matrix.precision == '64'
         run: |
           cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="./vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
           cmake --build build
@@ -111,6 +112,7 @@ jobs:
           cmake --install build
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
+        if: matrix.compiler == 'msvc' && matrix.precision == '64'
         continue-on-error: true
         with:
           name: ${{matrix.compiler}} 
@@ -119,8 +121,7 @@ jobs:
         if: matrix.compiler == 'mingw'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{env.LIBNAME}}-f${{ matrix.precision }}-windows-${{ matrix.compiler
-            }}
+          name: ${{env.LIBNAME}}-f${{ matrix.precision }}-windows-${{ matrix.compiler }}
           path: ${{env.LIBNAME}}
   linux-build:
     runs-on: ubuntu-latest
