@@ -15,8 +15,8 @@ struct Action {
     bool isLua;
     std::string Receiver;
     std::string LuaCode;
-    t_atom *PdArgs;
-    int PdArgsSize;
+    t_atom *MaxArgs;
+    int MaxArgsSize;
 };
 
 // ─────────────────────────────────────
@@ -135,6 +135,9 @@ static void oscofo_start(MaxOScofo *x) {
     x->OpenScofo->SetCurrentEvent(-1);
     x->Event = -1;
 
+    // clear actions
+    x->Actions.clear();
+
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
     x->Following = true;
@@ -202,20 +205,20 @@ static void oscofo_maxsend(MaxOScofo *x, std::string r, int argc, t_atom *argv) 
 }
 // ─────────────────────────────────────
 static t_atom *oscofo_convertargs(MaxOScofo *x, OScofo::Action &action) {
-    int size = action.PdArgs.size();
-    t_atom *PdArgs = new t_atom[size];
+    int size = action.MaxArgs.size();
+    t_atom *MaxArgs = new t_atom[size];
 
     for (int i = 0; i < size; i++) {
-        std::variant<float, int, std::string> arg = action.PdArgs[i];
+        std::variant<float, int, std::string> arg = action.MaxArgs[i];
         if (std::holds_alternative<float>(arg)) {
-            atom_setfloat(&PdArgs[i], std::get<float>(arg));
+            atom_setfloat(&MaxArgs[i], std::get<float>(arg));
         } else if (std::holds_alternative<int>(arg)) {
-            atom_setlong(&PdArgs[i], std::get<int>(arg));
+            atom_setlong(&MaxArgs[i], std::get<int>(arg));
         } else if (std::holds_alternative<std::string>(arg)) {
-            atom_setsym(&PdArgs[i], gensym(std::get<std::string>(arg).c_str()));
+            atom_setsym(&MaxArgs[i], gensym(std::get<std::string>(arg).c_str()));
         }
     }
-    return PdArgs;
+    return MaxArgs;
 }
 
 // ─────────────────────────────────────
@@ -231,8 +234,8 @@ static void oscofo_tickactions(MaxOScofo *x) {
             if (CurAction.isLua) {
                 oscofo_luaexecute(x, CurAction.LuaCode);
             } else {
-                oscofo_maxsend(x, CurAction.Receiver, CurAction.PdArgsSize, CurAction.PdArgs);
-                delete[] CurAction.PdArgs;
+                oscofo_maxsend(x, CurAction.Receiver, CurAction.MaxArgsSize, CurAction.MaxArgs);
+                delete[] CurAction.MaxArgs;
             }
             it = x->Actions.erase(it);
         } else {
@@ -263,15 +266,15 @@ static void oscofo_ticknewevent(MaxOScofo *x) {
             if (Act.isLua) {
                 oscofo_luaexecute(x, Act.Lua);
             } else {
-                t_atom *PdArgs = oscofo_convertargs(x, Act);
-                oscofo_maxsend(x, Act.Receiver, Act.PdArgs.size(), PdArgs);
-                delete[] PdArgs;
+                t_atom *MaxArgs = oscofo_convertargs(x, Act);
+                oscofo_maxsend(x, Act.Receiver, Act.MaxArgs.size(), MaxArgs);
+                delete[] MaxArgs;
             }
         } else {
             double actionTime = gettime() + time;
-            int size = Act.PdArgs.size();
+            int size = Act.MaxArgs.size();
             std::string receiver = Act.Receiver;
-            t_atom *PdArgs = oscofo_convertargs(x, Act);
+            t_atom *MaxArgs = oscofo_convertargs(x, Act);
             Action action = {actionTime, Act.isLua, receiver, Act.Lua, PdArgs, size};
             x->Actions.push_back(action);
         }

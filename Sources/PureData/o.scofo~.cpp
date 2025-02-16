@@ -15,7 +15,7 @@ struct Action {
     bool isLua;
     std::string Receiver;
     std::string LuaCode;
-    t_atom *PdArgs;
+    t_atom *MaxArgs;
     int PdArgsSize;
 };
 
@@ -116,6 +116,9 @@ static void oscofo_start(PdOScofo *x) {
     x->OpenScofo->SetCurrentEvent(-1);
     x->Event = -1;
 
+    // clear all actions
+    x->Actions.clear();
+
     outlet_float(x->TempoOut, x->OpenScofo->GetLiveBPM());
     outlet_float(x->EventOut, 0);
     x->Following = true;
@@ -210,8 +213,8 @@ static void oscofo_tickactions(PdOScofo *x) {
             if (CurAction.isLua) {
                 oscofo_luaexecute(x, CurAction.LuaCode);
             } else {
-                oscofo_pdsend(x, CurAction.Receiver, CurAction.PdArgsSize, CurAction.PdArgs);
-                delete[] CurAction.PdArgs;
+                oscofo_pdsend(x, CurAction.Receiver, CurAction.PdArgsSize, CurAction.MaxArgs);
+                delete[] CurAction.MaxArgs;
             }
             it = x->Actions.erase(it);
         } else {
