@@ -444,13 +444,13 @@ void Score::ProcessAction(const std::string &ScoreStr, TSNode Node, MacroState &
                             // cechk if it is a number
                             if (isNumber(token)) {
                                 float number = std::stof(token);
-                                NewAction.PdArgs.push_back((float)number);
+                                NewAction.Args.push_back((float)number);
                             } else {
                                 SetError("Invalid number argument on line " + std::to_string(ts_node_start_point(pdarg).row + 1));
                                 return;
                             }
                         } else if (pdargType == "symbol") {
-                            NewAction.PdArgs.push_back(token);
+                            NewAction.Args.push_back(token);
                         }
                     }
                 }
