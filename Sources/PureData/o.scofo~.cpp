@@ -184,11 +184,11 @@ static void oscofo_pdsend(PdOScofo *x, std::string r, int argc, t_atom *argv) {
 
 // ─────────────────────────────────────
 static t_atom *oscofo_convertargs(PdOScofo *x, OScofo::Action &action) {
-    int size = action.PdArgs.size();
+    int size = action.Args.size();
     t_atom *PdArgs = new t_atom[size];
 
     for (int i = 0; i < size; i++) {
-        std::variant<float, int, std::string> arg = action.PdArgs[i];
+        std::variant<float, int, std::string> arg = action.Args[i];
         if (std::holds_alternative<float>(arg)) {
             SETFLOAT(&PdArgs[i], std::get<float>(arg));
         } else if (std::holds_alternative<int>(arg)) {
@@ -247,12 +247,12 @@ static void oscofo_ticknewevent(PdOScofo *x) {
                 oscofo_luaexecute(x, Act.Lua);
             } else {
                 t_atom *PdArgs = oscofo_convertargs(x, Act);
-                oscofo_pdsend(x, Act.Receiver, Act.PdArgs.size(), PdArgs);
+                oscofo_pdsend(x, Act.Receiver, Act.Args.size(), PdArgs);
                 delete[] PdArgs;
             }
         } else {
             double sysTime = clock_getsystimeafter(time);
-            int size = Act.PdArgs.size();
+            int size = Act.Args.size();
             std::string receiver = Act.Receiver;
             t_atom *PdArgs = oscofo_convertargs(x, Act);
             Action action = {sysTime, Act.isLua, receiver, Act.Lua, PdArgs, size};

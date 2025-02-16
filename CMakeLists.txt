@@ -120,9 +120,9 @@ target_link_libraries(OScofo PUBLIC fftw3 tree-sitter score_parser lua)
 
 # Boost Libraries
 if(NOT EMSCRIPTEN)
-    target_link_libraries(OScofo PUBLIC ${Boost_LIBRARIES})
     cmake_policy(SET CMP0167 NEW)
     find_package(Boost REQUIRED)
+    target_link_libraries(OScofo PUBLIC ${Boost_LIBRARIES})
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
@@ -149,20 +149,22 @@ if (NOT EMSCRIPTEN AND NOT MSVC)
                 -flto 
                 >)
 
-elseif (MSVC)
+elseif (CMAKE_GENERATOR MATCHES "Visual Studio")
     target_compile_options(
-        OScofo
-        PRIVATE
-            /W4         
-            /wd4100     
-            /Zi         
-            /Od         
-            $<$<CONFIG:Release>:
-                /Ox     
-                /DNDEBUG 
-                /GL     
-            >
-    )
+    OScofo
+    PRIVATE
+        /W4         
+        /wd4100     
+        /Zi         
+        /Od         
+        $<$<CONFIG:Debug>:/MTd> # Static Debug Runtime
+        $<$<CONFIG:Release>:/MT> # Static Release Runtime
+        $<$<CONFIG:Release>:
+            /Ox     
+            /DNDEBUG 
+            /GL     
+        >
+)
 endif()
 
 # ╭──────────────────────────────────────╮

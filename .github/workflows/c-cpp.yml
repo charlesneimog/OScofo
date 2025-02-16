@@ -39,7 +39,7 @@ jobs:
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
         continue-on-error: true
-        if: matrix.prevision == '64'
+        if: matrix.precision == '64'
         with:
           name: ${{matrix.os}}
           path: ./max

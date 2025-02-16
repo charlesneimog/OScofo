@@ -23,7 +23,7 @@ class Action {
     bool isLua;
     std::string Lua;
     std::string Receiver;
-    std::vector<std::variant<float, int, std::string>> PdArgs;
+    std::vector<std::variant<float, int, std::string>> Args;
     bool AbsoluteTime;
     double Time;
 };
