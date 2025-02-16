@@ -15,7 +15,7 @@ struct Action {
     bool isLua;
     std::string Receiver;
     std::string LuaCode;
-    t_atom *MaxArgs;
+    t_atom *Args;
     int MaxArgsSize;
 };
 
@@ -205,11 +205,11 @@ static void oscofo_maxsend(MaxOScofo *x, std::string r, int argc, t_atom *argv) 
 }
 // ─────────────────────────────────────
 static t_atom *oscofo_convertargs(MaxOScofo *x, OScofo::Action &action) {
-    int size = action.MaxArgs.size();
+    int size = action.Args.size();
     t_atom *MaxArgs = new t_atom[size];
 
     for (int i = 0; i < size; i++) {
-        std::variant<float, int, std::string> arg = action.MaxArgs[i];
+        std::variant<float, int, std::string> arg = action.Args[i];
         if (std::holds_alternative<float>(arg)) {
             atom_setfloat(&MaxArgs[i], std::get<float>(arg));
         } else if (std::holds_alternative<int>(arg)) {

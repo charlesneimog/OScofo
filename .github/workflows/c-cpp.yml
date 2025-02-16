@@ -39,7 +39,7 @@ jobs:
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
         continue-on-error: true
-        if: matrix.prevision == '64'
+        if: matrix.precision == '64'
         with:
           name: ${{matrix.os}}
           path: ./max
@@ -52,9 +52,12 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        compiler: [mingw, msvc]
+        compiler: [mingw]
         arch: [amd64]
         precision: [32, 64]  # pd double and single float
+        # exclude:
+        #   - compiler: msvc
+        #     precision: 32  # Exclude MSVC for 32-bit precision
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,12 +75,12 @@ jobs:
         if: matrix.compiler == 'mingw'
         uses: Cyberboss/install-winget@v1
       - name: Install PureData Float 32
-        if: matrix.precision == '32' && matrix.compiler != 'msvc'
+        if: matrix.compiler == 'mingw' && matrix.precision == '32'
         run: |
           winget install -e --id MillerPuckette.PureData --accept-source-agreements
           npm install tree-sitter-cli
       - name: Install PureData Float 64
-        if: matrix.precision == '64' && matrix.compiler != 'msvc'
+        if: matrix.compiler == 'mingw' && matrix.precision == '64'
         run: |
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
           npm install tree-sitter-cli
@@ -112,10 +115,10 @@ jobs:
           cmake --install build
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
-        if: matrix.compiler == 'msvc' && matrix.precision == '64'
+        if: matrix.compiler == 'mingw' && matrix.precision == '64'
         continue-on-error: true
         with:
-          name: ${{matrix.compiler}} 
+          name: o.scofo~-windows-max
           path: ./max
       - name: Upload
         if: matrix.compiler == 'mingw'
