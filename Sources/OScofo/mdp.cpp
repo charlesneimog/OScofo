@@ -1,6 +1,8 @@
 #include "mdp.hpp"
 #include "log.hpp"
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <boost/math/special_functions/bessel.hpp>
 #include <numeric>
 
@@ -298,7 +300,7 @@ double MDP::CouplingFunction(double Phi, double PhiMu, double Kappa) {
 // ─────────────────────────────────────
 double MDP::ModPhases(double Phase) {
     // Following Cont (2010) conventions
-    Phase = fmod(Phase + M_PI, TWO_PI);
+    Phase = std::fmod(Phase + M_PI, TWO_PI);
     if (Phase < 0) {
         Phase += TWO_PI;
     }
