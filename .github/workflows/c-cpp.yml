@@ -84,28 +84,28 @@ jobs:
         run: |
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
           npm install tree-sitter-cli
-      - name: Clone vcpkg
-        if: matrix.compiler == 'msvc' && matrix.precision == '64'
-        uses: actions/checkout@v3
-        with:
-          repository: microsoft/vcpkg 
-          path: vcpkg
-      - name: Bootstrap vcpkg
-        if: matrix.compiler == 'msvc' && matrix.precision == '64'
-        run: | 
-          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
-      - name: Install boost-math
-        if: matrix.compiler == 'msvc' && matrix.precision == '64'
-        run: ./vcpkg/vcpkg install boost-math:x64-windows
-
-      - name: Configure and build Visual Studio
-        if: matrix.compiler == 'msvc' && matrix.precision == '64'
-        run: |
-          cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="./vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
-          cmake --build build
-          cmake --install build
-          Copy-Item .\Resources\tests\bwv-1013.mp3 -Destination .\max
-          Copy-Item .\Resources\tests\bwv-1013.txt -Destination .\max
+      # - name: Clone vcpkg
+      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
+      #   uses: actions/checkout@v3
+      #   with:
+      #     repository: microsoft/vcpkg 
+      #     path: vcpkg
+      # - name: Bootstrap vcpkg
+      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
+      #   run: | 
+      #     ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+      # - name: Install boost-math
+      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
+      #   run: ./vcpkg/vcpkg install boost-math:x64-windows
+      #
+      # - name: Configure and build Visual Studio
+      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
+      #   run: |
+      #     cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="./vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+      #     cmake --build build
+      #     cmake --install build
+      #     Copy-Item .\Resources\tests\bwv-1013.mp3 -Destination .\max
+      #     Copy-Item .\Resources\tests\bwv-1013.txt -Destination .\max
       - name: Configure and build Mingw
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'
@@ -113,6 +113,8 @@ jobs:
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           cmake --install build
+          cp ./Resources/tests/bwv-1013.mp3 ./max/
+          cp ./Resources/tests/bwv-1013.txt ./max/
       - name: Upload Max Object
         uses: actions/upload-artifact@v4
         if: matrix.compiler == 'mingw' && matrix.precision == '64'

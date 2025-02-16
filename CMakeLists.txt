@@ -15,14 +15,6 @@ option(UPDATE_OSCOFO_LANGUAGE "Update OScofo language grammar.js" OFF)
 if(EMSCRIPTEN)
     message(STATUS "Emscripten compilation")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_BOOST_HEADERS=1")
-elseif(MSVC)
-    add_compile_options(
-        $<$<CONFIG:>:/MT>
-        $<$<CONFIG:Debug>:/MTd>
-        $<$<CONFIG:Release>:/MT>
-        $<$<CONFIG:MinSizeRel>:/MT>
-        $<$<CONFIG:RelWithDebInfo>:/MT>
-    )
 endif()
 
 if(BUILD_ALL)
@@ -156,23 +148,6 @@ if (NOT EMSCRIPTEN AND NOT MSVC)
                 -DNDEBUG 
                 -flto 
                 >)
-
-elseif (CMAKE_GENERATOR MATCHES "Visual Studio")
-    target_compile_options(
-    OScofo
-    PRIVATE
-        /W4         
-        /wd4100     
-        /Zi         
-        /Od         
-        $<$<CONFIG:Debug>:/MTd> # Static Debug Runtime
-        $<$<CONFIG:Release>:/MT> # Static Release Runtime
-        $<$<CONFIG:Release>:
-            /Ox     
-            /DNDEBUG 
-            /GL     
-        >
-)
 endif()
 
 # ╭──────────────────────────────────────╮
