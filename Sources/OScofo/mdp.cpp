@@ -525,30 +525,6 @@ std::vector<double> MDP::GetInitialDistribution() {
 }
 
 // ─────────────────────────────────────
-double MDP::GetInitialDistribution(int CurrentState, int j) {
-    int Size = m_MaxScoreState - CurrentState;
-    std::vector<double> InitialProb(Size);
-
-    double Dur = 0;
-    double Sum = 0;
-    for (int i = m_CurrentStateIndex; i < m_MaxScoreState; i++) {
-        int index = i - m_CurrentStateIndex;
-        double DurProb = exp(-0.5 * (Dur / m_BeatsAhead));
-        InitialProb[index] = DurProb;
-        Dur += m_States[j].Duration;
-        Sum += DurProb;
-    }
-
-    // normalize
-    for (int i = 0; i < Size; i++) {
-        InitialProb[i] /= Sum;
-    }
-    int index = j - m_CurrentStateIndex;
-
-    return InitialProb[index];
-}
-
-// ─────────────────────────────────────
 double MDP::GetTransProbability(int i, int j) {
     // simplest markov
     if (i + 1 == j) {

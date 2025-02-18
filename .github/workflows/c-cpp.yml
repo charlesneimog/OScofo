@@ -3,6 +3,7 @@ name: C/C++ CI
 on:
   workflow_dispatch:
   push:
+    tags: ['v*']
     branches: [main]
     paths: ['**/*.cpp', '**/*.hpp', '**/*.yml']
   pull_request:
@@ -10,7 +11,7 @@ on:
     paths: ['**/*.cpp', '**/*.hpp', '**,*.yml']
 env:
   LIBNAME: o.scofo~
-  LIBVERSION: 0.1.0
+  LIBVERSION: 0.1.1
 jobs:
   macos-build:
     runs-on: ${{ matrix.os }}
@@ -29,25 +30,41 @@ jobs:
           brew install boost
           brew install pybind11
           brew install tree-sitter
-      - name: Build Object for Arm
+      - name: Set Architecture Name
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            echo "ARCH_NAME=arm" >> $GITHUB_ENV
+          else
+            echo "ARCH_NAME=x86" >> $GITHUB_ENV
+          fi
+      - name: Build Object
         run: |
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           cmake --install build
           cp ./Resources/tests/bwv-1013.mp3 ./max/
           cp ./Resources/tests/bwv-1013.txt ./max/
-      - name: Upload Max Object
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
+          zip -r 'pd-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}-pd${{matrix.precision}}.zip' o.scofo~
+          zip -r 'max-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}.zip' max
+      - name: Release Pd External
+        uses: softprops/action-gh-release@v2
+        with:
+          files: | 
+            pd-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}-pd${{ matrix.precision }}.zip
+          draft: true
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Max External
+        uses: softprops/action-gh-release@v2
         if: matrix.precision == '64'
         with:
-          name: ${{matrix.os}}
-          path: ./max
-      - name: Upload Object
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{env.LIBNAME}}-macos-${{matrix.os}}-${{matrix.precision}}
-          path: ${{env.LIBNAME}}
+          files: | 
+            max-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}.zip
+          draft: true
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   windows-build:
     runs-on: windows-latest
     strategy:
@@ -70,7 +87,7 @@ jobs:
         with:
           msystem: mingw64
           update: false
-          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-tree-sitter mingw-w64-x86_64-pybind11
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-tree-sitter mingw-w64-x86_64-pybind11 zip
       - name: Install winget
         if: matrix.compiler == 'mingw'
         uses: Cyberboss/install-winget@v1
@@ -115,19 +132,26 @@ jobs:
           cmake --install build
           cp ./Resources/tests/bwv-1013.mp3 ./max/
           cp ./Resources/tests/bwv-1013.txt ./max/
-      - name: Upload Max Object
-        uses: actions/upload-artifact@v4
-        if: matrix.compiler == 'mingw' && matrix.precision == '64'
-        continue-on-error: true
+          zip -r 'pd-${{env.LIBNAME}}-windows-pd${{matrix.precision}}.zip' o.scofo~
+          zip -r 'max-${{env.LIBNAME}}-windows.zip' max
+      - name: Release Pd External
+        uses: softprops/action-gh-release@v2
         with:
-          name: o.scofo~-windows-max
-          path: ./max
-      - name: Upload
-        if: matrix.compiler == 'mingw'
-        uses: actions/upload-artifact@v4
+          files: | 
+            pd-${{ env.LIBNAME }}-windows-pd${{ matrix.precision }}.zip
+          draft: true
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release Max External
+        uses: softprops/action-gh-release@v2
+        if: matrix.precision == '64'
         with:
-          name: ${{env.LIBNAME}}-f${{ matrix.precision }}-windows-${{ matrix.compiler }}
-          path: ${{env.LIBNAME}}
+          files: | 
+            max-${{ env.LIBNAME }}-windows.zip
+          draft: true
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   linux-build:
     runs-on: ubuntu-latest
     strategy:
@@ -162,52 +186,28 @@ jobs:
         run: |
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
-          make install -C build
+          cmake --install build 
+          zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Build Object
         if: matrix.arch == 'aarch64'
         run: |
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
           make install -C build
+          zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Build Object
         if: matrix.arch == 'arm'
         run: |
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
           make install -C build
-      - name: Upload Object
-        uses: actions/upload-artifact@v4
+          zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
+      - name: Release Pd External
+        uses: softprops/action-gh-release@v2
         with:
-          name: ${{ env.LIBNAME }}-linux-${{matrix.arch}}-${{matrix.precision}}
-          path: ${{env.LIBNAME}}
-  package-artifacts:
-    needs: [macos-build, windows-build, linux-build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: ${{ env.LIBNAME }}-*
-          path: artifacts
-          merge-multiple: true
-      - name: Clear tmp files
-        run: rm -f artifacts/*.pdb
-        # ──────────────────────────────────────
-      - name: Install Deken
-        continue-on-error: true
-        run: |
-          mkdir -p ${PWD}/package
-          docker run --rm --user $(id -u) \
-          --volume ${PWD}/artifacts:/${{env.LIBNAME}} \
-          --volume ${PWD}/package:/package \
-          registry.git.iem.at/pd/deken \
-          deken package /${{env.LIBNAME}} --output-dir /package -v ${{env.LIBVERSION}} -n ${{env.LIBNAME}}
-      - name: Clear Artifacts
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: ${{ env.LIBNAME }}-*
-      - name: Upload Deken
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.LIBNAME }}-${{env.LIBVERSION}}
-          path: ./package/
+          files: | 
+            pd-${{ env.LIBNAME }}-linux-${{ matrix.arch }}-pd${{ matrix.precision }}.zip
+          draft: true
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
