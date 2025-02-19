@@ -504,7 +504,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 72.0, 166.0, 136.0, 22.0 ],
-					"text" : "score bwv-1013-max.txt"
+					"text" : "score bwv-1013.txt"
 				}
 
 			}
