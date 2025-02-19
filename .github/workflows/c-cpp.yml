@@ -11,7 +11,6 @@ on:
     paths: ['**/*.cpp', '**/*.hpp', '**,*.yml']
 env:
   LIBNAME: o.scofo~
-  LIBVERSION: 0.1.1
 jobs:
   macos-build:
     runs-on: ${{ matrix.os }}

@@ -83,6 +83,7 @@ nav:
       - Actions Configuration: score/actions.md
       - Lua Tutorial: score/lua.md
   - OScofo Online Editor: Editor/
+  - Downloads: https://github.com/charlesneimog/OScofo/releases/latest
 extra:
   social:
     - icon: fontawesome/brands/instagram
