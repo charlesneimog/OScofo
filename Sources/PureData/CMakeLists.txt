@@ -36,3 +36,5 @@ target_link_libraries(o.scofo_tilde PRIVATE OScofo)
 
 pd_add_datafile(o.scofo_tilde "${CMAKE_CURRENT_SOURCE_DIR}/../../README.md")
 pd_add_datafile(o.scofo_tilde "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/o.scofo~-help.pd")
+pd_add_datafile(o.scofo_tilde "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/tests/bwv-1013.mp3")
+pd_add_datafile(o.scofo_tilde "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/tests/bwv-1013.txt")
