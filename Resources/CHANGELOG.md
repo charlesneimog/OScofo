@@ -1,0 +1,2 @@
+- Update PureData help-patch..
+- Fix Max help-patch.
