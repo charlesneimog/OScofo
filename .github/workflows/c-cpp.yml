@@ -48,7 +48,10 @@ jobs:
           zip -r 'max-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}.zip' max
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: ./Resources/CHANGELOG.md
+          tag_name: ${{ github.ref }}
           files: | 
             pd-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}-pd${{ matrix.precision }}.zip
           draft: true
@@ -57,8 +60,10 @@ jobs:
 
       - name: Release Max External
         uses: softprops/action-gh-release@v2
-        if: matrix.precision == '64'
+        if: matrix.precision == '64' && startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: ./Resources/CHANGELOG.md
+          tag_name: ${{ github.ref }}
           files: | 
             max-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}.zip
           draft: true
@@ -101,28 +106,6 @@ jobs:
         run: |
           winget install -e --id MillerPuckette.Pd64 --accept-source-agreements
           npm install tree-sitter-cli
-      # - name: Clone vcpkg
-      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
-      #   uses: actions/checkout@v3
-      #   with:
-      #     repository: microsoft/vcpkg 
-      #     path: vcpkg
-      # - name: Bootstrap vcpkg
-      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
-      #   run: | 
-      #     ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
-      # - name: Install boost-math
-      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
-      #   run: ./vcpkg/vcpkg install boost-math:x64-windows
-      #
-      # - name: Configure and build Visual Studio
-      #   if: matrix.compiler == 'msvc' && matrix.precision == '64'
-      #   run: |
-      #     cmake . -B build -DBUILD_PD_OBJECT=OFF -DBUILD_MAX_OBJECT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="./vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
-      #     cmake --build build
-      #     cmake --install build
-      #     Copy-Item .\Resources\tests\bwv-1013.mp3 -Destination .\max
-      #     Copy-Item .\Resources\tests\bwv-1013.txt -Destination .\max
       - name: Configure and build Mingw
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'
@@ -136,7 +119,10 @@ jobs:
           zip -r 'max-${{env.LIBNAME}}-windows.zip' max
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: ./Resources/CHANGELOG.md
+          tag_name: ${{ github.ref }}
           files: | 
             pd-${{ env.LIBNAME }}-windows-pd${{ matrix.precision }}.zip
           draft: true
@@ -144,8 +130,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Release Max External
         uses: softprops/action-gh-release@v2
-        if: matrix.precision == '64'
+        if: matrix.precision == '64' && startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: ./Resources/CHANGELOG.md
+          tag_name: ${{ github.ref }}
           files: | 
             max-${{ env.LIBNAME }}-windows.zip
           draft: true
@@ -204,7 +192,10 @@ jobs:
           zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: ./Resources/CHANGELOG.md
+          tag_name: ${{ github.ref }}
           files: | 
             pd-${{ env.LIBNAME }}-linux-${{ matrix.arch }}-pd${{ matrix.precision }}.zip
           draft: true
