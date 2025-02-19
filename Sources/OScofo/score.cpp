@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <charconv>
+#include <sstream> // Add this line
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -111,9 +111,9 @@ bool Score::isNumber(std::string str) {
         return false;
     }
 
-    const char* start = str.c_str();
-    char* endptr;
-    errno = 0; 
+    const char *start = str.c_str();
+    char *endptr;
+    errno = 0;
 
     std::strtof(start, &endptr);
 
@@ -447,10 +447,10 @@ void Score::ProcessAction(const std::string &ScoreStr, TSNode Node, MacroState &
                         std::string pdargType = ts_node_type(pdarg);
                         std::string token = GetCodeStr(ScoreStr, pdarg);
                         if (pdargType == "number") {
-                            // cechk if it is a number
+                            std::variant<float, int, std::string> number = 0;
                             if (isNumber(token)) {
-                                float number = std::stof(token);
-                                NewAction.Args.push_back((float)number);
+                                number = std::stof(token);
+                                NewAction.Args.push_back(number);
                             } else {
                                 SetError("Invalid number argument on line " + std::to_string(ts_node_start_point(pdarg).row + 1));
                                 return;
@@ -503,12 +503,19 @@ States Score::Parse(std::string ScoreFile) {
     m_LuaCode.clear();
 
     // Open the score file for reading
-    std::ifstream File(ScoreFile);
-    if (!File) {
-        SetError("Score File not found");
+    std::ifstream File(ScoreFile, std::ios::binary);
+    if (!File.is_open()) {
+        SetError("Score File not found or could not be opened");
         return m_ScoreStates;
     }
 
+    File.clear(); // Clear error flags
+
+    std::ostringstream Buffer;
+    Buffer << File.rdbuf(); // Safely read the entire file
+    std::string ScoreStr = Buffer.str();
+
+    // Proceed with parsing ScoreStr...
     // Config Values
     m_CurrentBPM = 60;
     m_Transpose = 0;
@@ -523,7 +530,6 @@ States Score::Parse(std::string ScoreFile) {
     std::string Line;
 
     // read and process score
-    std::string ScoreStr = std::string((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
     ParseInput(ScoreStr);
 
     if (!HasErrors()) {

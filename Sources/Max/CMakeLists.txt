@@ -16,7 +16,11 @@ if (APPLE)
 endif()
 
 set(C74_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/max")
-install(FILES "./o.scofo~.maxhelp" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../README.md" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/tests/bwv-1013.mp3" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/tests/bwv-1013.txt" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../Resources/tests/o.scofo~.maxhelp" DESTINATION "${C74_LIBRARY_OUTPUT_DIRECTORY}")
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/max-sdk-base/script/max-pretarget.cmake)
 set("${PROJECT_NAME}_EXTERN_OUTPUT_NAME" "o.scofo~")
 

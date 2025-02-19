@@ -1,0 +1,23 @@
+[project]
+name = "OScofo"
+version = "0.1.2-alpha"
+authors = [{name = "Charles K. Neimog", email = "charlesneimog@outlook.com"}]
+description = "OScofo is an OpenSource Score Follower based on the Research of Cont (2010)."
+readme = "README.md"
+readme-content-type = "text/markdown"
+repository = "https://github.com/charlesneimog/OScofo"
+requires-python = ">=3.10, <3.13"
+
+[build-system]
+requires = [
+    "scikit-build-core",
+    "pybind11",
+]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build.cmake.define]
+BUILD_PD_OBJECT = "OFF"
+BUILD_PY_MODULE = "ON"
+
+[tool.cibuildwheel]
+skip = "pp* *-musllinux* *i686 win32"

@@ -3,7 +3,7 @@ name: C/C++ CI
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    tags: [v*]
     branches: [main]
     paths: ['**/*.cpp', '**/*.hpp', '**/*.yml']
   pull_request:
@@ -12,6 +12,48 @@ on:
 env:
   LIBNAME: o.scofo~
 jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, macos-13, windows-latest, ubuntu-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Mac Build
+        if: runner.os == 'macOS'
+        run: |
+          python -m pip install --upgrade pip 
+          pip install build scikit-build-core cibuildwheel
+          CMAKE_BUILD_PARALLEL_LEVEL=8 cibuildwheel --output-dir dist
+      - name: Linux Build
+        if: runner.os == 'Linux'
+        run: |
+          pip install --upgrade pip build
+          pip install scikit-build-core cibuildwheel
+          pip install build scikit-build-core cibuildwheel
+          CMAKE_BUILD_PARALLEL_LEVEL=8 cibuildwheel --output-dir dist
+      - name: Windows Build
+        if: runner.os == 'Windows'
+        run: |
+          python -m pip install --upgrade pip build
+          python -m pip install scikit-build-core cibuildwheel
+          $env:CMAKE_BUILD_PARALLEL_LEVEL = "8"
+          cibuildwheel --output-dir dist
+      - name: Upload to PyPI
+        continue-on-error: true
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |-
+          pip install twine
+          twine upload dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
   macos-build:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -26,7 +68,6 @@ jobs:
       - name: Install PureData and Deps arm64 Mac
         run: |
           brew install pd
-          brew install boost
           brew install pybind11
           brew install tree-sitter
       - name: Set Architecture Name
@@ -38,7 +79,8 @@ jobs:
           fi
       - name: Build Object
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
+          mkdir -p max
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           cmake --install build
           cp ./Resources/tests/bwv-1013.mp3 ./max/
@@ -50,25 +92,23 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./Resources/CHANGELOG.md
-          tag_name: ${{ github.ref }}
-          files: | 
+          tag_name: ${{ github.ref_name }}
+          files: |
             pd-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}-pd${{ matrix.precision }}.zip
           draft: true
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Release Max External
         uses: softprops/action-gh-release@v2
         if: matrix.precision == '64' && startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./Resources/CHANGELOG.md
-          tag_name: ${{ github.ref }}
-          files: | 
+          tag_name: ${{ github.ref_name }}
+          files: |
             max-${{ env.LIBNAME }}-macos-${{ env.ARCH_NAME }}.zip
           draft: true
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
   windows-build:
     runs-on: windows-latest
     strategy:
@@ -91,7 +131,8 @@ jobs:
         with:
           msystem: mingw64
           update: false
-          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost mingw-w64-x86_64-tree-sitter mingw-w64-x86_64-pybind11 zip
+          install: make mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-cmake mingw-w64-x86_64-boost
+            mingw-w64-x86_64-tree-sitter mingw-w64-x86_64-pybind11 zip
       - name: Install winget
         if: matrix.compiler == 'mingw'
         uses: Cyberboss/install-winget@v1
@@ -109,7 +150,7 @@ jobs:
         shell: msys2 {0}
         if: matrix.compiler == 'mingw'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           cmake --install build
           cp ./Resources/tests/bwv-1013.mp3 ./max/
@@ -121,8 +162,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./Resources/CHANGELOG.md
-          tag_name: ${{ github.ref }}
-          files: | 
+          tag_name: ${{ github.ref_name }}
+          files: |
             pd-${{ env.LIBNAME }}-windows-pd${{ matrix.precision }}.zip
           draft: true
           prerelease: true
@@ -132,13 +173,12 @@ jobs:
         if: matrix.precision == '64' && startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./Resources/CHANGELOG.md
-          tag_name: ${{ github.ref }}
-          files: | 
+          tag_name: ${{ github.ref_name }}
+          files: |
             max-${{ env.LIBNAME }}-windows.zip
           draft: true
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
   linux-build:
     runs-on: ubuntu-latest
     strategy:
@@ -171,33 +211,32 @@ jobs:
       - name: Build Object
         if: matrix.arch == 'amd64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
-          cmake --install build 
+          sudo cmake --install build 
           zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Build Object
         if: matrix.arch == 'aarch64'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
-          make install -C build
+          sudo cmake --install build 
           zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Build Object
         if: matrix.arch == 'arm'
         run: |
-          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release
+          cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DCMAKE_SYSTEM_PROCESSOR=arm -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j$(nproc)
-          make install -C build
+          sudo cmake --install build 
           zip -r 'pd-${{env.LIBNAME}}-linux-${{matrix.arch}}-pd${{matrix.precision}}.zip' o.scofo~
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./Resources/CHANGELOG.md
-          tag_name: ${{ github.ref }}
-          files: | 
+          tag_name: ${{ github.ref_name }}
+          files: |
             pd-${{ env.LIBNAME }}-linux-${{ matrix.arch }}-pd${{ matrix.precision }}.zip
           draft: true
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-

@@ -25,13 +25,19 @@ if(BUILD_ALL)
     endif()
 endif()
 
-if (BUILD_PD_OBJECT)
+if(BUILD_ALL_OBJECTS)
+    set(BUILD_PD_OBJECT ON)
+    if(NOT LINUX)
+        set(BUILD_MAX_OBJECT ON)
+    endif()
+endif()
+
+if(BUILD_PD_OBJECT)
     set(PDCMAKE_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/Resources/pd.cmake/"
         CACHE PATH "Path to pd.cmake")
     include(${PDCMAKE_DIR}/pd.cmake)
 endif()
-
 
 # ╭──────────────────────────────────────╮
 # │                FFTW3                 │
@@ -42,7 +48,10 @@ option(BUILD_TESTS OFF)
 set(FFTW3_FILE ${CMAKE_BINARY_DIR}/fftw-3.3.10.tar.gz)
 if(NOT EXISTS ${FFTW3_FILE})
     message(STATUS "Downloading FFTW3")
-    file(DOWNLOAD https://www.fftw.org/fftw-3.3.10.tar.gz ${FFTW3_FILE})
+    file(
+        DOWNLOAD https://www.fftw.org/fftw-3.3.10.tar.gz ${FFTW3_FILE}
+        SHOW_PROGRESS
+        STATUS DOWNLOAD_STATUS)
 endif()
 
 file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/fftw-3.3.10.tar.gz DESTINATION
@@ -59,7 +68,7 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(Libraries/tree-sitter/lib/ EXCLUDE_FROM_ALL)
 set(PARSER_OUTPUT_C ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo/src/parser.c)
 
-if (UPDATE_OSCOFO_LANGUAGE)
+if(UPDATE_OSCOFO_LANGUAGE)
     find_program(TREE_SITTER_EXECUTABLE tree-sitter)
     set(TREE_SITTER_WORKING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Resources/tree-sitter-scofo)
     if(TREE_SITTER_EXECUTABLE AND NOT MINGW)
@@ -83,6 +92,7 @@ else()
     add_library(score_parser STATIC ${PARSER_OUTPUT_C})
 endif()
 
+set_target_properties(score_parser PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include)
 
 # ╭──────────────────────────────────────╮
@@ -120,33 +130,41 @@ target_link_libraries(OScofo PUBLIC fftw3 tree-sitter score_parser lua)
 
 # Boost Libraries
 if(NOT EMSCRIPTEN)
-    cmake_policy(SET CMP0167 NEW)
-    find_package(Boost REQUIRED)
-    target_link_libraries(OScofo PUBLIC ${Boost_LIBRARIES})
-    include_directories(${Boost_INCLUDE_DIRS})
+    include(FetchContent)
+    set(BOOST_URL "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.bz2")
+    set(BOOST_TAR "${CMAKE_BINARY_DIR}/boost_1_87_0.tar.bz2")
+    if(NOT EXISTS ${BOOST_TAR})
+        message(STATUS "Downloading Boost...")
+        file(DOWNLOAD ${BOOST_URL} ${BOOST_TAR} SHOW_PROGRESS)
+    endif()
+    FetchContent_Declare(boost URL file://${BOOST_TAR})
+    FetchContent_MakeAvailable(boost)
+    include_directories(${boost_SOURCE_DIR})
 endif()
 
-if (NOT EMSCRIPTEN AND NOT MSVC)
+if(LINUX)
+    target_compile_options(OScofo PUBLIC -static-libstdc++ -Wl,--exclude-libs,ALL)
+endif()
+
+if(NOT EMSCRIPTEN AND NOT MSVC)
     target_compile_options(
         OScofo
         PRIVATE -Wall # Enable all common warnings
-                -Wextra # Enable extra warnings -Wpedantic # Enforce strict compliance with standards
+                -Wextra # Enable extra warnings -Wpedantic # Enforce strict compliance with
+                        # standards
                 -Wno-unused-parameter # Suppress unused parameter warnings
                 -Wshadow # Warn about shadowed variable declarations
                 -Wformat=2 # Enable stricter format string checks
                 -Wnull-dereference # Warn on dereferences of null pointers
-
                 # Debug
                 $<$<CONFIG:Debug>:
-                -g 
-                -O0 
+                -g
+                -O0
                 >
-
                 # Release
                 $<$<CONFIG:Release>:
-                -O3 
-                -DNDEBUG 
-                -flto 
+                -O3
+                -DNDEBUG
                 >)
 endif()
 
