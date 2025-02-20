@@ -342,7 +342,7 @@ static void *oscofo_new(void){
     // Outlets
     x->EventOut = outlet_new(&x->PdObject, &s_float);
     x->TempoOut = outlet_new(&x->PdObject, &s_float);
-    x->InfoOut = outlet_new(&x->PdObject, &s_anything);
+    // x->InfoOut = outlet_new(&x->PdObject, &s_anything);
 
     // Schedule
     x->ClockEvent = clock_new(x, (t_method)oscofo_ticknewevent);

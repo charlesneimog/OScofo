@@ -1,1 +1,1 @@
-- fix python packages
+- Remove unsed outlet of the object of PureData;

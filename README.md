@@ -5,6 +5,15 @@
 
 `OScofo` is an open-source project designed to provide score following capabilities for contemporary music applications. Originally developed as a PureData (Pd) object, OScofo has now been expanded into a versatile C++ library that integrates seamlessly with multiple environments, including a Max Object, Python package, and others comming. Currently under development, OScofo is already functional and serves as a valuable tool for researchers and musicians.
 
+## Download
+
+* Check the [Releases](https://github.com/charlesneimog/OScofo/releases/latest) Page.
+
+## Examples
+
+* [Cânticos de Silício](https://charlesneimog.github.io/Canticos-de-Silicio-I/) by Charles K. Neimog;
+* [BWV-1013](https://charlesneimog.github.io/pd4web/tests/OScofo) by Bach;
+
 ## Goal
 
 The aim of *OScofo* is to provide a straightforward and accessible tool for real-time score following. By keeping the software lightweight, it can run seamlessly on the web through the [pd4web](https://charlesneimog.github.io/pd4web/) platform, thanks to the ability to use PureData directly in web browsers. With _pd4web_ and _OScofo_ will be possible to use the software in rehearsals with just a single click, eliminating the need for external libraries, compatibility issues, or complex installations -- ultimately facilitating the sharing and performance of contemporary music.
@@ -26,29 +35,28 @@ I invite composers, researchers and developers to contribute to the *OScofo* pro
 
 ### Requirements
 
-* cmake and ninja (`pip install cmake ninja`)
-* boost (`brew install boost`, `apt install boost`, `pacman -S mingw-w64-x86_64-boost`)
 * On Windows, you need `mingw64`.
 
 #### Optional
-* treesitter (`npm install tree-sitter`) (If you want to change/update score syntax)
+* treesitter (`npm install tree-sitter`) (If you want to change/update score syntax).
 * pybind11 (optional): To build Python package.
 * PureData (optional): To build the Pd Object.
 
 #### Building Options
 
 * `BUILD_ALL`: Build all OScofo modules (Python, Pd, Max).
+* `BUILD_ALL_OBJECTS`: Build Pd and Max Objects.
 * `BUILD_PY_MODULE`: Build or not the OScofo python module.
 * `BUILD_PD_OBJECT`: Build or not the Pd Object.
 * `BUILD_MAX_OBJECT`: Build or not the Max Object.
 
-* `PDLIBDIR`: Where the Pd object will be installed
+* `PDLIBDIR`: Where the Pd object will be installed.
 
 #### Building Steps
 
 ``` bash
 git clone https://github.com/charlesneimog/OScofo --recursive
-cmake . -B build -DBUILD_ALL=ON -G Ninja 
+cmake . -B build -DBUILD_ALL_OBJECTS=ON -G Ninja 
 cmake --build build
 ```
 
