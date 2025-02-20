@@ -86,4 +86,39 @@ The `pd` module inside Lua allows interaction with Pure Data functionalities, ex
 
 ### <h2 align="center">:simple-lua: `max` Lua Module</h2>
 
-!!! info "On TODO list"
+The `max` module inside Lua allows interaction with Max functionalities, exposing the following functions:
+
+- **`max.print`**  
+    - **`input`**: A string message to print.  
+    - **`output`**: no output.
+    - **`description`**: Logs a message to the console, similar to Max's `print` object.
+
+---
+- **`max.error`**  
+    - **`input`**: A string error message.  
+    - **`output`**: no output.
+    - **`description`**: Logs an error message in the Max console, similar to a `print` with error severity.
+
+---
+- **`max.sendBang`**  
+    - **`input`**: A string representing the receiver symbol in Max.  
+    - **`output`**: no output.
+    - **`description`**: Sends a bang message to a specified receiver in Max.
+
+---
+- **`max.sendFloat`**  
+    - **`input`**: A float value and a string representing the destination symbol in Max.  
+    - **`output`**: no output.
+    - **`description`**: Sends a floating-point number to a specified destination in Max.
+
+---
+- **`max.sendSymbol`**  
+    - **`input`**: A string symbol and a string representing the destination symbol in Max.  
+    - **`output`**: no output.
+    - **`description`**: Sends a symbol to a specified destination in Pure Data.
+
+---
+- **`max.sendList`**  
+    - **`input`**: A list of values (mixed types) and a string representing the destination symbol in Max.  
+    - **`output`**: no output.
+    - **`description`**: Sends a list of values to a specified destination in Max.
