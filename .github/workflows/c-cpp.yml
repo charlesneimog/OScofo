@@ -27,33 +27,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.12
       - name: Mac Build
         if: runner.os == 'macOS'
         run: |
-          python -m pip install --upgrade pip 
-          pip install build scikit-build-core cibuildwheel
+          pip install build scikit-build-core cibuildwheel twine
           CMAKE_BUILD_PARALLEL_LEVEL=8 cibuildwheel --output-dir dist
       - name: Linux Build
         if: runner.os == 'Linux'
         run: |
-          pip install --upgrade pip build
-          pip install scikit-build-core cibuildwheel
-          pip install build scikit-build-core cibuildwheel
+          pip install build scikit-build-core cibuildwheel twine
           CMAKE_BUILD_PARALLEL_LEVEL=8 cibuildwheel --output-dir dist
       - name: Windows Build
         if: runner.os == 'Windows'
         run: |
-          python -m pip install --upgrade pip build
-          python -m pip install scikit-build-core cibuildwheel
+          python -m pip install build scikit-build-core cibuildwheel twine
           $env:CMAKE_BUILD_PARALLEL_LEVEL = "8"
           cibuildwheel --output-dir dist
       - name: Upload to PyPI
-        continue-on-error: true
-        env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: |-
-          pip install twine
+        run: |
           twine upload dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
   macos-build:
     runs-on: ${{ matrix.os }}
