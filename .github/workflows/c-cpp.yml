@@ -61,6 +61,18 @@ jobs:
       matrix:
         os: [macos-latest, macos-13]
         precision: [32, 64]
+        newTag: 
+          - ${{ startsWith(github.ref, 'refs/tags/') }}
+        exclude:
+          - newTag: false
+            os: macos-13
+            precision: 32
+          - newTag: false
+            os: macos-13
+            precision: 64
+          - newTag: false
+            os: macos-latest
+            precision: 64
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,6 +131,11 @@ jobs:
         compiler: [mingw]
         arch: [amd64]
         precision: [32, 64]  # pd double and single float
+        newTag: 
+          - ${{startsWith(github.ref, 'refs/tags/')}}
+        exclude:
+          - newTag: false
+            precision: 64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -185,8 +202,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        newTag: 
+          - ${{ startsWith(github.ref, 'refs/tags/') }}
         arch: [amd64, aarch64, arm]
         precision: [32, 64]
+        exclude:
+          - newTag: false
+            arch: aarch64
+            precision: 32
+          - newTag: false
+            arch: arm
+            precision: 32
+          - newTag: false
+            arch: aarch64
+            precision: 64
+          - newTag: false
+            arch: arm
+            precision: 64
+          - newTag: false
+            arch: amd64
+            precision: 64
     steps:
       - uses: actions/checkout@v4
         with:
