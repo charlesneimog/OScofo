@@ -17,7 +17,6 @@ if(NOT APPLE AND NOT MSVC)
     target_link_options(_OScofo PRIVATE -static-libstdc++ -Wl,--exclude-libs,ALL)
 endif()
 
-install(TARGETS _OScofo LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OScofo)
-
-install(FILES "${OSCOFO_PY_MODULE}" DESTINATION ${CMAKE_INSTALL_LIBDIR}/OScofo)
+install(TARGETS _OScofo LIBRARY DESTINATION OScofo)
+install(FILES "${OSCOFO_PY_MODULE}" DESTINATION OScofo)
 

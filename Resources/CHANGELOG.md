@@ -1,2 +1,1 @@
-- Update PureData help-patch..
-- Fix Max help-patch.
+- fix python packages
