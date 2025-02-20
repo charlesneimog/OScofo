@@ -13,6 +13,7 @@ env:
   LIBNAME: o.scofo~
 jobs:
   build:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -83,10 +84,12 @@ jobs:
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j $(sysctl -n hw.logicalcpu)
           cmake --install build
+          zip -r 'pd-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}-pd${{matrix.precision}}.zip' o.scofo~
+          rm -dfr o.scofo~
           cp ./Resources/tests/bwv-1013.mp3 ./max/
           cp ./Resources/tests/bwv-1013.txt ./max/
-          zip -r 'pd-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}-pd${{matrix.precision}}.zip' o.scofo~
-          zip -r 'max-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}.zip' max
+          mv max o.scofo~
+          zip -r 'max-${{env.LIBNAME}}-macos-${{env.ARCH_NAME}}.zip' o.scofo~
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -116,9 +119,6 @@ jobs:
         compiler: [mingw]
         arch: [amd64]
         precision: [32, 64]  # pd double and single float
-        # exclude:
-        #   - compiler: msvc
-        #     precision: 32  # Exclude MSVC for 32-bit precision
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -153,10 +153,12 @@ jobs:
           cmake . -B build -DPD_FLOATSIZE=${{ matrix.precision }} -DPDLIBDIR=./ -DBUILD_ALL_OBJECTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
           cmake --install build
+          zip -r 'pd-${{env.LIBNAME}}-windows-pd${{matrix.precision}}.zip' o.scofo~
+          rm -dfr o.scofo~
           cp ./Resources/tests/bwv-1013.mp3 ./max/
           cp ./Resources/tests/bwv-1013.txt ./max/
-          zip -r 'pd-${{env.LIBNAME}}-windows-pd${{matrix.precision}}.zip' o.scofo~
-          zip -r 'max-${{env.LIBNAME}}-windows.zip' max
+          cp -r max o.scofo~
+          zip -r 'max-${{env.LIBNAME}}-windows.zip' o.scofo~
       - name: Release Pd External
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
