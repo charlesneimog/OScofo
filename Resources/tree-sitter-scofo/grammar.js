@@ -34,6 +34,8 @@ module.exports = grammar({
                     // Time Configuration
                     alias(token("BPM"), $.keyword),
                     alias(token("PhaseCoupling"), $.keyword),
+                    alias(token("PhaseCoupling"), $.keyword),
+
                     alias(token("SyncStrength"), $.keyword),
 
                     // Score
@@ -41,7 +43,7 @@ module.exports = grammar({
 
                     // Listening module
                     alias(choice(token("ENTROPY"), token("Entropy")), $.keyword),
-                    alias(token("PitchSigma"), $.keyword),
+                    alias(choice(token("PitchSigma"), token("VARIANCE")), $.keyword),
 
                     // Audio
                     alias(token("FFTSize"), $.keyword),

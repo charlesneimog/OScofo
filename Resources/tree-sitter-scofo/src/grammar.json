@@ -201,6 +201,18 @@
               "type": "TOKEN",
               "content": {
                 "type": "STRING",
+                "value": "PhaseCoupling"
+              }
+            },
+            "named": true,
+            "value": "keyword"
+          },
+          {
+            "type": "ALIAS",
+            "content": {
+              "type": "TOKEN",
+              "content": {
+                "type": "STRING",
                 "value": "SyncStrength"
               }
             },
@@ -246,11 +258,23 @@
           {
             "type": "ALIAS",
             "content": {
-              "type": "TOKEN",
-              "content": {
-                "type": "STRING",
-                "value": "PitchSigma"
-              }
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "TOKEN",
+                  "content": {
+                    "type": "STRING",
+                    "value": "PitchSigma"
+                  }
+                },
+                {
+                  "type": "TOKEN",
+                  "content": {
+                    "type": "STRING",
+                    "value": "VARIANCE"
+                  }
+                }
+              ]
             },
             "named": true,
             "value": "keyword"
