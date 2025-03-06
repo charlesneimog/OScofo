@@ -99,12 +99,14 @@ target_include_directories(score_parser PUBLIC Libraries/tree-sitter/lib/include
 # │                 Lua                  │
 # ╰──────────────────────────────────────╯
 if(BUILD_WITH_LUA)
-    add_library(lua STATIC "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lua/onelua.c")
-    set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
-    if(LINUX)
-        target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
+    if(NOT TARGET lua)
+        add_library(lua STATIC "${LIB_DIR}/lua/onelua.c")
+        set_target_properties(lua PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
+        target_compile_definitions(lua PUBLIC "-DMAKE_LIB")
+        target_include_directories(lua PUBLIC "${LIB_DIR}/lua")
     endif()
     add_definitions(-DOSCOFO_LUA)
+
 else()
     message(STATUS "Lua not included")
 endif()
