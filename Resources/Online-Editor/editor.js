@@ -634,7 +634,7 @@ class ScofoOnlineEditor {
                 // process chord not tied
                 if (nextNote !== undefined && nextNote.isChord && !note.isTied) {
                     type = "CHORD";
-                    while (true) {
+                    while (i < allNotes.length - 1) {
                         i++;
                         nextNote = allNotes[i];
                         if (nextNote.isChord) {
